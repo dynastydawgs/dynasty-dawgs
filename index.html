@@ -6811,8 +6811,24 @@ function computeBaseProjection(pid, pos, age, yearsExp, draftRound, draftPick) {
   return { basePpg, floorPpg, ceilPpg, medianPpr, stage, hasOwn, avgDeltaPpg };
 }
 
-// Fixed 11-starter assumption: 2 QB, 2 RB, 3 WR, 1 TE, 3 FLEX (RB/WR/TE).
+// Fallback starter slots used when leagueData.roster_positions is unavailable.
 const DEFAULT_STARTER_SLOTS = ['QB','QB','RB','RB','WR','WR','WR','TE','FLEX','FLEX','FLEX'];
+
+// Returns a human-readable starter summary from the actual league roster settings.
+// e.g. "11-starter lineup (2 QB · 2 RB · 3 WR · 1 TE · 3 FLEX)"
+function _starterSummaryLabel() {
+  const slots = (leagueData?.roster_positions ?? DEFAULT_STARTER_SLOTS)
+    .filter(p => p !== 'BN' && p !== 'IR');
+  const counts = {};
+  for (const s of slots) counts[s] = (counts[s] ?? 0) + 1;
+  const ORDER = ['QB','RB','WR','TE','K','FLEX','REC_FLEX','SUPER_FLEX','IDP_FLEX'];
+  const parts = ORDER.filter(p => counts[p]).map(p => `${counts[p]} ${p}`);
+  // Any slot types not in ORDER (edge cases) appended at the end
+  for (const [p, n] of Object.entries(counts)) {
+    if (!ORDER.includes(p)) parts.push(`${n} ${p}`);
+  }
+  return `${slots.length}-starter lineup (${parts.join(' · ')})`;
+}
 
 // Build optimal projected lineup from a roster, return starter set + bench info
 function buildOptimalLineup(rosterPids) {
@@ -7357,7 +7373,7 @@ async function renderLeagueProjections() {
       <div id="sim-results-wrap"></div>
     </div>
     <div class="data-source" style="margin-bottom:6px;">
-      Projection model · Optimal ${DEFAULT_STARTER_SLOTS.length}-starter lineup (2 QB · 2 RB · 3 WR · 1 TE · 3 FLEX) ·
+      Projection model · Optimal ${_starterSummaryLabel()} ·
       PPG = projected fantasy points per game (PPR) ·
       <span style="color:#f5c842;">★</span> = in optimal lineup · ☆ = force into lineup · − = force to bench
     </div>
