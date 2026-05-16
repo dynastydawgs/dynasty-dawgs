@@ -3559,6 +3559,11 @@ const AVG_CARRY_KEY   = 'dynasty_hub_avg_carry_pct_v1'; // stored avg RB carry s
 const DATA_BASE_URL = './data';
 let compDB      = {};   // "POS_tier_carYr" → [p15,p50,p85]
 let careerDB    = {};   // pid → [{season,ppr,ppg,games}]
+
+// Bulk season stats cache — populated once before preWarmProjectionCache runs.
+// Maps pid → flat stats object so fetchSleeperStats() reads from memory
+// instead of making 150+ individual API calls during the prewarm.
+let _bulkStatsCache = null; // null = not yet fetched
 let dbReady     = false;
 // § 14b  Carry share benchmark
 // _rbCarryPool is populated during runProjection (headless + visible).
@@ -3810,6 +3815,31 @@ async function fetchPlayerProjection(pid) {
 }
 
 let _prewarmPromise = null;
+// Pre-fetches current + prior season stats in 2 parallel bulk calls.
+// Replaces ~150 individual per-player Sleeper fetches with a single in-memory lookup.
+// fetchSleeperStats() checks this cache first — prewarm goes from ~2min → ~15s.
+async function _loadBulkStats() {
+  if (_bulkStatsCache) return; // already loaded
+  const curYear  = new Date().getFullYear();
+  const prevYear = curYear - 1;
+  const opts     = 'season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&order_by=pts_ppr';
+  const [cur, prev] = await Promise.all([
+    fetch(`https://api.sleeper.app/stats/nfl/${curYear}?${opts}`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+    fetch(`https://api.sleeper.app/stats/nfl/${prevYear}?${opts}`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+  ]);
+  _bulkStatsCache = {};
+  // Load prior year first, then overwrite with current-year data where it exists
+  for (const [pid, st] of Object.entries(prev ?? {})) {
+    if (st && Object.values(st).some(v => typeof v === 'number' && v > 0))
+      _bulkStatsCache[pid] = { ...st, _bulkSeason: String(prevYear) };
+  }
+  for (const [pid, st] of Object.entries(cur ?? {})) {
+    if (st && Object.values(st).some(v => typeof v === 'number' && v > 0))
+      _bulkStatsCache[pid] = { ...st, _bulkSeason: String(curYear) };
+  }
+  console.log(`[BulkStats] Cached ${Object.keys(_bulkStatsCache).length} players (${prevYear}+${curYear})`);
+}
+
 async function preWarmProjectionCache() {
   await ensureDB(); // wait for historical DB if it's still building
 
@@ -3834,11 +3864,19 @@ async function preWarmProjectionCache() {
   if (!pids.length) return;
   console.log(`[PreWarm] Warming ${pids.length} player projections…`);
 
-  for (const pid of pids) {
-    try { await fetchPlayerProjection(pid); }
-    catch(e) { console.warn(`[PreWarm] ${pid}:`, e.message); }
-    // 120ms gap keeps well under Sleeper rate limits while finishing ~150 players in ~20s
-    await new Promise(r => setTimeout(r, 120));
+  // Load bulk stats first — 2 API calls instead of 150+ individual fetches.
+  // fetchSleeperStats() will read from _bulkStatsCache, eliminating per-player requests.
+  await _loadBulkStats();
+
+  // Run in parallel batches of 12. ESPN draft calls are the only remaining
+  // per-player network hits (and only for players missing draft data).
+  const BATCH = 12;
+  for (let i = 0; i < pids.length; i += BATCH) {
+    await Promise.all(
+      pids.slice(i, i + BATCH).map(pid =>
+        fetchPlayerProjection(pid).catch(e => console.warn(`[PreWarm] ${pid}:`, e.message))
+      )
+    );
   }
 
   // After processing all rostered players, finalize the avg carry share.
@@ -5320,8 +5358,15 @@ window.resetProjectionDB = function() {
 // Shared by § 14k (runProjection) and § 15 (similarity) —
 // ── fetchSleeperStats ──
 // Fetches a single player's season stats from Sleeper.
-// Returns the flat stats object (pts_ppr, rec_yd, games, etc.) or null on failure.
+// Checks _bulkStatsCache first (populated by _loadBulkStats during prewarm)
+// so the prewarm loop hits memory instead of 150+ individual API calls.
+// Falls back to a direct per-player fetch for individual profile views or
+// seasons not covered by the bulk cache.
 async function fetchSleeperStats(pid, season) {
+  // Cache hit — return immediately without a network call
+  const cached = _bulkStatsCache?.[pid];
+  if (cached && cached._bulkSeason === String(season)) return cached;
+
   try {
     const url = `https://api.sleeper.app/stats/nfl/player/${pid}?season_type=regular&season=${season}&grouping=season`;
     const res = await fetch(url);
