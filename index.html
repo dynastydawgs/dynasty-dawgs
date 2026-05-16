@@ -2971,6 +2971,60 @@ async function loadPlayerProfile(pid) {
 
   // ── Workload section (RBs) — calculated from Sleeper stats ──
   let workloadHTML = '';
+
+  // ── Injury Likelihood (computed for all positions from careerDB) ──────────
+  const _schedGms      = yr => yr >= 2021 ? 17 : 16;
+  const _injSeasons    = careerDB?.[pid] ?? [];
+  let _injTotalPlayed  = 0, _injTotalExpected = 0;
+  for (const s of _injSeasons) {
+    const exp = _schedGms(s.season);
+    _injTotalPlayed   += Math.min(s.games ?? 0, exp);
+    _injTotalExpected += exp;
+  }
+  const _injMissRate   = _injTotalExpected > 0 ? (_injTotalExpected - _injTotalPlayed) / _injTotalExpected : 0;
+  const _injProjMissed = +(_injMissRate * 17).toFixed(1);
+  const _injRisk = _injProjMissed < 1 ? {label:'Low Risk',      color:'var(--green)' }
+                 : _injProjMissed < 3 ? {label:'Moderate Risk', color:'var(--accent)'}
+                 : _injProjMissed < 5 ? {label:'High Risk',     color:'var(--orange)'}
+                 :                      {label:'Very High Risk', color:'var(--red)'  };
+  const _injStatus     = (sp?.injury_status ?? '').toLowerCase();
+  const _injBadge      = _injStatus === 'ir'           ? 'IR'
+                       : _injStatus === 'pup'          ? 'PUP'
+                       : _injStatus === 'out'          ? 'Out'
+                       : _injStatus === 'doubtful'     ? 'Doubtful'
+                       : _injStatus === 'questionable' ? 'Questionable'
+                       : '';
+  const _injSeasonCount = _injSeasons.length;
+  const _injAvgGp = _injSeasonCount > 0 ? +(_injTotalPlayed / _injSeasonCount).toFixed(1) : null;
+  const _injBarW  = Math.min(100, (_injProjMissed / 8) * 100).toFixed(1);
+  const injCardHTML = _injSeasonCount > 0 ? `
+        <div class="pp-wl-row-label" style="margin-top:14px;">Injury Likelihood</div>
+        <div class="pp-wl-cards" style="${_injBadge ? '' : 'max-width:66%;'}">
+          <div class="pp-wl-card" style="border-left-color:${_injRisk.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Proj Missed Games</span>
+              <span class="pp-wl-card-cls" style="color:${_injRisk.color};">${_injRisk.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${_injRisk.color};">${_injProjMissed}<span> g</span></div>
+            <div class="pp-wl-track">
+              <div class="pp-wl-fill"     style="width:${_injBarW}%;background:${_injRisk.color};"></div>
+              <div class="pp-wl-avg-tick" style="left:25%;"></div>
+              <div class="pp-wl-dot"      style="left:${_injBarW}%;background:${_injRisk.color};box-shadow:0 0 6px ${_injRisk.color};"></div>
+            </div>
+            <div class="pp-wl-scale"><span>0g</span><span class="pp-wl-avg-label" style="left:25%;">AVG ~2g</span><span>8g+</span></div>
+            <div class="pp-wl-card-sub">${_injAvgGp ?? '?'} avg gp/szn · ${_injSeasonCount} season${_injSeasonCount !== 1 ? 's' : ''} · ${Math.round(_injMissRate * 100)}% hist miss rate</div>
+          </div>
+          ${_injBadge ? `
+          <div class="pp-wl-card" style="border-left-color:${_injRisk.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Current Status</span>
+              <span class="pp-wl-card-cls" style="color:${_injRisk.color};">${_injBadge}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${_injRisk.color};font-size:20px;padding:6px 0;">${['IR','PUP'].includes(_injBadge) ? '🏥' : '⚠️'} ${_injBadge}</div>
+            <div class="pp-wl-card-sub">Per Sleeper roster data · Verify official team report</div>
+          </div>` : ''}
+        </div>` : '';
+
   if (pos === 'RB' && hasStats) {
     const rushAtt    = +(stats.rush_att ?? 0);
     const tgts       = +(stats.rec_tgt  ?? 0);
@@ -3100,6 +3154,27 @@ async function loadPlayerProfile(pid) {
                    : ptsPerTouch >= 0.65   ? { label: 'Below Avg',    color: 'var(--orange)'  }
                    :                         { label: 'Poor',         color: 'var(--red)'     };
 
+    // Ground Game: Yards Per Carry + Red Zone Carries
+    const rushYd    = +(stats.rush_yd ?? 0);
+    const rzAtt     = +(stats.rz_att  ?? 0);
+    const rushTd    = +(stats.rush_td ?? 0);
+    const ypc       = rushAtt > 0 ? Math.round(rushYd / rushAtt * 10) / 10 : null;
+    const avgYpc    = 4.3;
+    const ypcClass  = !ypc           ? {label:'No Data',    color:'var(--text-dim)'}
+                    : ypc >= 5.5    ? {label:'Explosive',  color:'var(--green)'  }
+                    : ypc >= 4.5    ? {label:'Above Avg',  color:'var(--blue)'   }
+                    : ypc >= 3.8    ? {label:'Average',    color:'var(--accent)' }
+                    : ypc >= 3.0    ? {label:'Below Avg',  color:'var(--orange)' }
+                    :                 {label:'Inefficient',color:'var(--red)'    };
+    const rzAttPg   = rzAtt > 0 ? (rzAtt / gp).toFixed(1) : null;
+    const avgRzAttPg = 3.5;
+    const rzClass   = !rzAttPg           ? {label:'No Data',   color:'var(--text-dim)'}
+                    : +rzAttPg >= 5.5   ? {label:'Goal-Line', color:'var(--green)'  }
+                    : +rzAttPg >= 4.0   ? {label:'High',      color:'var(--blue)'   }
+                    : +rzAttPg >= 2.5   ? {label:'Average',   color:'var(--accent)' }
+                    : +rzAttPg >= 1.5   ? {label:'Limited',   color:'var(--orange)' }
+                    :                     {label:'Minimal',   color:'var(--red)'    };
+
     const snapCard = hasSnap
       ? `<div class="pp-wl-card" style="border-left-color:${snapClass.color};">
            <div class="pp-wl-card-header">
@@ -3188,7 +3263,38 @@ async function loadPlayerProfile(pid) {
                  <div class="pp-wl-card-sub">Not in Sleeper data</div>
                </div>`
           }
+          ${ypc !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${ypcClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Yards / Carry</span>
+                   <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
+                 ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Yards / Carry</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
+               </div>`}
+          ${rzAttPg !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${rzClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">RZ Carries / Game</span>
+                   <span class="pp-wl-card-cls" style="color:${rzClass.color};">${rzClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${rzClass.color};">${rzAttPg}<span>/g</span></div>
+                 ${mkBarVal(+rzAttPg, 8, avgRzAttPg, rzClass.color, '/g')}
+                 <div class="pp-wl-card-sub">${rzAtt} total RZ carries · ${rushTd} rush TDs</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">RZ Carries / Game</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
+               </div>`}
         </div>
+        ${injCardHTML}
 
       </div>`;
   }
@@ -3224,6 +3330,26 @@ async function loadPlayerProfile(pid) {
     const airYdShare  = airYd > 0 ? Math.round(airYdPg / avgTeamAirYdPg * 1000) / 10 : null;
     const ydsTgt      = tgts > 0  ? Math.round(recYd / tgts * 10) / 10 : null;
     const catchPct    = tgts > 0  ? Math.round(rec / tgts * 1000) / 10 : null;
+
+    // ADOT + Red Zone
+    const adot       = tgts > 0 && airYd > 0 ? Math.round(airYd / tgts * 10) / 10 : null;
+    const avgAdot    = 9.8;
+    const adotClass  = !adot           ? {label:'No Data',      color:'var(--text-dim)'}
+                     : adot >= 16     ? {label:'Deep Threat',  color:'var(--green)'  }
+                     : adot >= 12     ? {label:'Vertical',     color:'var(--blue)'   }
+                     : adot >= 9      ? {label:'Balanced',     color:'var(--accent)' }
+                     : adot >= 6      ? {label:'Underneath',   color:'var(--orange)' }
+                     :                  {label:'Screen Route', color:'var(--red)'    };
+    const rzTgt      = +(stats.rz_tgt ?? 0);
+    const recTd      = +(stats.rec_td  ?? 0);
+    const rzTgtPg    = rzTgt > 0 ? (rzTgt / gp).toFixed(1) : null;
+    const avgRzTgtPg = 2.0;
+    const rzWrClass  = !rzTgtPg           ? {label:'No Data',  color:'var(--text-dim)'}
+                     : +rzTgtPg >= 3.5   ? {label:'Elite',    color:'var(--green)'  }
+                     : +rzTgtPg >= 2.5   ? {label:'High',     color:'var(--blue)'   }
+                     : +rzTgtPg >= 1.5   ? {label:'Average',  color:'var(--accent)' }
+                     : +rzTgtPg >= 0.8   ? {label:'Limited',  color:'var(--orange)' }
+                     :                     {label:'Minimal',  color:'var(--red)'    };
 
     // ── Classifications ──
     const snapClass   = !hasSnap        ? { label:'No Data',          color:'var(--text-dim)' }
@@ -3401,6 +3527,468 @@ async function loadPlayerProfile(pid) {
           </div>
         </div>
 
+        <div class="pp-wl-row-label" style="margin-top:14px;">Route Profile &amp; Red Zone</div>
+        <div class="pp-wl-cards">
+          ${adot !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${adotClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Avg Depth of Tgt</span>
+                   <span class="pp-wl-card-cls" style="color:${adotClass.color};">${adotClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${adotClass.color};">${adot}<span> yds</span></div>
+                 ${mkBarVal(adot, 22, avgAdot, adotClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${airYd} total air yds on ${tgts} tgts</div>
+               </div>`
+            : noDataCard('Avg Depth of Tgt')}
+          ${rzTgtPg !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${rzWrClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">RZ Targets / Game</span>
+                   <span class="pp-wl-card-cls" style="color:${rzWrClass.color};">${rzWrClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${rzWrClass.color};">${rzTgtPg}<span>/g</span></div>
+                 ${mkBarVal(+rzTgtPg, 6, avgRzTgtPg, rzWrClass.color, '/g')}
+                 <div class="pp-wl-card-sub">${rzTgt} total RZ tgts · ${recTd} rec TDs</div>
+               </div>`
+            : noDataCard('RZ Targets / Game')}
+        </div>
+        ${injCardHTML}
+
+      </div>`;
+  }
+
+  // ── Workload section (TEs) ────────────────────────────────────────────────
+  if (pos === 'TE' && hasStats) {
+    const tgts     = +(stats.rec_tgt   ?? 0);
+    const rec      = +(stats.rec       ?? 0);
+    const recYd    = +(stats.rec_yd    ?? 0);
+    const airYd    = +(stats.rec_air_yd ?? 0);
+    const offSnp   = +(stats.off_snp   ?? 0);
+    const tmOffSnp = +(stats.tm_off_snp ?? 0);
+    const rzTgt    = +(stats.rz_tgt    ?? 0);
+    const recTd    = +(stats.rec_td    ?? 0);
+    const gp       = Math.max(1, actualGames);
+
+    // TE-specific NFL averages
+    const avgTeamTgtPg   = 33.5;
+    const avgTeamAirYdPg = 215;
+    const avgSnapPct     = 65;   // TEs see more rotation than WRs
+    const avgTgtShare    = 12;   // TE1 avg target share %
+    const avgAirYdShare  = 12;   // TE1 avg air yard share %
+    const avgYdsTgt      = 7.5;  // shorter routes than WRs
+    const avgCatchPct    = 68;   // TEs are generally reliable catchers
+    const avgTgtPg       = 5.0;
+    const avgRzTgtPg     = 2.0;  // TEs are favored in red zone
+
+    const tgtPg      = tgts / gp;
+    const airYdPg    = airYd / gp;
+    const hasSnap    = offSnp > 0 && tmOffSnp > 0;
+    const snapPct    = hasSnap ? Math.round(offSnp / tmOffSnp * 1000) / 10 : null;
+    const tgtSharePct = Math.round(tgtPg / avgTeamTgtPg * 1000) / 10;
+    const airYdShare  = airYd > 0 ? Math.round(airYdPg / avgTeamAirYdPg * 1000) / 10 : null;
+    const ydsTgt      = tgts > 0 ? Math.round(recYd / tgts * 10) / 10 : null;
+    const catchPct    = tgts > 0 ? Math.round(rec  / tgts * 1000) / 10 : null;
+    const adot        = tgts > 0 && airYd > 0 ? Math.round(airYd / tgts * 10) / 10 : null;
+    const rzTgtPg     = rzTgt > 0 ? (rzTgt / gp).toFixed(1) : null;
+
+    // Classifications (TE thresholds)
+    const snapClass    = !hasSnap       ? {label:'No Data',        color:'var(--text-dim)'}
+                       : snapPct >= 80  ? {label:'Every-Down',     color:'var(--green)'  }
+                       : snapPct >= 65  ? {label:'Featured',       color:'var(--blue)'   }
+                       : snapPct >= 50  ? {label:'Rotational',     color:'var(--accent)' }
+                       : snapPct >= 35  ? {label:'Limited',        color:'var(--orange)' }
+                       :                  {label:'Minimal',        color:'var(--red)'    };
+
+    const tgtShareClass = tgtSharePct >= 20 ? {label:'Alpha TE',   color:'var(--green)'  }
+                        : tgtSharePct >= 14 ? {label:'TE1',        color:'var(--blue)'   }
+                        : tgtSharePct >= 9  ? {label:'TE2',        color:'var(--accent)' }
+                        : tgtSharePct >= 5  ? {label:'Rotational', color:'var(--orange)' }
+                        :                     {label:'Depth',      color:'var(--red)'    };
+
+    const airYdClass  = !airYdShare          ? {label:'No Data',  color:'var(--text-dim)'}
+                      : airYdShare >= 18     ? {label:'Elite',    color:'var(--green)'  }
+                      : airYdShare >= 12     ? {label:'High',     color:'var(--blue)'   }
+                      : airYdShare >= 8      ? {label:'Average',  color:'var(--accent)' }
+                      : airYdShare >= 4      ? {label:'Limited',  color:'var(--orange)' }
+                      :                        {label:'Minimal',  color:'var(--red)'    };
+
+    const ydsTgtClass = !ydsTgt             ? {label:'No Data',       color:'var(--text-dim)'}
+                      : ydsTgt >= 10        ? {label:'Yards After C', color:'var(--green)'  }
+                      : ydsTgt >= 8         ? {label:'Above Avg',     color:'var(--blue)'   }
+                      : ydsTgt >= 6.5       ? {label:'Average',       color:'var(--accent)' }
+                      : ydsTgt >= 5         ? {label:'Below Avg',     color:'var(--orange)' }
+                      :                       {label:'Low',           color:'var(--red)'    };
+
+    const catchClass  = !catchPct           ? {label:'No Data',       color:'var(--text-dim)'}
+                      : catchPct >= 78      ? {label:'Elite Hands',   color:'var(--green)'  }
+                      : catchPct >= 68      ? {label:'Reliable',      color:'var(--blue)'   }
+                      : catchPct >= 58      ? {label:'Average',       color:'var(--accent)' }
+                      : catchPct >= 50      ? {label:'Inconsistent',  color:'var(--orange)' }
+                      :                       {label:'Drops Concern', color:'var(--red)'    };
+
+    const tgtPgClass  = tgtPg >= 8          ? {label:'Elite Volume',  color:'var(--green)'  }
+                      : tgtPg >= 6          ? {label:'TE1 Volume',    color:'var(--blue)'   }
+                      : tgtPg >= 4          ? {label:'Average',       color:'var(--accent)' }
+                      : tgtPg >= 2.5        ? {label:'Low',           color:'var(--orange)' }
+                      :                       {label:'Minimal',       color:'var(--red)'    };
+
+    const rzClass     = !rzTgtPg            ? {label:'No Data',  color:'var(--text-dim)'}
+                      : +rzTgtPg >= 3.0    ? {label:'Elite',    color:'var(--green)'  }
+                      : +rzTgtPg >= 2.0    ? {label:'High',     color:'var(--blue)'   }
+                      : +rzTgtPg >= 1.2    ? {label:'Average',  color:'var(--accent)' }
+                      : +rzTgtPg >= 0.6    ? {label:'Limited',  color:'var(--orange)' }
+                      :                      {label:'Minimal',  color:'var(--red)'    };
+
+    const adotClass   = !adot              ? {label:'No Data',      color:'var(--text-dim)'}
+                      : adot >= 12        ? {label:'Seam Runner',  color:'var(--green)'  }
+                      : adot >= 9         ? {label:'Balanced',     color:'var(--blue)'   }
+                      : adot >= 6         ? {label:'Underneath',   color:'var(--accent)' }
+                      :                     {label:'Checkdown',    color:'var(--red)'    };
+
+    const teRoleTag   = tgtSharePct >= 18 && (rzTgtPg ?? 0) >= 2.5
+                        ? {label:'Dominant Receiving TE', color:'var(--green)' }
+                      : tgtSharePct >= 18
+                        ? {label:'Alpha Receiving TE',    color:'var(--green)' }
+                      : tgtSharePct >= 12 && (rzTgtPg ?? 0) >= 2.0
+                        ? {label:'Red Zone Weapon',       color:'var(--blue)'  }
+                      : tgtSharePct >= 12
+                        ? {label:'Reliable TE1',          color:'var(--blue)'  }
+                      : tgtSharePct >= 8
+                        ? {label:'TE2 / Flex',            color:'var(--accent)'}
+                      :   {label:'Depth / Blocker',       color:'var(--orange)'};
+
+    const mkBar = (pct, maxPct, avgPct, color) => {
+      const fillW  = Math.min(pct / maxPct * 100, 100).toFixed(1);
+      const avgPos = Math.min(avgPct / maxPct * 100, 100).toFixed(1);
+      return `
+        <div class="pp-wl-track">
+          <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
+          <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
+          <div class="pp-wl-dot"      style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
+        </div>
+        <div class="pp-wl-scale">
+          <span>0%</span>
+          <span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgPct}%</span>
+          <span>${maxPct}%</span>
+        </div>`;
+    };
+    const mkBarVal = (val, maxVal, avgVal, color, unit) => {
+      const fillW  = Math.min(val / maxVal * 100, 100).toFixed(1);
+      const avgPos = Math.min(avgVal / maxVal * 100, 100).toFixed(1);
+      return `
+        <div class="pp-wl-track">
+          <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
+          <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
+          <div class="pp-wl-dot"      style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
+        </div>
+        <div class="pp-wl-scale">
+          <span>0</span>
+          <span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgVal}${unit}</span>
+          <span>${maxVal}${unit}</span>
+        </div>`;
+    };
+    const noDataCard = label => `
+      <div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+        <div class="pp-wl-card-header"><span class="pp-wl-card-label">${label}</span></div>
+        <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+        <div class="pp-wl-card-sub">Not in Sleeper data</div>
+      </div>`;
+
+    workloadHTML = `
+      <div class="pp-workload-section">
+        <div class="pp-workload-header">
+          <span class="pp-workload-title">// ${statSeason ?? '2025'} WORKLOAD</span>
+          <span class="pp-wl-role-tag" style="color:${teRoleTag.color};border-color:${teRoleTag.color};background:${teRoleTag.color}18;">${teRoleTag.label}</span>
+        </div>
+
+        <div class="pp-wl-row-label">Opportunity</div>
+        <div class="pp-wl-cards">
+          ${hasSnap
+            ? `<div class="pp-wl-card" style="border-left-color:${snapClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Snap %</span>
+                   <span class="pp-wl-card-cls" style="color:${snapClass.color};">${snapClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${snapClass.color};">${snapPct}<span>%</span></div>
+                 ${mkBar(snapPct, 100, avgSnapPct, snapClass.color)}
+                 <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total</div>
+               </div>`
+            : noDataCard('Snap %')}
+          <div class="pp-wl-card" style="border-left-color:${tgtShareClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Target Share</span>
+              <span class="pp-wl-card-cls" style="color:${tgtShareClass.color};">${tgtShareClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${tgtShareClass.color};">${tgtSharePct}<span>%</span></div>
+            ${mkBar(tgtSharePct, 30, avgTgtShare, tgtShareClass.color)}
+            <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total</div>
+          </div>
+          ${airYdShare !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${airYdClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Air Yard Share</span>
+                   <span class="pp-wl-card-cls" style="color:${airYdClass.color};">${airYdClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${airYdClass.color};">${airYdShare}<span>%</span></div>
+                 ${mkBar(airYdShare, 30, avgAirYdShare, airYdClass.color)}
+                 <div class="pp-wl-card-sub">${airYdPg.toFixed(0)} air yds/g · ${airYd} total</div>
+               </div>`
+            : noDataCard('Air Yard Share')}
+        </div>
+
+        <div class="pp-wl-row-label" style="margin-top:14px;">Efficiency</div>
+        <div class="pp-wl-cards">
+          ${ydsTgt !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${ydsTgtClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Yards / Target</span>
+                   <span class="pp-wl-card-cls" style="color:${ydsTgtClass.color};">${ydsTgtClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${ydsTgtClass.color};">${ydsTgt}<span> yds</span></div>
+                 ${mkBarVal(ydsTgt, 15, avgYdsTgt, ydsTgtClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${recYd} yds on ${tgts} tgt</div>
+               </div>`
+            : noDataCard('Yards / Target')}
+          ${catchPct !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${catchClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Catch %</span>
+                   <span class="pp-wl-card-cls" style="color:${catchClass.color};">${catchClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${catchClass.color};">${catchPct}<span>%</span></div>
+                 ${mkBar(catchPct, 100, avgCatchPct, catchClass.color)}
+                 <div class="pp-wl-card-sub">${rec} rec on ${tgts} tgt</div>
+               </div>`
+            : noDataCard('Catch %')}
+          <div class="pp-wl-card" style="border-left-color:${tgtPgClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Targets / Game</span>
+              <span class="pp-wl-card-cls" style="color:${tgtPgClass.color};">${tgtPgClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${tgtPgClass.color};">${tgtPg.toFixed(1)}<span>/g</span></div>
+            ${mkBarVal(tgtPg, 11, avgTgtPg, tgtPgClass.color, '/g')}
+            <div class="pp-wl-card-sub">${tgts} total tgt · ${gp} games</div>
+          </div>
+        </div>
+
+        <div class="pp-wl-row-label" style="margin-top:14px;">Route Profile &amp; Red Zone</div>
+        <div class="pp-wl-cards">
+          ${adot !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${adotClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Avg Depth of Tgt</span>
+                   <span class="pp-wl-card-cls" style="color:${adotClass.color};">${adotClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${adotClass.color};">${adot}<span> yds</span></div>
+                 ${mkBarVal(adot, 18, 8.5, adotClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${airYd} total air yds on ${tgts} tgts</div>
+               </div>`
+            : noDataCard('Avg Depth of Tgt')}
+          ${rzTgtPg !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${rzClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">RZ Targets / Game</span>
+                   <span class="pp-wl-card-cls" style="color:${rzClass.color};">${rzClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${rzClass.color};">${rzTgtPg}<span>/g</span></div>
+                 ${mkBarVal(+rzTgtPg, 5, avgRzTgtPg, rzClass.color, '/g')}
+                 <div class="pp-wl-card-sub">${rzTgt} total RZ tgts · ${recTd} rec TDs</div>
+               </div>`
+            : noDataCard('RZ Targets / Game')}
+        </div>
+        ${injCardHTML}
+
+      </div>`;
+  }
+
+  // ── Workload section (QBs) ────────────────────────────────────────────────
+  if (pos === 'QB' && hasStats) {
+    const passAtt  = +(stats.pass_att ?? 0);
+    const passCmp  = +(stats.pass_cmp ?? 0);
+    const passYd   = +(stats.pass_yd  ?? 0);
+    const passTd   = +(stats.pass_td  ?? 0);
+    const passInt  = +(stats.pass_int ?? 0);
+    const rushAtt  = +(stats.rush_att ?? 0);
+    const rushYd   = +(stats.rush_yd  ?? 0);
+    const rushTd   = +(stats.rush_td  ?? 0);
+    const offSnp   = +(stats.off_snp  ?? 0);
+    const tmOffSnp = +(stats.tm_off_snp ?? 0);
+    const gp       = Math.max(1, actualGames);
+
+    // NFL averages (starting QB)
+    const avgCmpPct  = 66;    // completion %
+    const avgYpa     = 7.2;   // yards per attempt
+    const avgYdPg    = 240;   // passing yards per game
+    const avgTdIntR  = 2.5;   // TD:INT ratio
+    const avgAttPg   = 34;    // pass attempts per game
+    const avgSnapPct = 98;    // starters see near-full snaps
+
+    const hasSnap    = offSnp > 0 && tmOffSnp > 0;
+    const snapPct    = hasSnap ? Math.round(offSnp / tmOffSnp * 1000) / 10 : null;
+    const cmpPct     = passAtt > 0 ? Math.round(passCmp / passAtt * 1000) / 10 : null;
+    const ypa        = passAtt > 0 ? Math.round(passYd  / passAtt * 10) / 10 : null;
+    const ydPg       = passYd / gp;
+    const attPg      = passAtt / gp;
+    const tdIntRatio = passInt > 0 ? Math.round(passTd / passInt * 10) / 10 : (passTd > 0 ? passTd : null);
+    const rushYdPg   = rushYd / gp;
+
+    // Classifications
+    const cmpClass   = !cmpPct          ? {label:'No Data',      color:'var(--text-dim)'}
+                     : cmpPct >= 72    ? {label:'Elite Acc.',    color:'var(--green)'  }
+                     : cmpPct >= 67    ? {label:'Above Avg',     color:'var(--blue)'   }
+                     : cmpPct >= 62    ? {label:'Average',       color:'var(--accent)' }
+                     : cmpPct >= 57    ? {label:'Below Avg',     color:'var(--orange)' }
+                     :                   {label:'Struggling',    color:'var(--red)'    };
+
+    const ypaClass   = !ypa             ? {label:'No Data',      color:'var(--text-dim)'}
+                     : ypa >= 8.5     ? {label:'Elite',         color:'var(--green)'  }
+                     : ypa >= 7.5     ? {label:'Above Avg',     color:'var(--blue)'   }
+                     : ypa >= 6.5     ? {label:'Average',       color:'var(--accent)' }
+                     : ypa >= 5.5     ? {label:'Below Avg',     color:'var(--orange)' }
+                     :                   {label:'Poor',          color:'var(--red)'    };
+
+    const ydPgClass  = ydPg >= 300    ? {label:'Elite Volume',  color:'var(--green)'  }
+                     : ydPg >= 250    ? {label:'Above Avg',     color:'var(--blue)'   }
+                     : ydPg >= 210    ? {label:'Average',       color:'var(--accent)' }
+                     : ydPg >= 170    ? {label:'Below Avg',     color:'var(--orange)' }
+                     :                   {label:'Low',           color:'var(--red)'    };
+
+    const tdIntClass = !tdIntRatio      ? {label:'No Data',      color:'var(--text-dim)'}
+                     : tdIntRatio >= 4 ? {label:'Elite',        color:'var(--green)'  }
+                     : tdIntRatio >= 3 ? {label:'Above Avg',    color:'var(--blue)'   }
+                     : tdIntRatio >= 2 ? {label:'Average',      color:'var(--accent)' }
+                     : tdIntRatio >= 1 ? {label:'Ball-Hawk Risk',color:'var(--orange)'}
+                     :                   {label:'Turnover Prone',color:'var(--red)'   };
+
+    const rushClass  = rushYdPg >= 40  ? {label:'Dual-Threat',  color:'var(--green)'  }
+                     : rushYdPg >= 20  ? {label:'Mobile',       color:'var(--blue)'   }
+                     : rushYdPg >= 8   ? {label:'Scrambler',    color:'var(--accent)' }
+                     :                   {label:'Pocket Passer', color:'var(--text-muted)'};
+
+    const qbRoleTag  = (cmpPct ?? 0) >= 68 && (ypa ?? 0) >= 7.8
+                       ? {label:'Elite Passer',      color:'var(--green)' }
+                     : (cmpPct ?? 0) >= 65 && (ypa ?? 0) >= 7.0
+                       ? {label:'Solid Starter',     color:'var(--blue)'  }
+                     : rushYdPg >= 35 && (cmpPct ?? 0) >= 62
+                       ? {label:'Dual-Threat QB',    color:'var(--blue)'  }
+                     : rushYdPg >= 35
+                       ? {label:'Athletic QB',       color:'var(--accent)'}
+                     : (cmpPct ?? 0) >= 60
+                       ? {label:'Game Manager',      color:'var(--accent)'}
+                     :   {label:'Needs Development', color:'var(--orange)'};
+
+    const mkBar = (pct, maxPct, avgPct, color) => {
+      const fillW  = Math.min(pct / maxPct * 100, 100).toFixed(1);
+      const avgPos = Math.min(avgPct / maxPct * 100, 100).toFixed(1);
+      return `
+        <div class="pp-wl-track">
+          <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
+          <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
+          <div class="pp-wl-dot"      style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
+        </div>
+        <div class="pp-wl-scale">
+          <span>0%</span>
+          <span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgPct}%</span>
+          <span>${maxPct}%</span>
+        </div>`;
+    };
+    const mkBarVal = (val, maxVal, avgVal, color, unit) => {
+      const fillW  = Math.min(val / maxVal * 100, 100).toFixed(1);
+      const avgPos = Math.min(avgVal / maxVal * 100, 100).toFixed(1);
+      return `
+        <div class="pp-wl-track">
+          <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
+          <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
+          <div class="pp-wl-dot"      style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
+        </div>
+        <div class="pp-wl-scale">
+          <span>0</span>
+          <span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgVal}${unit}</span>
+          <span>${maxVal}${unit}</span>
+        </div>`;
+    };
+    const noDataCard = label => `
+      <div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+        <div class="pp-wl-card-header"><span class="pp-wl-card-label">${label}</span></div>
+        <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+        <div class="pp-wl-card-sub">Not in Sleeper data</div>
+      </div>`;
+
+    workloadHTML = `
+      <div class="pp-workload-section">
+        <div class="pp-workload-header">
+          <span class="pp-workload-title">// ${statSeason ?? '2025'} PASSING</span>
+          <span class="pp-wl-role-tag" style="color:${qbRoleTag.color};border-color:${qbRoleTag.color};background:${qbRoleTag.color}18;">${qbRoleTag.label}</span>
+        </div>
+
+        <div class="pp-wl-row-label">Passing Efficiency</div>
+        <div class="pp-wl-cards">
+          ${cmpPct !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${cmpClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Completion %</span>
+                   <span class="pp-wl-card-cls" style="color:${cmpClass.color};">${cmpClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${cmpClass.color};">${cmpPct}<span>%</span></div>
+                 ${mkBar(cmpPct, 85, avgCmpPct, cmpClass.color)}
+                 <div class="pp-wl-card-sub">${passCmp} cmp on ${passAtt} att</div>
+               </div>`
+            : noDataCard('Completion %')}
+          ${ypa !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${ypaClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Yards / Attempt</span>
+                   <span class="pp-wl-card-cls" style="color:${ypaClass.color};">${ypaClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${ypaClass.color};">${ypa}<span> yds</span></div>
+                 ${mkBarVal(ypa, 12, avgYpa, ypaClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${passYd} yds on ${passAtt} att</div>
+               </div>`
+            : noDataCard('Yards / Attempt')}
+          <div class="pp-wl-card" style="border-left-color:${ydPgClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Pass Yds / Game</span>
+              <span class="pp-wl-card-cls" style="color:${ydPgClass.color};">${ydPgClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${ydPgClass.color};">${ydPg.toFixed(0)}<span>/g</span></div>
+            ${mkBarVal(ydPg, 380, avgYdPg, ydPgClass.color, '/g')}
+            <div class="pp-wl-card-sub">${passYd} total yds · ${gp} games</div>
+          </div>
+        </div>
+
+        <div class="pp-wl-row-label" style="margin-top:14px;">Turnover &amp; Volume</div>
+        <div class="pp-wl-cards">
+          ${tdIntRatio !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${tdIntClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">TD / INT Ratio</span>
+                   <span class="pp-wl-card-cls" style="color:${tdIntClass.color};">${tdIntClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${tdIntClass.color};">${tdIntRatio}<span>:1</span></div>
+                 ${mkBarVal(tdIntRatio, 8, avgTdIntR, tdIntClass.color, ':1')}
+                 <div class="pp-wl-card-sub">${passTd} TDs · ${passInt} INTs</div>
+               </div>`
+            : noDataCard('TD / INT Ratio')}
+          <div class="pp-wl-card" style="border-left-color:${rushClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Rush Yds / Game</span>
+              <span class="pp-wl-card-cls" style="color:${rushClass.color};">${rushClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${rushClass.color};">${rushYdPg.toFixed(0)}<span>/g</span></div>
+            ${mkBarVal(rushYdPg, 80, 15, rushClass.color, '/g')}
+            <div class="pp-wl-card-sub">${rushYd} rush yds · ${rushAtt} att · ${rushTd} TDs</div>
+          </div>
+          <div class="pp-wl-card" style="border-left-color:var(--text-muted);">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Pass Att / Game</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:var(--text);">${attPg.toFixed(0)}<span>/g</span></div>
+            ${mkBarVal(attPg, 55, avgAttPg, 'var(--text-muted)', '/g')}
+            <div class="pp-wl-card-sub">${passAtt} total att · ${gp} games</div>
+          </div>
+        </div>
+        ${injCardHTML}
+
       </div>`;
   }
 
@@ -3500,7 +4088,9 @@ async function loadPlayerProfile(pid) {
 
         <!-- TAB: Advanced -->
         <div class="pp-tab-panel" id="pp-tab-adv" style="display:none; padding:0;">
-          ${workloadHTML || `<div style="padding:48px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">// ADVANCED ANALYTICS — COMING SOON</div>`}
+          ${workloadHTML || (injCardHTML
+            ? `<div class="pp-workload-section">${injCardHTML}</div>`
+            : `<div style="padding:48px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">// ADVANCED ANALYTICS — COMING SOON</div>`)}
         </div>
 
       </div>
