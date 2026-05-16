@@ -7411,7 +7411,7 @@ function _starterSummaryLabel() {
     .filter(p => p !== 'BN' && p !== 'IR');
   const counts = {};
   for (const s of slots) counts[s] = (counts[s] ?? 0) + 1;
-  const ORDER = ['QB','RB','WR','TE','K','FLEX','REC_FLEX','SUPER_FLEX','IDP_FLEX'];
+  const ORDER = ['QB','RB','WR','TE','K','FLEX','WRRB_FLEX','REC_FLEX','SUPER_FLEX','IDP_FLEX'];
   const parts = ORDER.filter(p => counts[p]).map(p => `${counts[p]} ${p}`);
   // Any slot types not in ORDER (edge cases) appended at the end
   for (const [p, n] of Object.entries(counts)) {
@@ -7467,12 +7467,14 @@ function buildOptimalLineup(rosterPids) {
     TE:         ['TE'],
     K:          ['K'],
     FLEX:       ['RB','WR','TE'],
+    WRRB_FLEX:  ['WR','RB'],
     REC_FLEX:   ['WR','TE'],
     SUPER_FLEX: ['QB','RB','WR','TE'],
   };
 
-  const mandatorySlots = starterSlots.filter(s => !['FLEX','REC_FLEX','SUPER_FLEX'].includes(s));
-  const flexSlots      = starterSlots.filter(s =>  ['FLEX','REC_FLEX','SUPER_FLEX'].includes(s));
+  const FLEX_SLOT_TYPES = new Set(['FLEX','WRRB_FLEX','REC_FLEX','SUPER_FLEX']);
+  const mandatorySlots = starterSlots.filter(s => !FLEX_SLOT_TYPES.has(s));
+  const flexSlots      = starterSlots.filter(s =>  FLEX_SLOT_TYPES.has(s));
   const orderedSlots   = [...mandatorySlots, ...flexSlots];
 
   const used    = new Set();
@@ -8229,9 +8231,9 @@ function _scoreTeam(starterPids, week, injuryState, gameScripts) {
 
 const _SIM_ELIG = {
   QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], K: ['K'],
-  FLEX: ['RB','WR','TE'], REC_FLEX: ['WR','TE'], SUPER_FLEX: ['QB','RB','WR','TE'],
+  FLEX: ['RB','WR','TE'], WRRB_FLEX: ['WR','RB'], REC_FLEX: ['WR','TE'], SUPER_FLEX: ['QB','RB','WR','TE'],
 };
-const _SIM_FLEX_SLOTS = new Set(['FLEX','REC_FLEX','SUPER_FLEX']);
+const _SIM_FLEX_SLOTS = new Set(['FLEX','WRRB_FLEX','REC_FLEX','SUPER_FLEX']);
 
 function _simSetLineup(players, slots) {
   // players already sorted desc by basePpg; returns [pid, ...]
