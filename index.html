@@ -1143,6 +1143,43 @@
     margin-bottom: 6px; padding-left: 2px;
   }
 
+  /* ── PLAYER SCORECARD ── */
+  .pp-scorecard {
+    background: rgba(11,17,32,0.7);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin: 0 0 18px; overflow: hidden;
+  }
+  .pp-scorecard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .pp-sc-col {
+    padding: 13px 15px 14px; border-right: 1px solid var(--border);
+  }
+  .pp-sc-col:last-child { border-right: none; }
+  .pp-sc-cat {
+    font-family: var(--mono); font-size: 8px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 7px;
+  }
+  .pp-sc-grade {
+    font-family: var(--display); font-size: 36px; line-height: 1;
+    margin-bottom: 10px; letter-spacing: 0.03em;
+  }
+  .pp-sc-stat-line {
+    font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+    line-height: 1.7;
+  }
+  .pp-sc-stat-line b { color: var(--text); font-weight: 500; }
+  .pp-sc-inj-row {
+    border-top: 1px solid var(--border); padding: 8px 15px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .pp-sc-inj-label {
+    font-family: var(--mono); font-size: 8px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--text-dim);
+  }
+  .pp-sc-inj-risk { font-family: var(--mono); font-size: 10px; font-weight: 500; }
+  .pp-sc-inj-detail {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-left: auto;
+  }
+
   /* ── SIMILARITY SCORES ── */
   .pp-sims-section {
     padding: 14px 20px 20px;
@@ -3175,6 +3212,79 @@ async function loadPlayerProfile(pid) {
                     : +rzAttPg >= 1.5   ? {label:'Limited',   color:'var(--orange)' }
                     :                     {label:'Minimal',   color:'var(--red)'    };
 
+    // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
+    // Efficiency: YPC 40% · Pts/Touch 35% · RZ Carries/g 25%
+    const _ypcS  = ypc !== null     ? Math.min(100, Math.max(0, (ypc - 1.5) / 5.5 * 100))  : null;
+    const _pptS  = ptsPerTouch      ? Math.min(100, ptsPerTouch / 2.0 * 100)                : null;
+    const _rzS   = rzAttPg !== null ? Math.min(100, +rzAttPg / 8 * 100)                     : null;
+    const _effParts = [{s:_ypcS,w:0.40},{s:_pptS,w:0.35},{s:_rzS,w:0.25}].filter(c=>c.s!==null);
+    const _effW     = _effParts.reduce((a,c)=>a+c.w,0)||1;
+    const _effScore = _effParts.length ? _effParts.reduce((a,c)=>a+c.s*c.w,0)/_effW : null;
+
+    // Workload: Carry 40% · Snap 30% · Touches/g 20% · Touch share 10%
+    const _snapProxy = hasSnap ? Math.min(100, snapPct) : Math.min(100, carryPct * 0.85);
+    const _tchS      = Math.min(100, touchesPg / 28 * 100);
+    const _tshS      = Math.min(100, touchSharePct / 60 * 100);
+    const _wklScore  = Math.min(100, carryPct) * 0.40 + _snapProxy * 0.30 + _tchS * 0.20 + _tshS * 0.10;
+
+    // Situation: Depth chart 55% · Team rush volume 45%
+    const _dcOrder  = sp?.depth_chart_order ?? null;
+    const _dcS      = _dcOrder === null ? 60 : _dcOrder === 1 ? 100 : _dcOrder === 2 ? 42 : 12;
+    const _rushVolS = Math.min(100, Math.max(0, (teamRushPg - 18) / (38 - 18) * 100));
+    const _sitScore = _dcS * 0.55 + _rushVolS * 0.45;
+
+    // Grade + color converters
+    const _toGrade = s => {
+      if (s === null) return '—';
+      if (s >= 93) return 'A+'; if (s >= 87) return 'A';  if (s >= 83) return 'A−';
+      if (s >= 80) return 'B+'; if (s >= 77) return 'B';  if (s >= 73) return 'B−';
+      if (s >= 70) return 'C+'; if (s >= 67) return 'C';  if (s >= 63) return 'C−';
+      if (s >= 60) return 'D+'; if (s >= 57) return 'D';  if (s >= 53) return 'D−';
+      return 'F';
+    };
+    const _toColor = s => s === null ? 'var(--text-dim)'
+      : s >= 83 ? 'var(--green)' : s >= 70 ? 'var(--blue)'
+      : s >= 57 ? 'var(--accent)' : s >= 43 ? 'var(--orange)' : 'var(--red)';
+
+    const _teamCtx = teamRushPg >= 30 ? 'Run-heavy offense'
+                   : teamRushPg >= 27 ? 'Run-leaning offense'
+                   : teamRushPg >= 24 ? 'Balanced offense'
+                   : teamRushPg >= 21 ? 'Pass-leaning offense'
+                   :                    'Pass-heavy offense';
+
+    const _scorecardHTML = `
+      <div class="pp-scorecard">
+        <div class="pp-scorecard-grid">
+          <div class="pp-sc-col">
+            <div class="pp-sc-cat">Efficiency</div>
+            <div class="pp-sc-grade" style="color:${_toColor(_effScore)};">${_toGrade(_effScore)}</div>
+            <div class="pp-sc-stat-line"><b>${ypc ?? '—'} YPC</b></div>
+            <div class="pp-sc-stat-line"><b>${ptsPerTouch?.toFixed(2) ?? '—'}</b> pts / touch</div>
+            <div class="pp-sc-stat-line"><b>${rzAttPg ?? '—'}</b> RZ att / game</div>
+          </div>
+          <div class="pp-sc-col">
+            <div class="pp-sc-cat">Workload</div>
+            <div class="pp-sc-grade" style="color:${_toColor(_wklScore)};">${_toGrade(_wklScore)}</div>
+            <div class="pp-sc-stat-line"><b>${carryPct}%</b> carry share</div>
+            <div class="pp-sc-stat-line"><b>${hasSnap ? snapPct + '%' : '—'}</b> snap rate</div>
+            <div class="pp-sc-stat-line"><b>${touchesPg.toFixed(1)}</b> tch / game</div>
+          </div>
+          <div class="pp-sc-col">
+            <div class="pp-sc-cat">Situation</div>
+            <div class="pp-sc-grade" style="color:${_toColor(_sitScore)};">${_toGrade(_sitScore)}</div>
+            <div class="pp-sc-stat-line"><b>${_teamCtx}</b></div>
+            <div class="pp-sc-stat-line"><b>${teamRushPg.toFixed(1)}</b> team att/g${usingActualTeam ? '' : ' <span style="font-size:8px;color:var(--text-dim);">(avg)</span>'}</div>
+            <div class="pp-sc-stat-line">Depth <b>#${_dcOrder ?? '?'}</b>${_dcOrder === 1 ? ' · starter' : _dcOrder === 2 ? ' · backup' : _dcOrder === null ? ' · unknown' : ''}</div>
+          </div>
+        </div>
+        ${_injSeasonCount > 0 ? `
+        <div class="pp-sc-inj-row">
+          <span class="pp-sc-inj-label">🏥 Injury</span>
+          <span class="pp-sc-inj-risk" style="color:${_injRisk.color};">${_injRisk.label}</span>
+          <span class="pp-sc-inj-detail">Proj. ${_injProjMissed}g missed · avg ${_injAvgGp ?? '?'}/17 · ${_injSeasonCount} season${_injSeasonCount !== 1 ? 's' : ''}</span>
+        </div>` : ''}
+      </div>`;
+
     const snapCard = hasSnap
       ? `<div class="pp-wl-card" style="border-left-color:${snapClass.color};">
            <div class="pp-wl-card-header">
@@ -3199,6 +3309,7 @@ async function loadPlayerProfile(pid) {
           <span class="pp-workload-title">// ${statSeason ?? '2025'} WORKLOAD</span>
           <span class="pp-wl-role-tag" style="color:${roleTag.color};border-color:${roleTag.color};background:${roleTag.color}18;">${roleTag.label}</span>
         </div>
+        ${_scorecardHTML}
 
         <div class="pp-wl-row-label">Opportunity</div>
         <div class="pp-wl-cards">
