@@ -3252,6 +3252,16 @@ async function loadPlayerProfile(pid) {
                    : teamRushPg >= 21 ? 'Pass-leaning offense'
                    :                    'Pass-heavy offense';
 
+    const teamVolClass = teamRushPg >= 30 ? {label:'Run-Heavy',    color:'var(--green)'  }
+                       : teamRushPg >= 27 ? {label:'Run-Leaning',  color:'var(--blue)'   }
+                       : teamRushPg >= 24 ? {label:'Balanced',     color:'var(--accent)' }
+                       : teamRushPg >= 21 ? {label:'Pass-Leaning', color:'var(--orange)' }
+                       :                    {label:'Pass-Heavy',   color:'var(--red)'    };
+    const dcClass = _dcOrder === 1 ? {label:'Starter',    color:'var(--green)'  }
+                  : _dcOrder === 2 ? {label:'Backup',     color:'var(--orange)' }
+                  : _dcOrder >= 3  ? {label:'Depth',      color:'var(--red)'    }
+                  :                  {label:'No DC Data', color:'var(--text-dim)'};
+
     const _scorecardHTML = `
       <div class="pp-scorecard">
         <div class="pp-scorecard-grid">
@@ -3311,9 +3321,58 @@ async function loadPlayerProfile(pid) {
         </div>
         ${_scorecardHTML}
 
-        <div class="pp-wl-row-label">Opportunity</div>
+        <div class="pp-wl-row-label">Efficiency</div>
         <div class="pp-wl-cards">
-          ${snapCard}
+          ${ypc !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${ypcClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Yards / Carry</span>
+                   <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
+                 ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Yards / Carry</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
+               </div>`}
+          ${ptsPerTouch
+            ? `<div class="pp-wl-card" style="border-left-color:${pptClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Points / Touch</span>
+                   <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
+                 ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts')}
+                 <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · ${gp} gp</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Points / Touch</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
+               </div>`
+          }
+          ${rzAttPg !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${rzClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">RZ Carries / Game</span>
+                   <span class="pp-wl-card-cls" style="color:${rzClass.color};">${rzClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${rzClass.color};">${rzAttPg}<span>/g</span></div>
+                 ${mkBarVal(+rzAttPg, 8, avgRzAttPg, rzClass.color, '/g')}
+                 <div class="pp-wl-card-sub">${rzAtt} total RZ carries · ${rushTd} rush TDs</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">RZ Carries / Game</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
+               </div>`}
+        </div>
+
+        <div class="pp-wl-row-label" style="margin-top:14px;">Workload</div>
+        <div class="pp-wl-cards">
           <div class="pp-wl-card" style="border-left-color:${carryClass.color};">
             <div class="pp-wl-card-header">
               <span class="pp-wl-card-label">Carry Share</span>
@@ -3323,19 +3382,7 @@ async function loadPlayerProfile(pid) {
             <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color)}</div>
             <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att${usingActualTeam ? ` · team ${teamRushPg.toFixed(1)} att/g` : ' · vs league avg'}</div>
           </div>
-          <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
-            <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Target Share</span>
-              <span class="pp-wl-card-cls" style="color:${tgtClass.color};">${tgtClass.label}</span>
-            </div>
-            <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
-            ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color)}
-            <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt</div>
-          </div>
-        </div>
-
-        <div class="pp-wl-row-label" style="margin-top:14px;">Volume</div>
-        <div class="pp-wl-cards">
+          ${snapCard}
           <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
             <div class="pp-wl-card-header">
               <span class="pp-wl-card-label">Touches / Game</span>
@@ -3354,56 +3401,36 @@ async function loadPlayerProfile(pid) {
             ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color)}
             <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g of ~${avgTmTouchPg} team avg</div>
           </div>
+          <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Target Share</span>
+              <span class="pp-wl-card-cls" style="color:${tgtClass.color};">${tgtClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
+            ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color)}
+            <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt</div>
+          </div>
         </div>
 
-        <div class="pp-wl-row-label" style="margin-top:14px;">Efficiency</div>
+        <div class="pp-wl-row-label" style="margin-top:14px;">Situation</div>
         <div class="pp-wl-cards">
-          ${ptsPerTouch
-            ? `<div class="pp-wl-card" style="border-left-color:${pptClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Points / Touch</span>
-                   <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                 ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts')}
-                 <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · ${gp} gp</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Points / Touch</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
-               </div>`
-          }
-          ${ypc !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${ypcClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Yards / Carry</span>
-                   <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                 ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds')}
-                 <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Yards / Carry</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
-               </div>`}
-          ${rzAttPg !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${rzClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">RZ Carries / Game</span>
-                   <span class="pp-wl-card-cls" style="color:${rzClass.color};">${rzClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${rzClass.color};">${rzAttPg}<span>/g</span></div>
-                 ${mkBarVal(+rzAttPg, 8, avgRzAttPg, rzClass.color, '/g')}
-                 <div class="pp-wl-card-sub">${rzAtt} total RZ carries · ${rushTd} rush TDs</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">RZ Carries / Game</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
-               </div>`}
+          <div class="pp-wl-card" style="border-left-color:${teamVolClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Team Rush Volume</span>
+              <span class="pp-wl-card-cls" style="color:${teamVolClass.color};">${teamVolClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${teamVolClass.color};">${teamRushPg.toFixed(1)}<span> att/g</span></div>
+            ${mkBarVal(teamRushPg, 38, 26, teamVolClass.color, ' att/g')}
+            <div class="pp-wl-card-sub">${usingActualTeam ? `${sp?.team ?? 'Team'} rush att/game · season avg` : 'Using league avg (no team data)'}</div>
+          </div>
+          <div class="pp-wl-card" style="border-left-color:${dcClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Depth Chart</span>
+              <span class="pp-wl-card-cls" style="color:${dcClass.color};">${dcClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${dcClass.color};">${_dcOrder !== null ? `#${_dcOrder}` : '—'}</div>
+            <div class="pp-wl-card-sub">${_dcOrder === 1 ? 'Lead back · primary ball carrier' : _dcOrder === 2 ? 'Backup · handcuff role' : _dcOrder >= 3 ? `Depth back · #${_dcOrder} on depth chart` : 'No depth chart data from Sleeper'}</div>
+          </div>
         </div>
         ${injCardHTML}
 
