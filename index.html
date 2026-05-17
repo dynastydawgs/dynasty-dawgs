@@ -910,6 +910,25 @@
   .pp-outcome.bear .pp-proj-stat { color: var(--red);    background: rgba(255,92,114,0.10);  border: 1px solid rgba(255,92,114,0.25); }
   .pp-outcome.base .pp-proj-stat { color: var(--accent); background: rgba(245,200,66,0.10);  border: 1px solid rgba(245,200,66,0.28); }
   .pp-outcome.bull .pp-proj-stat { color: var(--green);  background: rgba(45,214,168,0.10);  border: 1px solid rgba(45,214,168,0.25); }
+  /* Grade-color variants for efficiency/workload/situation cards */
+  .pp-outcome.grade-green  { border-left: 2px solid var(--green); }
+  .pp-outcome.grade-blue   { border-left: 2px solid var(--blue); }
+  .pp-outcome.grade-accent { border-left: 2px solid var(--accent); }
+  .pp-outcome.grade-orange { border-left: 2px solid var(--orange); }
+  .pp-outcome.grade-red    { border-left: 2px solid var(--red); }
+  .pp-outcome.grade-dim    { border-left: 2px solid var(--border); }
+  .pp-outcome.grade-green  .pp-outcome-label { color: var(--green); }
+  .pp-outcome.grade-blue   .pp-outcome-label { color: var(--blue); }
+  .pp-outcome.grade-accent .pp-outcome-label { color: var(--accent); }
+  .pp-outcome.grade-orange .pp-outcome-label { color: var(--orange); }
+  .pp-outcome.grade-red    .pp-outcome-label { color: var(--red); }
+  .pp-outcome.grade-dim    .pp-outcome-label { color: var(--text-dim); }
+  .pp-outcome.grade-green  .pp-proj-stat { color: var(--green);  background: rgba(45,214,168,0.10);  border: 1px solid rgba(45,214,168,0.25); }
+  .pp-outcome.grade-blue   .pp-proj-stat { color: var(--blue);   background: rgba(56,196,232,0.10);  border: 1px solid rgba(56,196,232,0.25); }
+  .pp-outcome.grade-accent .pp-proj-stat { color: var(--accent); background: rgba(245,200,66,0.10);  border: 1px solid rgba(245,200,66,0.28); }
+  .pp-outcome.grade-orange .pp-proj-stat { color: var(--orange); background: rgba(245,158,66,0.10);  border: 1px solid rgba(245,158,66,0.25); }
+  .pp-outcome.grade-red    .pp-proj-stat { color: var(--red);    background: rgba(255,92,114,0.10);  border: 1px solid rgba(255,92,114,0.25); }
+  .pp-outcome.grade-dim    .pp-proj-stat { color: var(--text-dim); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); }
 
   /* NARRATIVE */
   .pp-narrative {
@@ -1022,6 +1041,24 @@
   .pp-outcome.bear .pp-proj-stat { color: var(--red);    background: rgba(255,92,114,0.10);  border: 1px solid rgba(255,92,114,0.25); }
   .pp-outcome.base .pp-proj-stat { color: var(--accent); background: rgba(245,200,66,0.10);  border: 1px solid rgba(245,200,66,0.28); }
   .pp-outcome.bull .pp-proj-stat { color: var(--green);  background: rgba(45,214,168,0.10);  border: 1px solid rgba(45,214,168,0.25); }
+  .pp-outcome.grade-green  { border-left: 2px solid var(--green); }
+  .pp-outcome.grade-blue   { border-left: 2px solid var(--blue); }
+  .pp-outcome.grade-accent { border-left: 2px solid var(--accent); }
+  .pp-outcome.grade-orange { border-left: 2px solid var(--orange); }
+  .pp-outcome.grade-red    { border-left: 2px solid var(--red); }
+  .pp-outcome.grade-dim    { border-left: 2px solid var(--border); }
+  .pp-outcome.grade-green  .pp-outcome-label { color: var(--green); }
+  .pp-outcome.grade-blue   .pp-outcome-label { color: var(--blue); }
+  .pp-outcome.grade-accent .pp-outcome-label { color: var(--accent); }
+  .pp-outcome.grade-orange .pp-outcome-label { color: var(--orange); }
+  .pp-outcome.grade-red    .pp-outcome-label { color: var(--red); }
+  .pp-outcome.grade-dim    .pp-outcome-label { color: var(--text-dim); }
+  .pp-outcome.grade-green  .pp-proj-stat { color: var(--green);  background: rgba(45,214,168,0.10);  border: 1px solid rgba(45,214,168,0.25); }
+  .pp-outcome.grade-blue   .pp-proj-stat { color: var(--blue);   background: rgba(56,196,232,0.10);  border: 1px solid rgba(56,196,232,0.25); }
+  .pp-outcome.grade-accent .pp-proj-stat { color: var(--accent); background: rgba(245,200,66,0.10);  border: 1px solid rgba(245,200,66,0.28); }
+  .pp-outcome.grade-orange .pp-proj-stat { color: var(--orange); background: rgba(245,158,66,0.10);  border: 1px solid rgba(245,158,66,0.25); }
+  .pp-outcome.grade-red    .pp-proj-stat { color: var(--red);    background: rgba(255,92,114,0.10);  border: 1px solid rgba(255,92,114,0.25); }
+  .pp-outcome.grade-dim    .pp-proj-stat { color: var(--text-dim); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); }
   .pp-narrative {
     font-size: 13px; color: var(--text-muted); font-weight: 300;
     line-height: 1.75; padding: 14px 20px 18px;
@@ -3385,38 +3422,64 @@ async function loadPlayerProfile(pid) {
                   : _dcOrder >= 3  ? {label:'Depth',      color:'var(--red)'    }
                   :                  {label:'No DC Data', color:'var(--text-dim)'};
 
+    const _toGradeClass = s => s === null ? 'grade-dim'
+      : s >= 83 ? 'grade-green' : s >= 70 ? 'grade-blue'
+      : s >= 57 ? 'grade-accent' : s >= 43 ? 'grade-orange' : 'grade-red';
+
+    const _effDesc = _effScore === null ? 'No efficiency data available.'
+      : _effScore >= 83 ? 'Elite per-touch production — top-tier YPC and scoring.'
+      : _effScore >= 70 ? 'Above-average efficiency — consistent per-carry value.'
+      : _effScore >= 57 ? 'Average efficiency — league-typical production rate.'
+      : _effScore >= 43 ? 'Below-average efficiency — limited per-touch output.'
+      : 'Poor efficiency — struggling to create positive plays.';
+
+    const _wklDesc = _wklScore >= 83 ? 'Dominant workload — elite carry share and snap rate.'
+      : _wklScore >= 70 ? 'Strong workload — featured role in the run game.'
+      : _wklScore >= 57 ? 'Moderate workload — splitting carries or limited snaps.'
+      : _wklScore >= 43 ? 'Limited workload — rotational or situational role.'
+      : 'Minimal workload — not a primary ball carrier.';
+
+    const _sitDesc = `${_teamCtx}. Depth #${_dcOrder ?? '?'}${_dcOrder === 1 ? ' — starter.' : _dcOrder === 2 ? ' — backup.' : _dcOrder === null ? ' — unknown.' : '.'}`;
+
     const _scorecardHTML = `
-      <div class="pp-scorecard">
-        <div class="pp-scorecard-grid">
-          <div class="pp-sc-col">
-            <div class="pp-sc-cat">Efficiency</div>
-            <div class="pp-sc-grade" style="color:${_toColor(_effScore)};">${_toGrade(_effScore)}</div>
-            <div class="pp-sc-stat-line"><b>${ypc ?? '—'} YPC</b></div>
-            <div class="pp-sc-stat-line"><b>${ptsPerTouch?.toFixed(2) ?? '—'}</b> pts / touch</div>
-            <div class="pp-sc-stat-line"><b>${rushFDRate !== null ? rushFDRate + '%' : '—'}</b> 1st down rate</div>
-          </div>
-          <div class="pp-sc-col">
-            <div class="pp-sc-cat">Workload</div>
-            <div class="pp-sc-grade" style="color:${_toColor(_wklScore)};">${_toGrade(_wklScore)}</div>
-            <div class="pp-sc-stat-line"><b>${carryPct}%</b> carry share</div>
-            <div class="pp-sc-stat-line"><b>${hasSnap ? snapPct + '%' : '—'}</b> snap rate</div>
-            <div class="pp-sc-stat-line"><b>${touchesPg.toFixed(1)}</b> tch / game</div>
-          </div>
-          <div class="pp-sc-col">
-            <div class="pp-sc-cat">Situation</div>
-            <div class="pp-sc-grade" style="color:${_toColor(_sitScore)};">${_toGrade(_sitScore)}</div>
-            <div class="pp-sc-stat-line"><b>${_teamCtx}</b></div>
-            <div class="pp-sc-stat-line"><b>${teamRushPg.toFixed(1)}</b> team att/g${usingActualTeam ? '' : ' <span style="font-size:8px;color:var(--text-dim);">(avg)</span>'}</div>
-            <div class="pp-sc-stat-line">Depth <b>#${_dcOrder ?? '?'}</b>${_dcOrder === 1 ? ' · starter' : _dcOrder === 2 ? ' · backup' : _dcOrder === null ? ' · unknown' : ''}</div>
+      <div class="pp-outcomes">
+        <div class="pp-outcome ${_toGradeClass(_effScore)}">
+          <div class="pp-outcome-label">Efficiency</div>
+          <div class="pp-outcome-pts" style="color:${_toColor(_effScore)};">${_toGrade(_effScore)}</div>
+          <div class="pp-outcome-desc">${_effDesc}</div>
+          <div class="pp-proj-stats">
+            ${ypc !== null ? `<span class="pp-proj-stat">${ypc} YPC</span>` : ''}
+            ${ptsPerTouch ? `<span class="pp-proj-stat">${ptsPerTouch.toFixed(2)} pts/touch</span>` : ''}
+            ${rushFDRate !== null ? `<span class="pp-proj-stat">${rushFDRate}% 1st dn</span>` : ''}
           </div>
         </div>
-        ${_injSeasonCount > 0 ? `
-        <div class="pp-sc-inj-row">
-          <span class="pp-sc-inj-label">🏥 Injury</span>
-          <span class="pp-sc-inj-risk" style="color:${_injRisk.color};">${_injRisk.label}</span>
-          <span class="pp-sc-inj-detail">Proj. ${_injProjMissed}g missed · avg ${_injAvgGp ?? '?'}/17 · ${_injSeasonCount} season${_injSeasonCount !== 1 ? 's' : ''}</span>
-        </div>` : ''}
-      </div>`;
+        <div class="pp-outcome ${_toGradeClass(_wklScore)}">
+          <div class="pp-outcome-label">Workload</div>
+          <div class="pp-outcome-pts" style="color:${_toColor(_wklScore)};">${_toGrade(_wklScore)}</div>
+          <div class="pp-outcome-desc">${_wklDesc}</div>
+          <div class="pp-proj-stats">
+            <span class="pp-proj-stat">${carryPct}% carry</span>
+            ${hasSnap ? `<span class="pp-proj-stat">${snapPct}% snaps</span>` : ''}
+            <span class="pp-proj-stat">${touchesPg.toFixed(1)} tch/g</span>
+          </div>
+        </div>
+        <div class="pp-outcome ${_toGradeClass(_sitScore)}">
+          <div class="pp-outcome-label">Situation</div>
+          <div class="pp-outcome-pts" style="color:${_toColor(_sitScore)};">${_toGrade(_sitScore)}</div>
+          <div class="pp-outcome-desc">${_sitDesc}</div>
+          <div class="pp-proj-stats">
+            <span class="pp-proj-stat">${teamRushPg.toFixed(1)} team att/g${usingActualTeam ? '' : ' (avg)'}</span>
+            <span class="pp-proj-stat">${_teamCtx}</span>
+            ${_dcOrder !== null ? `<span class="pp-proj-stat">Depth #${_dcOrder}${_dcOrder === 1 ? ' · starter' : _dcOrder === 2 ? ' · backup' : ''}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      ${_injSeasonCount > 0 ? `
+      <div class="pp-sc-inj-row">
+        <span class="pp-sc-inj-label">🏥 Injury</span>
+        <span class="pp-sc-inj-risk" style="color:${_injRisk.color};">${_injRisk.label}</span>
+        <span class="pp-sc-inj-detail">Proj. ${_injProjMissed}g missed · avg ${_injAvgGp ?? '?'}/17 · ${_injSeasonCount} season${_injSeasonCount !== 1 ? 's' : ''}</span>
+      </div>` : ''}`;
 
     const snapCard = hasSnap
       ? `<div class="pp-wl-card" style="border-left-color:${snapClass.color};">
