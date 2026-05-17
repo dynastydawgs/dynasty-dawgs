@@ -170,8 +170,11 @@ async function main() {
   progress(92, 'Building team context database…');
   const teamAgg = {};
   for (const [pid, st] of Object.entries(recentStats)) {
-    const sp   = sleeperPlayers[pid];
-    const team = sp?.team ?? null;
+    const sp  = sleeperPlayers[pid];
+    // Use the team recorded in the stats row first — it reflects which team the
+    // player was actually on during that season, not their current (possibly
+    // traded/FA) team.  Fall back to the player-directory team only if missing.
+    const team = st.team ?? sp?.team ?? null;
     if (!team || team === 'FA' || team === 'UFA') continue;
 
     if (!teamAgg[team]) teamAgg[team] = {
@@ -185,7 +188,8 @@ async function main() {
     t.rushAtt += +(st.rush_att ?? 0);
     t.rushYd  += +(st.rush_yd  ?? 0);
     t.rushTd  += +(st.rush_td  ?? 0);
-    const pos = sp?.position ?? null;
+    // Use stats-row position first to avoid current-team-after-trade misattribution
+    const pos = st.pos ?? sp?.position ?? null;
     if (pos === 'QB') {
       t.passAtt += +(st.pass_att ?? 0);
       t.passYd  += +(st.pass_yd  ?? 0);
@@ -198,13 +202,20 @@ async function main() {
     const gp          = Math.max(1, t.gpMax);
     const rushAttPg   = +(t.rushAtt / gp).toFixed(1);
     const passAttPg   = +(t.passAtt / gp).toFixed(1);
+
+    // Sanity-check: a real NFL team in a full season has ≥ 15 rush att/g and
+    // ≥ 15 pass att/g.  Values below that flag corrupted team attribution
+    // (e.g. a traded QB's pass stats landed on the wrong team).  Skip rather
+    // than publish garbage that renders as "WEAK 0/100" in the UI.
+    if (rushAttPg < 15 || passAttPg < 15) continue;
+
     const offPlaysPg  = +(rushAttPg + passAttPg).toFixed(1);
-    const runRate     = offPlaysPg > 0 ? +(rushAttPg / offPlaysPg * 100).toFixed(1) : 0;
-    const passRate    = offPlaysPg > 0 ? +(100 - runRate).toFixed(1) : 0;
-    const teamYpc     = t.rushAtt > 0  ? +(t.rushYd / t.rushAtt).toFixed(2) : 0;
+    const runRate     = +(rushAttPg / offPlaysPg * 100).toFixed(1);
+    const passRate    = +(100 - runRate).toFixed(1);
+    const teamYpc     = +(t.rushYd / t.rushAtt).toFixed(2);
     const totalYd     = t.rushYd + t.passYd;
     const totalAtt    = t.rushAtt + t.passAtt;
-    const ypp         = totalAtt > 0 ? +(totalYd / totalAtt).toFixed(2) : 0;
+    const ypp         = +(totalYd / totalAtt).toFixed(2);
     const totalTd     = t.rushTd + t.passTd;
     const tdPg        = +(totalTd / gp).toFixed(2);
     // Off. Rating: normalize yards/play (4.5–7.5 range) and TD rate (2.0–5.0/game), equal weight

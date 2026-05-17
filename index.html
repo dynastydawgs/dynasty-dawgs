@@ -3085,8 +3085,11 @@ async function loadPlayerProfile(pid) {
     const usingActualTeam = nflTeam in NFL_TEAM_RUSH_ATT_PG_2025;
 
     // Extended team context from teamDB (pre-built by scripts/build-data.mjs, updated weekly via CI).
-    // Falls back gracefully to null if teamdb.json hasn't been built yet.
-    const teamCtx    = teamDB?.[nflTeam] ?? null;
+    // Validate before using: reject entries where passAttPg < 15 (indicates corrupted team
+    // attribution — e.g. a traded QB's stats landed on the wrong team, leaving this one with 0).
+    const _rawTeamCtx = teamDB?.[nflTeam] ?? null;
+    const teamCtx     = (_rawTeamCtx?.passAttPg >= 15 && _rawTeamCtx?.rushAttPg >= 15)
+                        ? _rawTeamCtx : null;
     const passAttPg  = teamCtx?.passAttPg  ?? null;
     const offPlaysPg = teamCtx?.offPlaysPg ?? null;
     const runRate    = teamCtx?.runRate    ?? null;
@@ -3232,35 +3235,38 @@ async function loadPlayerProfile(pid) {
       : null;
 
     // Classifiers for new Situation and Efficiency cards
-    const runRateClass   = !runRate     ? {label:'No Data',     color:'var(--text-dim)'}
+    // Use === null (not !value) so that legitimate low values (e.g. run rate near 0) don't
+    // accidentally render as "No Data".  The build-script threshold ensures we only store
+    // real team data, so null here means "not available" rather than "zero".
+    const runRateClass   = runRate   === null ? {label:'No Data',     color:'var(--text-dim)'}
       : runRate   >= 50   ? {label:'Run-Heavy',    color:'var(--green)'  }
       : runRate   >= 45   ? {label:'Run-Leaning',  color:'var(--blue)'   }
       : runRate   >= 40   ? {label:'Balanced',     color:'var(--accent)' }
       : runRate   >= 35   ? {label:'Pass-Leaning', color:'var(--orange)' }
       :                     {label:'Pass-Heavy',   color:'var(--red)'    };
 
-    const passVolClass   = !passAttPg   ? {label:'No Data',     color:'var(--text-dim)'}
+    const passVolClass   = passAttPg === null ? {label:'No Data',     color:'var(--text-dim)'}
       : passAttPg >= 42   ? {label:'Pass-Heavy',   color:'var(--red)'    }
       : passAttPg >= 37   ? {label:'Pass-Leaning', color:'var(--orange)' }
       : passAttPg >= 32   ? {label:'Balanced',     color:'var(--accent)' }
       : passAttPg >= 27   ? {label:'Run-Leaning',  color:'var(--blue)'   }
       :                     {label:'Run-Heavy',    color:'var(--green)'  };
 
-    const offPlaysClass  = !offPlaysPg  ? {label:'No Data',     color:'var(--text-dim)'}
+    const offPlaysClass  = offPlaysPg === null ? {label:'No Data',     color:'var(--text-dim)'}
       : offPlaysPg >= 72  ? {label:'High Volume',  color:'var(--green)'  }
       : offPlaysPg >= 66  ? {label:'Above Avg',    color:'var(--blue)'   }
       : offPlaysPg >= 60  ? {label:'Average',      color:'var(--accent)' }
       : offPlaysPg >= 54  ? {label:'Below Avg',    color:'var(--orange)' }
       :                     {label:'Low Volume',   color:'var(--red)'    };
 
-    const olProxyClass   = !teamYpc     ? {label:'No Data',     color:'var(--text-dim)'}
+    const olProxyClass   = teamYpc === null ? {label:'No Data',     color:'var(--text-dim)'}
       : teamYpc   >= 5.0  ? {label:'Elite OL',     color:'var(--green)'  }
       : teamYpc   >= 4.5  ? {label:'Strong OL',    color:'var(--blue)'   }
       : teamYpc   >= 4.0  ? {label:'Average OL',   color:'var(--accent)' }
       : teamYpc   >= 3.5  ? {label:'Weak OL',      color:'var(--orange)' }
       :                     {label:'Poor OL',      color:'var(--red)'    };
 
-    const offRatingClass = offRating == null ? {label:'No Data',   color:'var(--text-dim)'}
+    const offRatingClass = offRating === null ? {label:'No Data',   color:'var(--text-dim)'}
       : offRating >= 75   ? {label:'Elite',        color:'var(--green)'  }
       : offRating >= 60   ? {label:'Strong',       color:'var(--blue)'   }
       : offRating >= 45   ? {label:'Average',      color:'var(--accent)' }
