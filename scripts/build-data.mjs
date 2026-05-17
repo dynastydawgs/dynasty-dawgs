@@ -402,12 +402,42 @@ async function main() {
   // season. Needed for players who switched teams in the offseason — the
   // client uses this to look up the correct team context (teamDB, rush att/g)
   // instead of sp.team (which already reflects their new 2026 team).
-  // nflverse weekly rosters include a sleeper_id column updated through the
-  // end of the 2025 regular season.
+  //
+  // Some roster rows have a blank sleeper_id. We fix this by first fetching
+  // the nflverse players.csv master file (which has better ID coverage) and
+  // building a gsis_id → sleeper_id bridge map. That bridge is then applied
+  // to fill gaps in the weekly roster rows before building statTeamDB.
   progress(98, 'Building 2025 player-team lookup from nflverse rosters…');
   const statTeamDB = {};
   let statTeamCount = 0;
   try {
+    // nflverse → Sleeper abbreviation differences
+    const NV_ABBR = { LA: 'LAR' };
+
+    // ── 5e-i: Build gsis_id → sleeper_id bridge from players.csv ────────────
+    const gsisBridge = {}; // gsis_id → sleeper_id string
+    try {
+      const PLAYERS_URL = 'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv';
+      const playersRes  = await fetch(PLAYERS_URL);
+      if (playersRes.ok) {
+        const playersText  = await playersRes.text();
+        const playersLines = playersText.split('\n').filter(l => l.trim());
+        const playersHdrs  = parseCSVLine(playersLines[0]);
+        for (const line of playersLines.slice(1)) {
+          const vals = parseCSVLine(line);
+          const row  = {};
+          playersHdrs.forEach((h, i) => { row[h] = vals[i] ?? ''; });
+          const gsisId    = row.gsis_id?.trim();
+          const sleeperId = row.sleeper_id?.trim();
+          if (gsisId && sleeperId) gsisBridge[gsisId] = sleeperId;
+        }
+        console.log(`  gsis→sleeper bridge: ${Object.keys(gsisBridge).length} entries`);
+      }
+    } catch(e) {
+      console.warn('  ⚠️  players.csv fetch failed, bridge unavailable:', e.message);
+    }
+
+    // ── 5e-ii: Parse weekly roster, using bridge for blank sleeper_ids ───────
     const ROSTER_URL = `https://github.com/nflverse/nflverse-data/releases/download/rosters/roster_${recentYr}.csv`;
     const rosterRes  = await fetch(ROSTER_URL);
     if (!rosterRes.ok) throw new Error(`HTTP ${rosterRes.status} for ${ROSTER_URL}`);
@@ -415,16 +445,14 @@ async function main() {
     const rosterLines = rosterText.split('\n').filter(l => l.trim());
     const rosterHdrs  = parseCSVLine(rosterLines[0]);
 
-    // nflverse → Sleeper abbreviation differences (only LA/LAR commonly differs)
-    const NV_ABBR = { LA: 'LAR' };
-
     // Track the latest-week entry per player to capture mid-season trades
     const latest = {}; // sleeperId → { week, team }
     for (const line of rosterLines.slice(1)) {
       const vals = parseCSVLine(line);
       const row  = {};
       rosterHdrs.forEach((h, i) => { row[h] = vals[i] ?? ''; });
-      const sleeperId = row.sleeper_id?.trim();
+      // Resolve sleeper_id: use column directly, fall back to gsis bridge
+      const sleeperId = row.sleeper_id?.trim() || gsisBridge[row.gsis_id?.trim()] || '';
       const team      = row.team?.trim();
       const week      = parseInt(row.week) || 0;
       // Only regular-season rows; skip if key fields are missing
