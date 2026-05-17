@@ -270,17 +270,78 @@ async function main() {
   progress(95, `Team DB: ${liveTeams} live (ESPN) + ${fallbackTeams} estimated teams`);
   console.log();
 
+  // ── Step 5c: Build depthDB from ESPN depth charts + rosters ──────────────
+  // Fetches the offensive formation depth chart (rank 1 = starter) and roster
+  // for all 32 teams.  Athlete IDs are parsed from $ref URLs and cross-referenced
+  // with the inline roster response — no additional per-athlete requests needed.
+  progress(96, 'Building depth chart database from ESPN…');
+
+  const ESPN_DEPTH_BASE = 'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl';
+  const ESPN_ROSTER_BASE = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
+  const SKILL_POS = { qb: 'QB', rb: 'RB', wr: 'WR', te: 'TE' };
+
+  const depthFetches = espnTeams.map(({ id, abbr }) =>
+    Promise.all([
+      fetchJson(`${ESPN_DEPTH_BASE}/seasons/${recentYr}/teams/${id}/depthcharts`).catch(() => null),
+      fetchJson(`${ESPN_ROSTER_BASE}/teams/${id}/roster`).catch(() => null),
+    ]).then(([dcData, rosterData]) => ({ abbr, dcData, rosterData }))
+  );
+  const depthResults = await Promise.all(depthFetches);
+
+  const depthDB = {};
+  let depthTeams = 0;
+
+  for (const { abbr, dcData, rosterData } of depthResults) {
+    // Build ESPN player ID → { name, status } from roster (all inline, no $refs)
+    const rosterMap = {};
+    for (const player of (rosterData?.athletes ?? [])) {
+      const injStatus    = player.injuries?.[0]?.status ?? null;
+      const activeStatus = player.status?.name ?? 'Active';
+      rosterMap[player.id] = {
+        name:   player.displayName ?? `${player.firstName} ${player.lastName}`,
+        status: injStatus ?? (activeStatus !== 'Active' ? activeStatus : null),
+      };
+    }
+
+    // Offensive formation = the one that has a 'qb' position group
+    const offFormation = (dcData?.items ?? []).find(f => f.positions?.qb);
+    if (!offFormation) continue;
+
+    const teamDepth = {};
+    for (const [dcKey, posAbbr] of Object.entries(SKILL_POS)) {
+      const posGroup = offFormation.positions[dcKey];
+      if (!posGroup?.athletes?.length) continue;
+
+      // Extract ESPN athlete ID from the $ref URL without a follow-up fetch
+      teamDepth[posAbbr] = posGroup.athletes
+        .sort((a, b) => a.rank - b.rank)
+        .map(a => {
+          const espnId = a.athlete.$ref.split('/').pop();
+          const info   = rosterMap[espnId] ?? {};
+          return { name: info.name ?? null, rank: a.rank, status: info.status ?? null };
+        })
+        .filter(e => e.name !== null);
+    }
+
+    if (Object.keys(teamDepth).length) { depthDB[abbr] = teamDepth; depthTeams++; }
+  }
+
+  progress(97, `Depth DB: ${depthTeams} teams`);
+  console.log();
+
   // ── Step 6: Write output files ────────────────────────────────────────────
-  progress(97, 'Writing data files…');
+  progress(98, 'Writing data files…');
   const compJson    = JSON.stringify(compDB);
   const careerJson  = JSON.stringify(careerDB);
   const benchJson   = JSON.stringify({ avgRbCarryPct });
   const teamJson    = JSON.stringify(teamDB);
+  const depthJson   = JSON.stringify(depthDB);
 
   writeFileSync(join(DATA_DIR, 'compdb.json'),     compJson);
   writeFileSync(join(DATA_DIR, 'careerdb.json'),   careerJson);
   writeFileSync(join(DATA_DIR, 'benchmarks.json'), benchJson);
   writeFileSync(join(DATA_DIR, 'teamdb.json'),     teamJson);
+  writeFileSync(join(DATA_DIR, 'depthdb.json'),    depthJson);
   progress(100, 'Done!');
   console.log('\n');
 
@@ -289,6 +350,7 @@ async function main() {
   console.log('  ✅  data/careerdb.json   ', kb(careerJson));
   console.log('  ✅  data/benchmarks.json ', kb(benchJson));
   console.log('  ✅  data/teamdb.json     ', kb(teamJson));
+  console.log('  ✅  data/depthdb.json    ', kb(depthJson));
   console.log('\n  Next: git add data/ && git commit && git push\n');
 }
 

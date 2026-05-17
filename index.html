@@ -3296,8 +3296,12 @@ async function loadPlayerProfile(pid) {
     const _wklScore  = Math.min(100, carryPct) * 0.40 + _snapProxy * 0.30 + _tchS * 0.20 + _tshS * 0.10;
 
     // Situation: Depth chart 55% · Team rush volume 45%
-    const _dcOrder  = sp?.depth_chart_order ?? null;
-    const _dcS      = _dcOrder === null ? 60 : _dcOrder === 1 ? 100 : _dcOrder === 2 ? 42 : 12;
+    // ESPN depth chart preferred (updated nightly); Sleeper depth_chart_order as fallback.
+    const _dcEspn      = depthDB?.[nflTeam]?.[pos] ?? [];
+    const _dcEntry     = _dcEspn.find(e => e.name === sp?.name);
+    const _dcOrder     = _dcEntry?.rank ?? sp?.depth_chart_order ?? null;
+    const _dcInjStatus = _dcEntry?.status ?? null;
+    const _dcS         = _dcOrder === null ? 60 : _dcOrder === 1 ? 100 : _dcOrder === 2 ? 42 : 12;
     const _rushVolS = Math.min(100, Math.max(0, (teamRushPg - 18) / (38 - 18) * 100));
     const _sitScore = _dcS * 0.55 + _rushVolS * 0.45;
 
@@ -3584,10 +3588,10 @@ async function loadPlayerProfile(pid) {
           <div class="pp-wl-card" style="border-left-color:${dcClass.color};">
             <div class="pp-wl-card-header">
               <span class="pp-wl-card-label">Depth Chart</span>
-              <span class="pp-wl-card-cls" style="color:${dcClass.color};">${dcClass.label}</span>
+              <span class="pp-wl-card-cls" style="color:${dcClass.color};">${dcClass.label}${_dcInjStatus ? ` · ${_dcInjStatus}` : ''}</span>
             </div>
             <div class="pp-wl-card-val" style="color:${dcClass.color};">${_dcOrder !== null ? `#${_dcOrder}` : '—'}</div>
-            <div class="pp-wl-card-sub">${_dcOrder === 1 ? 'Lead back · primary ball carrier' : _dcOrder === 2 ? 'Backup · handcuff role' : _dcOrder >= 3 ? `Depth back · #${_dcOrder} on depth chart` : 'No depth chart data from Sleeper'}</div>
+            <div class="pp-wl-card-sub">${_dcOrder === 1 ? 'Lead back · primary ball carrier' : _dcOrder === 2 ? 'Backup · handcuff role' : _dcOrder >= 3 ? `Depth back · #${_dcOrder} on depth chart` : 'No depth chart data'}</div>
           </div>
         </div>
         ${injCardHTML}
@@ -4446,6 +4450,7 @@ const DATA_BASE_URL = './data';
 let compDB      = {};   // "POS_tier_carYr" → [p15,p50,p85]
 let careerDB    = {};   // pid → [{season,ppr,ppg,games}]
 let teamDB      = {};   // teamAbbr → {rushAttPg,passAttPg,offPlaysPg,runRate,passRate,teamYpc,ypp,tdPg,offRating}
+let depthDB     = {};   // teamAbbr → { QB:[{name,rank,status}], RB:[…], WR:[…], TE:[…] }
 
 // Bulk season stats cache — populated once before preWarmProjectionCache runs.
 // Maps pid → flat stats object so fetchSleeperStats() reads from memory
@@ -5024,11 +5029,12 @@ async function loadPrebuiltData(onProgress) {
   try {
     onProgress?.('Loading pre-built data files…', 5);
 
-    const [compRes, careerRes, benchRes, teamResRaw] = await Promise.all([
+    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw] = await Promise.all([
       fetch(`${DATA_BASE_URL}/compdb.json`),
       fetch(`${DATA_BASE_URL}/careerdb.json`),
       fetch(`${DATA_BASE_URL}/benchmarks.json`),
-      fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),  // optional — graceful fallback
+      fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),   // optional — graceful fallback
+      fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),  // optional — graceful fallback
     ]);
 
     if (!compRes.ok || !careerRes.ok || !benchRes.ok) {
@@ -5052,6 +5058,10 @@ async function loadPrebuiltData(onProgress) {
     // teamdb.json is optional — new cards show "—" if it hasn't been built yet
     if (teamResRaw?.ok) {
       try { teamDB = await teamResRaw.json(); } catch(e) {}
+    }
+    // depthdb.json is optional — depth chart card falls back to Sleeper if absent
+    if (depthResRaw?.ok) {
+      try { depthDB = await depthResRaw.json(); } catch(e) {}
     }
 
     // Cache to localStorage so repeat loads skip even the static fetch
