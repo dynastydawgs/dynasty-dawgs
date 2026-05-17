@@ -2919,28 +2919,33 @@ async function loadPlayerProfile(pid) {
   } catch(e) { /* stats unavailable */ }
 
   // ── Fetch ESPN player-level stats + stat-season team (RBs) ────────────────
-  // Both fetches run in parallel. Player stats gives us rushingFirstDowns etc.
-  // Athlete fetch resolves the team the player was on during statSeason — needed
-  // for traded players whose sp.team is now their new 2026 team.
+  // Player stats (rushingFirstDowns etc.) + athlete team for statSeason run in parallel.
+  // AbortController caps the athlete endpoint at 3 s so a slow/missing endpoint can't
+  // hang the profile load. All JSON parsing is also guarded with .catch(() => null).
   let espnPlayerStats = {};
   let statTeamRaw     = null;   // team abbr from ESPN for statSeason, or null if unavailable
   if (pos === 'RB' && espnId) {
     const _eSeason = statSeason ?? String(new Date().getFullYear() - 1);
-    const [_eStatsRes, _eAthleteRes] = await Promise.all([
-      fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${_eSeason}/types/2/athletes/${espnId}/statistics`).catch(() => null),
-      fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${_eSeason}/athletes/${espnId}`).catch(() => null),
-    ]);
-    if (_eStatsRes?.ok) {
-      const _eData = await _eStatsRes.json();
-      for (const cat of (_eData?.splits?.categories ?? []))
-        for (const stat of cat.stats) espnPlayerStats[stat.name] = stat.value;
-    }
-    if (_eAthleteRes?.ok) {
-      const _eAtData = await _eAthleteRes.json();
-      const _teamRef  = _eAtData?.team?.$ref ?? '';
-      const _teamId   = _teamRef.split('/teams/').pop().split('/')[0];
-      statTeamRaw     = ESPN_TEAM_ID_TO_NFL[_teamId] ?? null;
-    }
+    try {
+      const _atCtrl   = new AbortController();
+      const _atTimer  = setTimeout(() => _atCtrl.abort(), 3000);
+      const [_eStatsRes, _eAthleteRes] = await Promise.all([
+        fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${_eSeason}/types/2/athletes/${espnId}/statistics`).catch(() => null),
+        fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${_eSeason}/athletes/${espnId}`, { signal: _atCtrl.signal }).catch(() => null),
+      ]);
+      clearTimeout(_atTimer);
+      if (_eStatsRes?.ok) {
+        const _eData = await _eStatsRes.json().catch(() => null);
+        for (const cat of (_eData?.splits?.categories ?? []))
+          for (const stat of cat.stats) espnPlayerStats[stat.name] = stat.value;
+      }
+      if (_eAthleteRes?.ok) {
+        const _eAtData  = await _eAthleteRes.json().catch(() => null);
+        const _teamRef  = _eAtData?.team?.$ref ?? '';
+        const _teamId   = _teamRef.split('/teams/').pop().split('/')[0];
+        statTeamRaw     = ESPN_TEAM_ID_TO_NFL[_teamId] ?? null;
+      }
+    } catch(e) { /* ESPN fetches unavailable — graceful fallback */ }
   }
   // statTeam: team the player was on during statSeason (= nflTeam when unchanged or unknown)
   const statTeam   = statTeamRaw ?? nflTeam;
