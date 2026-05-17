@@ -930,6 +930,17 @@
   .pp-outcome.grade-red    .pp-proj-stat { color: var(--red);    background: rgba(255,92,114,0.10);  border: 1px solid rgba(255,92,114,0.25); }
   .pp-outcome.grade-dim    .pp-proj-stat { color: var(--text-dim); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); }
 
+  /* Year tab toggle for traded players */
+  .pp-wl-year-tabs { display: flex; gap: 6px; margin: 10px 0 4px; }
+  .pp-wl-year-tab {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+    padding: 3px 10px; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+  }
+  .pp-wl-year-tab.active {
+    border-color: var(--accent); color: var(--accent); background: rgba(245,200,66,0.08);
+  }
+
   /* NARRATIVE */
   .pp-narrative {
     font-size: 13px; color: var(--text-muted); font-weight: 300;
@@ -1059,6 +1070,18 @@
   .pp-outcome.grade-orange .pp-proj-stat { color: var(--orange); background: rgba(245,158,66,0.10);  border: 1px solid rgba(245,158,66,0.25); }
   .pp-outcome.grade-red    .pp-proj-stat { color: var(--red);    background: rgba(255,92,114,0.10);  border: 1px solid rgba(255,92,114,0.25); }
   .pp-outcome.grade-dim    .pp-proj-stat { color: var(--text-dim); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); }
+
+  /* Year tab toggle for traded players */
+  .pp-wl-year-tabs { display: flex; gap: 6px; margin: 10px 0 4px; }
+  .pp-wl-year-tab {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+    padding: 3px 10px; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+  }
+  .pp-wl-year-tab.active {
+    border-color: var(--accent); color: var(--accent); background: rgba(245,200,66,0.08);
+  }
+
   .pp-narrative {
     font-size: 13px; color: var(--text-muted); font-weight: 300;
     line-height: 1.75; padding: 14px 20px 18px;
@@ -2945,6 +2968,14 @@ async function loadPlayerProfile(pid) {
   const teamChanged = statTeamRaw !== null && statTeam !== nflTeam;
 
   // ── Build stat display by position ──
+  function switchYearTab(btn, year) {
+    const sec = btn.closest('.pp-workload-section');
+    sec.querySelectorAll('.pp-wl-year-tab').forEach(b => b.classList.remove('active'));
+    sec.querySelectorAll('.pp-wl-year-pane').forEach(p => { p.style.display = 'none'; });
+    btn.classList.add('active');
+    sec.querySelector(`.pp-wl-year-pane[data-year="${year}"]`).style.display = '';
+  }
+
   function fmt(v, decimals=0) {
     if (v == null || v === 0) return '—';
     return Number(v).toLocaleString('en-US', { maximumFractionDigits: decimals });
@@ -3364,7 +3395,7 @@ async function loadPlayerProfile(pid) {
       const entries = Object.entries(teamDB).filter(([, v]) => v?.offRating != null);
       if (!entries.length || offRating === null) return null;
       const idx = entries.sort((a, b) => b[1].offRating - a[1].offRating)
-                         .findIndex(([k]) => k === nflTeam);
+                         .findIndex(([k]) => k === statTeam);
       return idx >= 0 ? idx + 1 : null;
     })();
     const offRankFillW  = offRank !== null ? ((33 - offRank) / 32 * 100).toFixed(1) : '50.0';
@@ -3400,13 +3431,67 @@ async function loadPlayerProfile(pid) {
 
     // Situation: Depth chart 55% · Team rush volume 45%
     // ESPN depth chart preferred (updated nightly); Sleeper depth_chart_order as fallback.
-    const _dcEspn      = depthDB?.[nflTeam]?.[pos] ?? [];
-    const _dcEntry     = _dcEspn.find(e => e.name === sp?.name);
-    const _dcOrder     = _dcEntry?.rank ?? sp?.depth_chart_order ?? null;
-    const _dcInjStatus = _dcEntry?.status ?? null;
-    const _dcS         = _dcOrder === null ? 60 : _dcOrder === 1 ? 100 : _dcOrder === 2 ? 42 : 12;
+    // 2025 depth chart (statTeam). For traded players statTeam differs from nflTeam,
+    // so the player won't appear in depthDB[statTeam] — show as null rather than
+    // falling back to sp.depth_chart_order (which reflects the new team).
+    const _dcEspn25    = depthDB?.[statTeam]?.[pos] ?? [];
+    const _dcEntry25   = _dcEspn25.find(e => e.name === sp?.name);
+    const _dcOrder25   = teamChanged ? (_dcEntry25?.rank ?? null) : (_dcEntry25?.rank ?? sp?.depth_chart_order ?? null);
+    const _dcInj25     = _dcEntry25?.status ?? null;
+
+    // 2026 depth chart (nflTeam — current team, forward-looking)
+    const _dcEspn26    = depthDB?.[nflTeam]?.[pos] ?? [];
+    const _dcEntry26   = _dcEspn26.find(e => e.name === sp?.name);
+    const _dcOrder26   = _dcEntry26?.rank ?? sp?.depth_chart_order ?? null;
+    const _dcInj26     = _dcEntry26?.status ?? null;
+
+    // Situation score uses 2025 DC for the 2025 scorecard
+    const _dcS         = _dcOrder25 === null ? 60 : _dcOrder25 === 1 ? 100 : _dcOrder25 === 2 ? 42 : 12;
     const _rushVolS = Math.min(100, Math.max(0, (teamRushPg - 18) / (38 - 18) * 100));
     const _sitScore = _dcS * 0.55 + _rushVolS * 0.45;
+
+    // ── 2026 (current team) context — used in the forward-looking tab ─────────
+    const _curRawTeamCtx  = teamChanged ? (teamDB?.[nflTeam] ?? null) : _rawTeamCtx;
+    const _curTeamCtx     = teamChanged
+      ? ((_curRawTeamCtx?.passAttPg >= 15 && _curRawTeamCtx?.rushAttPg >= 15) ? _curRawTeamCtx : null)
+      : teamCtx;
+    const _curTeamRushPg  = _curTeamCtx?.rushAttPg ?? (NFL_TEAM_RUSH_ATT_PG_2025[nflTeam] ?? 26.0);
+    const _curPassAttPg   = _curTeamCtx?.passAttPg  ?? null;
+    const _curOffPlaysPg  = _curTeamCtx?.offPlaysPg ?? null;
+    const _curRunRate     = _curTeamCtx?.runRate     ?? null;
+    const _curPassRate    = _curTeamCtx?.passRate    ?? null;
+    const _curTeamYpc     = _curTeamCtx?.teamYpc     ?? null;
+    const _curOffRating   = _curTeamCtx?.offRating   ?? null;
+    const _curOffRank = (() => {
+      if (!teamChanged) return offRank;
+      const entries = Object.entries(teamDB).filter(([,v]) => v?.offRating != null);
+      if (!entries.length || _curOffRating === null) return null;
+      const idx = entries.sort((a,b) => b[1].offRating - a[1].offRating).findIndex(([k]) => k === nflTeam);
+      return idx >= 0 ? idx + 1 : null;
+    })();
+    const _curRankFillW    = _curOffRank !== null ? ((33 - _curOffRank) / 32 * 100).toFixed(1) : '50.0';
+    const _curOffRatCls    = _curOffRank === null ? {label:'No Data',  color:'var(--text-dim)'}
+      : _curOffRank <=  8 ? {label:'Elite',      color:'var(--green)'  }
+      : _curOffRank <= 16 ? {label:'Above Avg',  color:'var(--blue)'   }
+      : _curOffRank <= 24 ? {label:'Below Avg',  color:'var(--orange)' }
+      :                     {label:'Weak',       color:'var(--red)'    };
+    const _curTeamCtxStr  = _curTeamRushPg >= 30 ? 'Run-heavy offense'
+                          : _curTeamRushPg >= 27 ? 'Run-leaning offense'
+                          : _curTeamRushPg >= 24 ? 'Balanced offense'
+                          : _curTeamRushPg >= 21 ? 'Pass-leaning offense'
+                          :                        'Pass-heavy offense';
+    const _curVolClass    = _curTeamRushPg >= 30 ? {label:'Run-Heavy',    color:'var(--green)'  }
+                          : _curTeamRushPg >= 27 ? {label:'Run-Leaning',  color:'var(--blue)'   }
+                          : _curTeamRushPg >= 24 ? {label:'Balanced',     color:'var(--accent)' }
+                          : _curTeamRushPg >= 21 ? {label:'Pass-Leaning', color:'var(--orange)' }
+                          :                        {label:'Pass-Heavy',   color:'var(--red)'    };
+    const _curDCDesc = _dcOrder26 === 1 ? 'Lead back — primary ball carrier on new team.'
+                     : _dcOrder26 === 2 ? 'Backup role — handcuff behind starter on new team.'
+                     : _dcOrder26 >= 3  ? 'Depth back — limited opportunity on new team.'
+                     :                    'Depth chart position unknown on new team.';
+    const _curRoleScore = _dcOrder26 === 1 ? 90 : _dcOrder26 === 2 ? 40 : _dcOrder26 >= 3 ? 10 : 50;
+    const _curVolScore  = Math.min(100, Math.max(0, (_curTeamRushPg - 18) / (38 - 18) * 100));
+    const _curOffScore  = _curOffRank !== null ? Math.round((33 - _curOffRank) / 31 * 100) : 50;
 
     // Grade + color converters
     const _toGrade = s => {
@@ -3432,10 +3517,10 @@ async function loadPlayerProfile(pid) {
                        : teamRushPg >= 24 ? {label:'Balanced',     color:'var(--accent)' }
                        : teamRushPg >= 21 ? {label:'Pass-Leaning', color:'var(--orange)' }
                        :                    {label:'Pass-Heavy',   color:'var(--red)'    };
-    const dcClass = _dcOrder === 1 ? {label:'Starter',    color:'var(--green)'  }
-                  : _dcOrder === 2 ? {label:'Backup',     color:'var(--orange)' }
-                  : _dcOrder >= 3  ? {label:'Depth',      color:'var(--red)'    }
-                  :                  {label:'No DC Data', color:'var(--text-dim)'};
+    const dcClass = _dcOrder26 === 1 ? {label:'Starter',    color:'var(--green)'  }
+                  : _dcOrder26 === 2 ? {label:'Backup',     color:'var(--orange)' }
+                  : _dcOrder26 >= 3  ? {label:'Depth',      color:'var(--red)'    }
+                  :                    {label:'No DC Data', color:'var(--text-dim)'};
 
     const _toGradeClass = s => s === null ? 'grade-dim'
       : s >= 83 ? 'grade-green' : s >= 70 ? 'grade-blue'
@@ -3454,7 +3539,7 @@ async function loadPlayerProfile(pid) {
       : _wklScore >= 43 ? 'Limited workload — rotational or situational role.'
       : 'Minimal workload — not a primary ball carrier.';
 
-    const _sitDesc = `${_teamCtx}. Depth #${_dcOrder ?? '?'}${_dcOrder === 1 ? ' — starter.' : _dcOrder === 2 ? ' — backup.' : _dcOrder === null ? ' — unknown.' : '.'}`;
+    const _sitDesc = `${_teamCtx}. Depth #${_dcOrder25 ?? '?'}${_dcOrder25 === 1 ? ' — starter.' : _dcOrder25 === 2 ? ' — backup.' : _dcOrder25 === null ? ' — unknown.' : '.'}`;
 
     const _scorecardHTML = `
       <div class="pp-outcomes">
@@ -3485,7 +3570,7 @@ async function loadPlayerProfile(pid) {
           <div class="pp-proj-stats">
             <span class="pp-proj-stat">${teamRushPg.toFixed(1)} team att/g${usingActualTeam ? '' : ' (avg)'}</span>
             <span class="pp-proj-stat">${_teamCtx}</span>
-            ${_dcOrder !== null ? `<span class="pp-proj-stat">Depth #${_dcOrder}${_dcOrder === 1 ? ' · starter' : _dcOrder === 2 ? ' · backup' : ''}</span>` : ''}
+            ${_dcOrder25 !== null ? `<span class="pp-proj-stat">Depth #${_dcOrder25}${_dcOrder25 === 1 ? ' · starter' : _dcOrder25 === 2 ? ' · backup' : ''}</span>` : ''}
           </div>
         </div>
       </div>
@@ -3495,6 +3580,40 @@ async function loadPlayerProfile(pid) {
         <span class="pp-sc-inj-risk" style="color:${_injRisk.color};">${_injRisk.label}</span>
         <span class="pp-sc-inj-detail">Proj. ${_injProjMissed}g missed · avg ${_injAvgGp ?? '?'}/17 · ${_injSeasonCount} season${_injSeasonCount !== 1 ? 's' : ''}</span>
       </div>` : ''}`;
+
+    // 2026 forward-looking scorecard (3 situation cards using current team)
+    const _scorecardHTML2026 = `
+      <div class="pp-outcomes">
+        <div class="pp-outcome ${_toGradeClass(_curRoleScore)}">
+          <div class="pp-outcome-label">2026 Role</div>
+          <div class="pp-outcome-pts" style="color:${_toColor(_curRoleScore)};">${dcClass.label}</div>
+          <div class="pp-outcome-desc">${_curDCDesc}</div>
+          <div class="pp-proj-stats">
+            ${_dcOrder26 !== null ? `<span class="pp-proj-stat">Depth #${_dcOrder26} · ${nflTeam}</span>` : `<span class="pp-proj-stat">No DC data · ${nflTeam}</span>`}
+            ${_dcInj26 ? `<span class="pp-proj-stat">${_dcInj26}</span>` : ''}
+          </div>
+        </div>
+        <div class="pp-outcome ${_toGradeClass(_curOffScore)}">
+          <div class="pp-outcome-label">2026 Offense</div>
+          <div class="pp-outcome-pts" style="color:${_curOffRatCls.color};">${_curOffRank !== null ? `#${_curOffRank}` : '—'}<span style="font-size:12px;color:var(--text-dim);">/32</span></div>
+          <div class="pp-outcome-desc">${_curTeamCtxStr}. Ranked #${_curOffRank ?? '?'} in NFL.</div>
+          <div class="pp-proj-stats">
+            <span class="pp-proj-stat">${_curOffRatCls.label}</span>
+            <span class="pp-proj-stat">${_curTeamRushPg.toFixed(1)} rush att/g</span>
+            ${_curRunRate !== null ? `<span class="pp-proj-stat">${_curRunRate}% run rate</span>` : ''}
+          </div>
+        </div>
+        <div class="pp-outcome ${_toGradeClass(_curVolScore)}">
+          <div class="pp-outcome-label">2026 Volume</div>
+          <div class="pp-outcome-pts" style="color:${_curVolClass.color};">${_curVolClass.label.split('-')[0]}</div>
+          <div class="pp-outcome-desc">${nflTeam} runs ${_curTeamRushPg.toFixed(1)} att/g — ${_curVolClass.label.toLowerCase()} scheme.</div>
+          <div class="pp-proj-stats">
+            <span class="pp-proj-stat">${_curTeamRushPg.toFixed(1)} rush att/g</span>
+            ${_curPassAttPg !== null ? `<span class="pp-proj-stat">${_curPassAttPg} pass att/g</span>` : ''}
+            ${_curTeamYpc !== null ? `<span class="pp-proj-stat">${_curTeamYpc} team YPC</span>` : ''}
+          </div>
+        </div>
+      </div>`;
 
     const snapCard = hasSnap
       ? `<div class="pp-wl-card" style="border-left-color:${snapClass.color};">
@@ -3521,219 +3640,295 @@ async function loadPlayerProfile(pid) {
           <span class="pp-wl-role-tag" style="color:${roleTag.color};border-color:${roleTag.color};background:${roleTag.color}18;">${roleTag.label}</span>
           ${teamChanged ? `<span class="pp-wl-role-tag" style="color:var(--text-muted);border-color:var(--border);background:rgba(255,255,255,0.04);">on ${statTeam}</span>` : ''}
         </div>
-        ${_scorecardHTML}
+        ${teamChanged ? `
+        <div class="pp-wl-year-tabs">
+          <button class="pp-wl-year-tab active" onclick="switchYearTab(this,'2025')">2025 Stats</button>
+          <button class="pp-wl-year-tab" onclick="switchYearTab(this,'2026')">2026 Outlook</button>
+        </div>` : ''}
 
-        <div class="pp-wl-row-label">Efficiency</div>
-        <div class="pp-wl-cards">
-          ${ypc !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${ypcClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Yards / Carry</span>
-                   <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                 ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds')}
-                 <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Yards / Carry</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
-               </div>`}
-          ${ptsPerTouch
-            ? `<div class="pp-wl-card" style="border-left-color:${pptClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Points / Touch</span>
-                   <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                 ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts')}
-                 <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · ${gp} gp</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Points / Touch</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
-               </div>`
-          }
-          ${rushFDRate !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${fdRateClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">1st Down Rate</span>
-                   <span class="pp-wl-card-cls" style="color:${fdRateClass.color};">${fdRateClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${fdRateClass.color};">${rushFDRate}<span>%</span></div>
-                 ${mkBarVal(rushFDRate, 35, avgFDRate, fdRateClass.color, '%')}
-                 <div class="pp-wl-card-sub">${rushFD} first downs · ${rushAtt} carries · ${rushTd} rush TDs</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">1st Down Rate</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Requires ESPN player ID</div>
-               </div>`}
-          ${ryoePerAtt !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${ryoeClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Rush Yds Over Expected</span>
-                   <span class="pp-wl-card-cls" style="color:${ryoeClass.color};">${ryoeClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${ryoeClass.color};">${ryoePerAtt >= 0 ? '+' : ''}${ryoePerAtt}<span> yds/att</span></div>
-                 ${mkBarSigned(ryoePerAtt, 1.5, ryoeClass.color)}
-                 <div class="pp-wl-card-sub">${ryoeTotal !== null ? `${ryoeTotal >= 0 ? '+' : ''}${ryoeTotal} total · ` : ''}${ryoeIsNGS && ryoeExpYards !== null ? `${ryoeExpYards} expected · NGS` : `${ypc} YPC vs ${teamYpc ?? '4.3'} avg`}</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Rush Eff. vs. Team</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
-               </div>`}
+        <div class="pp-wl-year-pane" data-year="2025">
+          ${_scorecardHTML}
+
+          <div class="pp-wl-row-label">Efficiency</div>
+          <div class="pp-wl-cards">
+            ${ypc !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${ypcClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Yards / Carry</span>
+                     <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
+                   ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds')}
+                   <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Yards / Carry</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Not in Sleeper data</div>
+                 </div>`}
+            ${ptsPerTouch
+              ? `<div class="pp-wl-card" style="border-left-color:${pptClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Points / Touch</span>
+                     <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
+                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts')}
+                   <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · ${gp} gp</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Points / Touch</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Not in Sleeper data</div>
+                 </div>`
+            }
+            ${rushFDRate !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${fdRateClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">1st Down Rate</span>
+                     <span class="pp-wl-card-cls" style="color:${fdRateClass.color};">${fdRateClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${fdRateClass.color};">${rushFDRate}<span>%</span></div>
+                   ${mkBarVal(rushFDRate, 35, avgFDRate, fdRateClass.color, '%')}
+                   <div class="pp-wl-card-sub">${rushFD} first downs · ${rushAtt} carries · ${rushTd} rush TDs</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">1st Down Rate</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Requires ESPN player ID</div>
+                 </div>`}
+            ${ryoePerAtt !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${ryoeClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Rush Yds Over Expected</span>
+                     <span class="pp-wl-card-cls" style="color:${ryoeClass.color};">${ryoeClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${ryoeClass.color};">${ryoePerAtt >= 0 ? '+' : ''}${ryoePerAtt}<span> yds/att</span></div>
+                   ${mkBarSigned(ryoePerAtt, 1.5, ryoeClass.color)}
+                   <div class="pp-wl-card-sub">${ryoeTotal !== null ? `${ryoeTotal >= 0 ? '+' : ''}${ryoeTotal} total · ` : ''}${ryoeIsNGS && ryoeExpYards !== null ? `${ryoeExpYards} expected · NGS` : `${ypc} YPC vs ${teamYpc ?? '4.3'} avg`}</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Rush Eff. vs. Team</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+                 </div>`}
+          </div>
+
+          <div class="pp-wl-row-label" style="margin-top:14px;">Workload</div>
+          <div class="pp-wl-cards">
+            <div class="pp-wl-card" style="border-left-color:${carryClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Carry Share</span>
+                <span class="pp-wl-card-cls" style="color:${carryClass.color};">${carryClass.label}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${carryClass.color};">${carryPct}<span>%</span></div>
+              <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color)}</div>
+              <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att${usingActualTeam ? ` · team ${teamRushPg.toFixed(1)} att/g` : ' · vs league avg'}</div>
+            </div>
+            ${snapCard}
+            <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Touches / Game</span>
+                <span class="pp-wl-card-cls" style="color:${touchPgClass.color};">${touchPgClass.label}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
+              ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '')}
+              <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · ${touches} total</div>
+            </div>
+            <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Touch Share</span>
+                <span class="pp-wl-card-cls" style="color:${touchShareClass.color};">${touchShareClass.label}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${touchShareClass.color};">${touchSharePct}<span>%</span></div>
+              ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color)}
+              <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g of ~${avgTmTouchPg} team avg</div>
+            </div>
+            <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Target Share</span>
+                <span class="pp-wl-card-cls" style="color:${tgtClass.color};">${tgtClass.label}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
+              ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color)}
+              <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt</div>
+            </div>
+          </div>
+
+          <div class="pp-wl-row-label" style="margin-top:14px;">Situation</div>
+          <div class="pp-wl-cards">
+            ${runRate !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${runRateClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Run Rate</span>
+                     <span class="pp-wl-card-cls" style="color:${runRateClass.color};">${runRateClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${runRateClass.color};">${runRate}<span>%</span></div>
+                   ${mkBar(runRate, 60, 41, runRateClass.color)}
+                   <div class="pp-wl-card-sub">${runRate}% runs · ${passRate}% passes of ${offPlaysPg} plays/g</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Run Rate</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+                 </div>`}
+            <div class="pp-wl-card" style="border-left-color:${teamVolClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Rush att / Game</span>
+                <span class="pp-wl-card-cls" style="color:${teamVolClass.color};">${teamVolClass.label}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${teamVolClass.color};">${teamRushPg.toFixed(1)}<span>/g</span></div>
+              ${mkBarVal(teamRushPg, 38, 26, teamVolClass.color, '/g')}
+              <div class="pp-wl-card-sub">${usingActualTeam ? `${statTeam ?? 'Team'} season rush att/game` : 'Using league avg (no team data)'}</div>
+            </div>
+            ${passAttPg !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${passVolClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Pass att / Game</span>
+                     <span class="pp-wl-card-cls" style="color:${passVolClass.color};">${passVolClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${passVolClass.color};">${passAttPg}<span>/g</span></div>
+                   ${mkBarVal(passAttPg, 48, 33, passVolClass.color, '/g')}
+                   <div class="pp-wl-card-sub">${statTeam ?? 'Team'} season pass att/game</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Pass att / Game</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+                 </div>`}
+            ${offPlaysPg !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${offPlaysClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Off. Plays / Game</span>
+                     <span class="pp-wl-card-cls" style="color:${offPlaysClass.color};">${offPlaysClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${offPlaysClass.color};">${offPlaysPg}<span>/g</span></div>
+                   ${mkBarVal(offPlaysPg, 80, 63, offPlaysClass.color, '/g')}
+                   <div class="pp-wl-card-sub">Rush + pass att · excl. sacks</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Plays / Game</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+                 </div>`}
+            ${teamYpc !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${olProxyClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">OL Proxy</span>
+                     <span class="pp-wl-card-cls" style="color:${olProxyClass.color};">${olProxyClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${olProxyClass.color};">${teamYpc}<span> ypc</span></div>
+                   ${mkBarVal(teamYpc, 6.0, 4.2, olProxyClass.color, ' ypc')}
+                   <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">OL Proxy</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+                 </div>`}
+            ${offRank !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${offRatingClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Off. Rating</span>
+                     <span class="pp-wl-card-cls" style="color:${offRatingClass.color};">${offRatingClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${offRatingClass.color};">#${offRank}<span>/32</span></div>
+                   <div class="pp-wl-track">
+                     <div class="pp-wl-fill"     style="width:${offRankFillW}%;background:${offRatingClass.color};"></div>
+                     <div class="pp-wl-avg-tick" style="left:${offRankAvgPos}%;"></div>
+                     <div class="pp-wl-dot"      style="left:${offRankFillW}%;background:${offRatingClass.color};box-shadow:0 0 6px ${offRatingClass.color};"></div>
+                   </div>
+                   <div class="pp-wl-scale">
+                     <span>#32</span>
+                     <span class="pp-wl-avg-label" style="left:${offRankAvgPos}%;">AVG #16</span>
+                     <span>#1</span>
+                   </div>
+                   <div class="pp-wl-card-sub">Composite: yards/play + pts/game (ESPN live)</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Rating</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+                 </div>`}
+            <div class="pp-wl-card" style="border-left-color:${dcClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Depth Chart</span>
+                <span class="pp-wl-card-cls" style="color:${dcClass.color};">${dcClass.label}${_dcInj26 ? ` · ${_dcInj26}` : ''}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${dcClass.color};">${_dcOrder26 !== null ? `#${_dcOrder26}` : '—'}</div>
+              <div class="pp-wl-card-sub">${_dcOrder26 === 1 ? 'Lead back · primary ball carrier' : _dcOrder26 === 2 ? 'Backup · handcuff role' : _dcOrder26 >= 3 ? `Depth back · #${_dcOrder26} on depth chart` : 'No depth chart data'}</div>
+            </div>
+          </div>
+          ${injCardHTML}
         </div>
 
-        <div class="pp-wl-row-label" style="margin-top:14px;">Workload</div>
-        <div class="pp-wl-cards">
-          <div class="pp-wl-card" style="border-left-color:${carryClass.color};">
-            <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Carry Share</span>
-              <span class="pp-wl-card-cls" style="color:${carryClass.color};">${carryClass.label}</span>
-            </div>
-            <div class="pp-wl-card-val" style="color:${carryClass.color};">${carryPct}<span>%</span></div>
-            <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color)}</div>
-            <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att${usingActualTeam ? ` · team ${teamRushPg.toFixed(1)} att/g` : ' · vs league avg'}</div>
-          </div>
-          ${snapCard}
-          <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
-            <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Touches / Game</span>
-              <span class="pp-wl-card-cls" style="color:${touchPgClass.color};">${touchPgClass.label}</span>
-            </div>
-            <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
-            ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '')}
-            <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · ${touches} total</div>
-          </div>
-          <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
-            <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Touch Share</span>
-              <span class="pp-wl-card-cls" style="color:${touchShareClass.color};">${touchShareClass.label}</span>
-            </div>
-            <div class="pp-wl-card-val" style="color:${touchShareClass.color};">${touchSharePct}<span>%</span></div>
-            ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color)}
-            <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g of ~${avgTmTouchPg} team avg</div>
-          </div>
-          <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
-            <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Target Share</span>
-              <span class="pp-wl-card-cls" style="color:${tgtClass.color};">${tgtClass.label}</span>
-            </div>
-            <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
-            ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color)}
-            <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt</div>
-          </div>
-        </div>
+        ${teamChanged ? `
+        <div class="pp-wl-year-pane" data-year="2026" style="display:none;">
+          ${_scorecardHTML2026}
 
-        <div class="pp-wl-row-label" style="margin-top:14px;">Situation</div>
-        <div class="pp-wl-cards">
-          ${runRate !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${runRateClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Run Rate</span>
-                   <span class="pp-wl-card-cls" style="color:${runRateClass.color};">${runRateClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${runRateClass.color};">${runRate}<span>%</span></div>
-                 ${mkBar(runRate, 60, 41, runRateClass.color)}
-                 <div class="pp-wl-card-sub">${runRate}% runs · ${passRate}% passes of ${offPlaysPg} plays/g</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Run Rate</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
-               </div>`}
-          <div class="pp-wl-card" style="border-left-color:${teamVolClass.color};">
-            <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Rush att / Game</span>
-              <span class="pp-wl-card-cls" style="color:${teamVolClass.color};">${teamVolClass.label}</span>
+          <div class="pp-wl-row-label" style="margin-top:14px;">2026 Situation</div>
+          <div class="pp-wl-cards">
+            ${_curRunRate !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${_curVolClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Run Rate</span>
+                     <span class="pp-wl-card-cls" style="color:${_curVolClass.color};">${_curVolClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${_curVolClass.color};">${_curRunRate}<span>%</span></div>
+                   ${mkBar(_curRunRate, 60, 41, _curVolClass.color)}
+                   <div class="pp-wl-card-sub">${_curRunRate}% runs · ${_curPassRate}% passes of ${_curOffPlaysPg ?? '—'} plays/g</div>
+                 </div>`
+              : ''}
+            <div class="pp-wl-card" style="border-left-color:${_curVolClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Rush att / Game</span>
+                <span class="pp-wl-card-cls" style="color:${_curVolClass.color};">${_curVolClass.label}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${_curVolClass.color};">${_curTeamRushPg.toFixed(1)}<span>/g</span></div>
+              ${mkBarVal(_curTeamRushPg, 38, 26, _curVolClass.color, '/g')}
+              <div class="pp-wl-card-sub">${nflTeam} 2025 season rush att/game</div>
             </div>
-            <div class="pp-wl-card-val" style="color:${teamVolClass.color};">${teamRushPg.toFixed(1)}<span>/g</span></div>
-            ${mkBarVal(teamRushPg, 38, 26, teamVolClass.color, '/g')}
-            <div class="pp-wl-card-sub">${usingActualTeam ? `${sp?.team ?? 'Team'} season rush att/game` : 'Using league avg (no team data)'}</div>
-          </div>
-          ${passAttPg !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${passVolClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Pass att / Game</span>
-                   <span class="pp-wl-card-cls" style="color:${passVolClass.color};">${passVolClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${passVolClass.color};">${passAttPg}<span>/g</span></div>
-                 ${mkBarVal(passAttPg, 48, 33, passVolClass.color, '/g')}
-                 <div class="pp-wl-card-sub">${sp?.team ?? 'Team'} season pass att/game</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Pass att / Game</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
-               </div>`}
-          ${offPlaysPg !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${offPlaysClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Off. Plays / Game</span>
-                   <span class="pp-wl-card-cls" style="color:${offPlaysClass.color};">${offPlaysClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${offPlaysClass.color};">${offPlaysPg}<span>/g</span></div>
-                 ${mkBarVal(offPlaysPg, 80, 63, offPlaysClass.color, '/g')}
-                 <div class="pp-wl-card-sub">Rush + pass att · excl. sacks</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Plays / Game</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
-               </div>`}
-          ${teamYpc !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${olProxyClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">OL Proxy</span>
-                   <span class="pp-wl-card-cls" style="color:${olProxyClass.color};">${olProxyClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${olProxyClass.color};">${teamYpc}<span> ypc</span></div>
-                 ${mkBarVal(teamYpc, 6.0, 4.2, olProxyClass.color, ' ypc')}
-                 <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">OL Proxy</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
-               </div>`}
-          ${offRank !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${offRatingClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Off. Rating</span>
-                   <span class="pp-wl-card-cls" style="color:${offRatingClass.color};">${offRatingClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${offRatingClass.color};">#${offRank}<span>/32</span></div>
-                 <div class="pp-wl-track">
-                   <div class="pp-wl-fill"     style="width:${offRankFillW}%;background:${offRatingClass.color};"></div>
-                   <div class="pp-wl-avg-tick" style="left:${offRankAvgPos}%;"></div>
-                   <div class="pp-wl-dot"      style="left:${offRankFillW}%;background:${offRatingClass.color};box-shadow:0 0 6px ${offRatingClass.color};"></div>
-                 </div>
-                 <div class="pp-wl-scale">
-                   <span>#32</span>
-                   <span class="pp-wl-avg-label" style="left:${offRankAvgPos}%;">AVG #16</span>
-                   <span>#1</span>
-                 </div>
-                 <div class="pp-wl-card-sub">Composite: yards/play + pts/game (ESPN live)</div>
-               </div>`
-            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Rating</span></div>
-                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
-               </div>`}
-          <div class="pp-wl-card" style="border-left-color:${dcClass.color};">
-            <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Depth Chart</span>
-              <span class="pp-wl-card-cls" style="color:${dcClass.color};">${dcClass.label}${_dcInjStatus ? ` · ${_dcInjStatus}` : ''}</span>
+            ${_curTeamYpc !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${_curOffRatCls.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">OL Proxy</span>
+                     <span class="pp-wl-card-cls" style="color:${_curOffRatCls.color};">${_curTeamYpc >= 5.0 ? 'Elite OL' : _curTeamYpc >= 4.5 ? 'Strong OL' : _curTeamYpc >= 4.0 ? 'Average OL' : 'Weak OL'}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${_curOffRatCls.color};">${_curTeamYpc}<span> ypc</span></div>
+                   ${mkBarVal(_curTeamYpc, 6.0, 4.2, _curOffRatCls.color, ' ypc')}
+                   <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
+                 </div>`
+              : ''}
+            ${_curOffRank !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${_curOffRatCls.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Off. Rating</span>
+                     <span class="pp-wl-card-cls" style="color:${_curOffRatCls.color};">${_curOffRatCls.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${_curOffRatCls.color};">#${_curOffRank}<span>/32</span></div>
+                   <div class="pp-wl-track">
+                     <div class="pp-wl-fill" style="width:${_curRankFillW}%;background:${_curOffRatCls.color};"></div>
+                     <div class="pp-wl-avg-tick" style="left:${offRankAvgPos}%;"></div>
+                     <div class="pp-wl-dot" style="left:${_curRankFillW}%;background:${_curOffRatCls.color};box-shadow:0 0 6px ${_curOffRatCls.color};"></div>
+                   </div>
+                   <div class="pp-wl-scale">
+                     <span>#32</span>
+                     <span class="pp-wl-avg-label" style="left:${offRankAvgPos}%;">AVG #16</span>
+                     <span>#1</span>
+                   </div>
+                   <div class="pp-wl-card-sub">Composite: yards/play + pts/game (ESPN live)</div>
+                 </div>`
+              : ''}
+            <div class="pp-wl-card" style="border-left-color:${dcClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Depth Chart</span>
+                <span class="pp-wl-card-cls" style="color:${dcClass.color};">${dcClass.label}${_dcInj26 ? ` · ${_dcInj26}` : ''}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${dcClass.color};">${_dcOrder26 !== null ? `#${_dcOrder26}` : '—'}</div>
+              <div class="pp-wl-card-sub">${_dcOrder26 === 1 ? 'Lead back · primary ball carrier' : _dcOrder26 === 2 ? 'Backup · handcuff role' : _dcOrder26 >= 3 ? `Depth back · #${_dcOrder26} on depth chart` : 'No depth chart data'}</div>
             </div>
-            <div class="pp-wl-card-val" style="color:${dcClass.color};">${_dcOrder !== null ? `#${_dcOrder}` : '—'}</div>
-            <div class="pp-wl-card-sub">${_dcOrder === 1 ? 'Lead back · primary ball carrier' : _dcOrder === 2 ? 'Backup · handcuff role' : _dcOrder >= 3 ? `Depth back · #${_dcOrder} on depth chart` : 'No depth chart data'}</div>
           </div>
-        </div>
-        ${injCardHTML}
+        </div>` : ''}
 
       </div>`;
   }
