@@ -3187,6 +3187,21 @@ async function loadPlayerProfile(pid) {
           <span>${maxVal}${unit}</span>
         </div>`;
     };
+    // Signed (bipolar) bar: maps [-maxAbs, +maxAbs] → [0%, 100%], avg tick always at 50%
+    const mkBarSigned = (val, maxAbs, color, unit = '') => {
+      const _f = Math.min(Math.max((val + maxAbs) / (maxAbs * 2) * 100, 0), 100).toFixed(1);
+      return `
+        <div class="pp-wl-track">
+          <div class="pp-wl-fill"     style="width:${_f}%;background:${color};"></div>
+          <div class="pp-wl-avg-tick" style="left:50%;"></div>
+          <div class="pp-wl-dot"      style="left:${_f}%;background:${color};box-shadow:0 0 6px ${color};"></div>
+        </div>
+        <div class="pp-wl-scale">
+          <span>-${maxAbs}${unit}</span>
+          <span class="pp-wl-avg-label" style="left:50%;">AVG 0</span>
+          <span>+${maxAbs}${unit}</span>
+        </div>`;
+    };
 
     // Touches per game & touch share
     const touches       = rushAtt + +(stats.rec ?? 0);
@@ -3292,12 +3307,22 @@ async function loadPlayerProfile(pid) {
       : teamYpc   >= 3.5  ? {label:'Weak OL',      color:'var(--orange)' }
       :                     {label:'Poor OL',      color:'var(--red)'    };
 
-    const offRatingClass = offRating === null ? {label:'No Data',   color:'var(--text-dim)'}
-      : offRating >= 75   ? {label:'Elite',        color:'var(--green)'  }
-      : offRating >= 60   ? {label:'Strong',       color:'var(--blue)'   }
-      : offRating >= 45   ? {label:'Average',      color:'var(--accent)' }
-      : offRating >= 30   ? {label:'Below Avg',    color:'var(--orange)' }
-      :                     {label:'Weak',         color:'var(--red)'    };
+    // Compute rank of this team's offRating among all teams (1 = best offense, 32 = worst)
+    const offRank = (() => {
+      const entries = Object.entries(teamDB).filter(([, v]) => v?.offRating != null);
+      if (!entries.length || offRating === null) return null;
+      const idx = entries.sort((a, b) => b[1].offRating - a[1].offRating)
+                         .findIndex(([k]) => k === nflTeam);
+      return idx >= 0 ? idx + 1 : null;
+    })();
+    const offRankFillW  = offRank !== null ? ((33 - offRank) / 32 * 100).toFixed(1) : '50.0';
+    const offRankAvgPos = (16.5 / 32 * 100).toFixed(1);   // ≈ 51.6%
+
+    const offRatingClass = offRank === null ? {label:'No Data',  color:'var(--text-dim)'}
+      : offRank <=  8 ? {label:'Elite',      color:'var(--green)'  }
+      : offRank <= 16 ? {label:'Above Avg',  color:'var(--blue)'   }
+      : offRank <= 24 ? {label:'Below Avg',  color:'var(--orange)' }
+      :                 {label:'Weak',       color:'var(--red)'    };
 
     const ryoeClass      = ryoePerAtt === null ? {label:'No Data',  color:'var(--text-dim)'}
       : ryoePerAtt >= 0.8  ? {label:'Elite',       color:'var(--green)'  }
@@ -3474,7 +3499,7 @@ async function loadPlayerProfile(pid) {
                    <span class="pp-wl-card-cls" style="color:${ryoeClass.color};">${ryoeClass.label}</span>
                  </div>
                  <div class="pp-wl-card-val" style="color:${ryoeClass.color};">${ryoePerAtt >= 0 ? '+' : ''}${ryoePerAtt}<span> yds/att</span></div>
-                 ${mkBarVal(ryoePerAtt + 2.0, 4.0, 2.0, ryoeClass.color, ' yds/att')}
+                 ${mkBarSigned(ryoePerAtt, 1.5, ryoeClass.color)}
                  <div class="pp-wl-card-sub">${ryoeTotal !== null ? `${ryoeTotal >= 0 ? '+' : ''}${ryoeTotal} total · ` : ''}${ryoeIsNGS && ryoeExpYards !== null ? `${ryoeExpYards} expected · NGS` : `${ypc} YPC vs ${teamYpc ?? '4.3'} avg`}</div>
                </div>`
             : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -3596,14 +3621,23 @@ async function loadPlayerProfile(pid) {
                  <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                  <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
                </div>`}
-          ${offRating !== null
+          ${offRank !== null
             ? `<div class="pp-wl-card" style="border-left-color:${offRatingClass.color};">
                  <div class="pp-wl-card-header">
                    <span class="pp-wl-card-label">Off. Rating</span>
                    <span class="pp-wl-card-cls" style="color:${offRatingClass.color};">${offRatingClass.label}</span>
                  </div>
-                 <div class="pp-wl-card-val" style="color:${offRatingClass.color};">${offRating}<span>/100</span></div>
-                 ${mkBar(offRating, 100, 50, offRatingClass.color)}
+                 <div class="pp-wl-card-val" style="color:${offRatingClass.color};">#${offRank}<span>/32</span></div>
+                 <div class="pp-wl-track">
+                   <div class="pp-wl-fill"     style="width:${offRankFillW}%;background:${offRatingClass.color};"></div>
+                   <div class="pp-wl-avg-tick" style="left:${offRankAvgPos}%;"></div>
+                   <div class="pp-wl-dot"      style="left:${offRankFillW}%;background:${offRatingClass.color};box-shadow:0 0 6px ${offRatingClass.color};"></div>
+                 </div>
+                 <div class="pp-wl-scale">
+                   <span>#32</span>
+                   <span class="pp-wl-avg-label" style="left:${offRankAvgPos}%;">AVG #16</span>
+                   <span>#1</span>
+                 </div>
                  <div class="pp-wl-card-sub">Composite: yards/play + pts/game (ESPN live)</div>
                </div>`
             : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
