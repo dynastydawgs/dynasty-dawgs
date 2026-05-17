@@ -163,44 +163,37 @@ async function main() {
   progress(90, `Avg carry share: ${avgRbCarryPct}%`);
   console.log();
 
-  // ── Step 5b: Build teamDB ─────────────────────────────────────────────────
-  // Aggregate team-level stats from the most recent season using the same
-  // recentStats map already in memory.  QB records provide pass volume;
-  // all positions contribute rush volume.
-  progress(92, 'Building team context database…');
-  const teamAgg = {};
-  for (const [pid, st] of Object.entries(recentStats)) {
-    const sp  = sleeperPlayers[pid];
-    // Use the team recorded in the stats row first — it reflects which team the
-    // player was actually on during that season, not their current (possibly
-    // traded/FA) team.  Fall back to the player-directory team only if missing.
-    const team = st.team ?? sp?.team ?? null;
-    if (!team || team === 'FA' || team === 'UFA') continue;
+  // ── Step 5b: Build teamDB from ESPN ──────────────────────────────────────
+  // ESPN sports.core.api provides pre-computed perGameValue for all key stats
+  // (rush att/g, pass att/g, YPC, TDs/g, total plays/g) without any offseason
+  // player-directory misattribution issues.
+  progress(92, 'Building team context database from ESPN…');
 
-    if (!teamAgg[team]) teamAgg[team] = {
-      rushAtt: 0, rushYd: 0, rushTd: 0,
-      passAtt: 0, passYd: 0, passTd: 0,
-      gpMax: 0,
-    };
-    const t  = teamAgg[team];
-    const gp = Math.max(1, +(st.gms_active ?? st.gp ?? st.gms ?? 1) || 1);
-    t.gpMax   = Math.max(t.gpMax, gp);
-    t.rushAtt += +(st.rush_att ?? 0);
-    t.rushYd  += +(st.rush_yd  ?? 0);
-    t.rushTd  += +(st.rush_td  ?? 0);
-    // Use stats-row position first to avoid current-team-after-trade misattribution
-    const pos = st.pos ?? sp?.position ?? null;
-    if (pos === 'QB') {
-      t.passAtt += +(st.pass_att ?? 0);
-      t.passYd  += +(st.pass_yd  ?? 0);
-      t.passTd  += +(st.pass_td  ?? 0);
-    }
-  }
+  // ESPN uses different abbreviations for a handful of teams
+  const ESPN_ABBR_MAP = { WSH: 'WAS', JAC: 'JAX' };
+  const normalizeAbbr = abbr => ESPN_ABBR_MAP[abbr] ?? abbr;
 
-  // 2025 team rushing benchmarks — same source as the hardcoded HTML table.
-  // Used as a fallback when Sleeper aggregation produces bad data for a team.
-  // Pass att estimated as (65 avg total plays − rush att/g); teamYpc at league avg.
-  const RUSH_ATT_2025 = {
+  // Step 1: fetch team list to resolve ESPN internal IDs → our abbreviations
+  const espnTeamsData = await fetchJson(
+    'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams?limit=40'
+  );
+  const espnTeams = espnTeamsData.sports[0].leagues[0].teams.map(t => ({
+    id:   t.team.id,
+    abbr: normalizeAbbr(t.team.abbreviation),
+  }));
+
+  // Step 2: fetch regular-season stats for all 32 teams in parallel
+  const ESPN_STATS_BASE =
+    'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons';
+  const espnFetches = espnTeams.map(({ id, abbr }) =>
+    fetchJson(`${ESPN_STATS_BASE}/${recentYr}/types/2/teams/${id}/statistics`)
+      .then(data => ({ abbr, data }))
+      .catch(() => ({ abbr, data: null }))
+  );
+  const espnResults = await Promise.all(espnFetches);
+
+  // Hardcoded rush att/g — last-resort fallback if ESPN is unavailable
+  const RUSH_ATT_FALLBACK = {
     BUF:32.2,NYG:30.1,BAL:29.8,SEA:29.8,CHI:29.7,NE:29.1,GB:28.9,JAX:28.8,
     WAS:28.5,SF:28.3,PHI:28.1,ATL:28.1,HOU:27.9,TB:27.8,LAC:27.4,DAL:27.4,
     LAR:27.4,CAR:27.1,DEN:26.8,NYJ:26.8,IND:26.0,DET:26.0,NO:25.6,MIA:25.4,
@@ -210,50 +203,71 @@ async function main() {
   const teamDB = {};
   let liveTeams = 0, fallbackTeams = 0;
 
-  // ── Try live Sleeper aggregation first ──────────────────────────────────
-  for (const [team, t] of Object.entries(teamAgg)) {
-    const gp          = Math.max(1, t.gpMax);
-    const rushAttPg   = +(t.rushAtt / gp).toFixed(1);
-    const passAttPg   = +(t.passAtt / gp).toFixed(1);
+  for (const { abbr, data } of espnResults) {
+    if (!data?.splits?.categories) continue;
 
-    // Sanity-check: a real NFL team in a full season has ≥ 15 rush att/g and
-    // ≥ 15 pass att/g.  Values below that flag corrupted team attribution
-    // (e.g. a traded QB's pass stats landed on the wrong team).
-    if (rushAttPg < 15 || passAttPg < 15) continue;
+    // Flatten all stat entries across all category buckets into one lookup map
+    const statMap = {};
+    for (const cat of data.splits.categories) {
+      for (const stat of cat.stats) statMap[stat.name] = stat;
+    }
 
-    const offPlaysPg  = +(rushAttPg + passAttPg).toFixed(1);
-    const runRate     = +(rushAttPg / offPlaysPg * 100).toFixed(1);
-    const passRate    = +(100 - runRate).toFixed(1);
-    const teamYpc     = +(t.rushYd / t.rushAtt).toFixed(2);
-    const totalYd     = t.rushYd + t.passYd;
-    const totalAtt    = t.rushAtt + t.passAtt;
-    const ypp         = +(totalYd / totalAtt).toFixed(2);
-    const totalTd     = t.rushTd + t.passTd;
-    const tdPg        = +(totalTd / gp).toFixed(2);
-    const yppNorm    = Math.min(100, Math.max(0, (ypp - 4.5) / 3.0 * 100));
-    const tdNorm     = Math.min(100, Math.max(0, (tdPg - 2.0) / 3.0 * 100));
-    const offRating  = Math.round(yppNorm * 0.5 + tdNorm * 0.5);
+    // Use gamesPlayed stat for exact per-game division (perGameValue is int-rounded)
+    const gp         = statMap['gamesPlayed']?.value               ?? 17;
+    const rushAtt    = statMap['rushingAttempts']?.value            ?? null;
+    const passAtt    = statMap['passingAttempts']?.value            ?? null;
+    const rushTd     = statMap['rushingTouchdowns']?.value          ?? null;
+    const passTd     = statMap['passingTouchdowns']?.value          ?? null;
+    const totalPlays = statMap['totalOffensivePlays']?.value        ?? null;
+    const totalYd    = statMap['totalYards']?.value                 ?? null;
+    const teamYpc    = statMap['yardsPerRushAttempt']?.value        ?? null; // already a rate
 
-    teamDB[team] = { rushAttPg, passAttPg, offPlaysPg, runRate, passRate,
-                     teamYpc, ypp, tdPg, offRating };
+    const rushAttPg  = rushAtt    !== null ? +(rushAtt    / gp).toFixed(1) : null;
+    const passAttPg  = passAtt    !== null ? +(passAtt    / gp).toFixed(1) : null;
+    const offPlaysPg = totalPlays !== null ? +(totalPlays / gp).toFixed(1)
+                       : (rushAttPg !== null && passAttPg !== null
+                           ? +(rushAttPg + passAttPg).toFixed(1) : null);
+    // Offensive TDs only (rush + pass) — excludes return/defensive TDs
+    const tdPg       = (rushTd !== null && passTd !== null)
+                       ? +((rushTd + passTd) / gp).toFixed(2) : null;
+    const ypp        = (totalYd !== null && totalPlays > 0)
+                       ? +(totalYd / totalPlays).toFixed(2) : null;
+
+    if (rushAttPg === null || passAttPg === null || rushAttPg < 15 || passAttPg < 15) continue;
+
+    const runRate   = +(rushAttPg / offPlaysPg * 100).toFixed(1);
+    const passRate  = +(100 - runRate).toFixed(1);
+    const yppNorm   = ypp  !== null ? Math.min(100, Math.max(0, (ypp  - 4.5) / 3.0 * 100)) : 50;
+    const tdNorm    = tdPg !== null ? Math.min(100, Math.max(0, (tdPg - 2.0) / 3.0 * 100)) : 50;
+    const offRating = Math.round(yppNorm * 0.5 + tdNorm * 0.5);
+
+    teamDB[abbr] = {
+      rushAttPg:  +rushAttPg.toFixed(1),
+      passAttPg:  +passAttPg.toFixed(1),
+      offPlaysPg: offPlaysPg ?? +(rushAttPg + passAttPg).toFixed(1),
+      runRate,
+      passRate,
+      teamYpc:    teamYpc !== null ? +teamYpc.toFixed(2) : 4.3,
+      ypp:        ypp     !== null ? +ypp.toFixed(2)     : 5.7,
+      tdPg:       tdPg    !== null ? +tdPg.toFixed(2)    : 3.8,
+      offRating,
+    };
     liveTeams++;
   }
 
-  // ── Fallback: fill any missing team using 2025 hardcoded rush data ───────
-  // Uses avg 65 total plays/g and 4.3 teamYpc when Sleeper aggregation failed.
-  for (const [team, rushAttPg] of Object.entries(RUSH_ATT_2025)) {
-    if (teamDB[team]) continue; // live data already present
+  // Fallback: any team ESPN didn't cover gets hardcoded estimates
+  for (const [team, rushAttPg] of Object.entries(RUSH_ATT_FALLBACK)) {
+    if (teamDB[team]) continue;
     const passAttPg  = +(65 - rushAttPg).toFixed(1);
-    const offPlaysPg = +(rushAttPg + passAttPg).toFixed(1);
+    const offPlaysPg = 65.0;
     const runRate    = +(rushAttPg / offPlaysPg * 100).toFixed(1);
     const passRate   = +(100 - runRate).toFixed(1);
-    // Off. Rating: neutral 50 since we don't have reliable pass yard/TD data
     teamDB[team] = { rushAttPg, passAttPg, offPlaysPg, runRate, passRate,
                      teamYpc: 4.3, ypp: 5.7, tdPg: 3.8, offRating: 50, estimated: true };
     fallbackTeams++;
   }
 
-  progress(95, `Team DB: ${liveTeams} live + ${fallbackTeams} estimated teams`);
+  progress(95, `Team DB: ${liveTeams} live (ESPN) + ${fallbackTeams} estimated teams`);
   console.log();
 
   // ── Step 6: Write output files ────────────────────────────────────────────
