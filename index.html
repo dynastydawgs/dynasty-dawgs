@@ -3247,14 +3247,18 @@ async function loadPlayerProfile(pid) {
                       : rushFDRate >= 12    ? {label:'Below Avg', color:'var(--orange)' }
                       :                      {label:'Poor',       color:'var(--red)'    };
 
-    // RYOE proxy: (player YPC − team OL-adjusted YPC) × rush attempts = yards above a team-avg runner
-    // Requires teamdb.json (built by CI).  ryoePerAtt null → card hidden.
-    const ryoePerAtt = (ypc !== null && teamYpc !== null)
-      ? Math.round((ypc - teamYpc) * 100) / 100
-      : null;
-    const ryoeTotal  = (ryoePerAtt !== null && rushAtt >= 20)
-      ? Math.round(ryoePerAtt * rushAtt)
-      : null;
+    // RYOE — prefer official NFL NGS data (nflverse); proxy as fallback when ryoedb.json absent.
+    // NGS model accounts for game situation, field position, and defense — far more accurate
+    // than simple (playerYPC - teamYPC) × carries.
+    const _ryoeEntry  = ryoeDB?.[sp?.name] ?? null;
+    const ryoePerAtt  = _ryoeEntry !== null
+      ? _ryoeEntry.ryoePerAtt
+      : (ypc !== null && teamYpc !== null ? Math.round((ypc - teamYpc) * 100) / 100 : null);
+    const ryoeTotal   = _ryoeEntry !== null
+      ? _ryoeEntry.ryoeTotal
+      : (ryoePerAtt !== null && rushAtt >= 20 ? Math.round(ryoePerAtt * rushAtt) : null);
+    const ryoeExpYards = _ryoeEntry?.expectedYards ?? null;
+    const ryoeIsNGS    = _ryoeEntry !== null;
 
     // Classifiers for new Situation and Efficiency cards
     // Use === null (not !value) so that legitimate low values (e.g. run rate near 0) don't
@@ -3471,7 +3475,7 @@ async function loadPlayerProfile(pid) {
                  </div>
                  <div class="pp-wl-card-val" style="color:${ryoeClass.color};">${ryoePerAtt >= 0 ? '+' : ''}${ryoePerAtt}<span> yds/att</span></div>
                  ${mkBarVal(ryoePerAtt + 2.0, 4.0, 2.0, ryoeClass.color, ' yds/att')}
-                 <div class="pp-wl-card-sub">${ryoeTotal !== null ? `${ryoeTotal >= 0 ? '+' : ''}${ryoeTotal} total · ` : ''}${ypc} YPC vs ${teamYpc} team avg</div>
+                 <div class="pp-wl-card-sub">${ryoeTotal !== null ? `${ryoeTotal >= 0 ? '+' : ''}${ryoeTotal} total · ` : ''}${ryoeIsNGS && ryoeExpYards !== null ? `${ryoeExpYards} expected · NGS` : `${ypc} YPC vs ${teamYpc ?? '4.3'} avg`}</div>
                </div>`
             : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                  <div class="pp-wl-card-header"><span class="pp-wl-card-label">Rush Eff. vs. Team</span></div>
@@ -4473,6 +4477,7 @@ let compDB      = {};   // "POS_tier_carYr" → [p15,p50,p85]
 let careerDB    = {};   // pid → [{season,ppr,ppg,games}]
 let teamDB      = {};   // teamAbbr → {rushAttPg,passAttPg,offPlaysPg,runRate,passRate,teamYpc,ypp,tdPg,offRating}
 let depthDB     = {};   // teamAbbr → { QB:[{name,rank,status}], RB:[…], WR:[…], TE:[…] }
+let ryoeDB      = {};   // playerName → { ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected }
 
 // Bulk season stats cache — populated once before preWarmProjectionCache runs.
 // Maps pid → flat stats object so fetchSleeperStats() reads from memory
@@ -5051,12 +5056,13 @@ async function loadPrebuiltData(onProgress) {
   try {
     onProgress?.('Loading pre-built data files…', 5);
 
-    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw] = await Promise.all([
+    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw] = await Promise.all([
       fetch(`${DATA_BASE_URL}/compdb.json`),
       fetch(`${DATA_BASE_URL}/careerdb.json`),
       fetch(`${DATA_BASE_URL}/benchmarks.json`),
       fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),   // optional — graceful fallback
-      fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),  // optional — graceful fallback
+      fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),   // optional — graceful fallback
+      fetch(`${DATA_BASE_URL}/ryoedb.json`).catch(() => null),   // optional — graceful fallback
     ]);
 
     if (!compRes.ok || !careerRes.ok || !benchRes.ok) {
@@ -5084,6 +5090,10 @@ async function loadPrebuiltData(onProgress) {
     // depthdb.json is optional — depth chart card falls back to Sleeper if absent
     if (depthResRaw?.ok) {
       try { depthDB = await depthResRaw.json(); } catch(e) {}
+    }
+    // ryoedb.json is optional — RYOE card falls back to proxy if absent
+    if (ryoeResRaw?.ok) {
+      try { ryoeDB = await ryoeResRaw.json(); } catch(e) {}
     }
 
     // Cache to localStorage so repeat loads skip even the static fetch

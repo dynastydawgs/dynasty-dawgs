@@ -7,10 +7,15 @@
 //   data/compdb.json      — comp buckets: "POS_tier_carYr" → [p15, p50, p85]
 //   data/careerdb.json    — pid → [{season, ppr, ppg, games, touches}]
 //   data/benchmarks.json  — { avgRbCarryPct }
+//   data/teamdb.json      — teamAbbr → {rushAttPg, passAttPg, offPlaysPg, …, offRating}
+//   data/depthdb.json     — teamAbbr → {QB/RB/WR/TE: [{name, rank, status}]}
+//   data/ryoedb.json      — playerName → {ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected}
 
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createGunzip } from 'zlib';
+import { Readable } from 'stream';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR  = join(__dirname, '..', 'data');
@@ -54,6 +59,33 @@ function progress(pct, msg) {
   const filled = Math.round(pct / 5);
   const bar    = '█'.repeat(filled) + '░'.repeat(20 - filled);
   process.stdout.write(`\r  [${bar}] ${pct}%  ${msg.padEnd(55)}`);
+}
+
+// Fetch a .csv.gz file and return parsed rows as array-of-objects.
+// Uses only Node.js built-ins (zlib + stream) — no npm packages needed.
+function parseCSVLine(line) {
+  const fields = []; let field = ''; let inQ = false;
+  for (const c of line) {
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { fields.push(field); field = ''; }
+    else { field += c; }
+  }
+  fields.push(field);
+  return fields;
+}
+async function fetchGzipCSV(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
+  const chunks = [];
+  for await (const chunk of Readable.fromWeb(res.body).pipe(createGunzip())) chunks.push(chunk);
+  const lines   = Buffer.concat(chunks).toString('utf-8').split('\n').filter(l => l.trim());
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseCSVLine(line);
+    const row  = {};
+    headers.forEach((h, i) => { row[h] = vals[i] ?? ''; });
+    return row;
+  });
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -329,19 +361,57 @@ async function main() {
   progress(97, `Depth DB: ${depthTeams} teams`);
   console.log();
 
+  // ── Step 5d: Build ryoeDB from nflverse Next Gen Stats ───────────────────
+  // nflverse mirrors official NFL NGS tracking data. The ngs_rushing.csv.gz
+  // file has rush_yards_over_expected and rush_yards_over_expected_per_att for
+  // all ball-carriers. Week 0 rows are season aggregates.
+  progress(97, 'Building RYOE database from nflverse/NGS…');
+  const ryoeDB = {};
+  let ryoePlayers = 0;
+  try {
+    const NGS_URL = 'https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.csv.gz';
+    const ngsRows = await fetchGzipCSV(NGS_URL);
+    const ngsYear = String(recentYr);
+    for (const row of ngsRows) {
+      if (row.season !== ngsYear || row.week !== '0') continue;
+      const name     = row.player_display_name?.trim();
+      const attempts = parseFloat(row.rush_attempts ?? 0);
+      if (!name || attempts < 10) continue;
+      const ryoeTotal  = parseFloat(row.rush_yards_over_expected        ?? 'NaN');
+      const ryoePerAtt = parseFloat(row.rush_yards_over_expected_per_att ?? 'NaN');
+      const expYards   = parseFloat(row.expected_rush_yards              ?? 'NaN');
+      const pctOver    = parseFloat(row.rush_pct_over_expected           ?? 'NaN');
+      if (isNaN(ryoeTotal) || isNaN(ryoePerAtt)) continue;
+      ryoeDB[name] = {
+        ryoeTotal:       Math.round(ryoeTotal  * 10) / 10,
+        ryoePerAtt:      Math.round(ryoePerAtt * 1000) / 1000,
+        expectedYards:   Math.round(expYards),
+        pctOverExpected: isNaN(pctOver) ? null : Math.round(pctOver * 1000) / 10,
+        attempts:        Math.round(attempts),
+      };
+      ryoePlayers++;
+    }
+  } catch(e) {
+    console.warn('\n  ⚠️  RYOE fetch failed:', e.message, '— ryoedb.json will be empty');
+  }
+  progress(98, `RYOE DB: ${ryoePlayers} players (NGS)`);
+  console.log();
+
   // ── Step 6: Write output files ────────────────────────────────────────────
-  progress(98, 'Writing data files…');
+  progress(99, 'Writing data files…');
   const compJson    = JSON.stringify(compDB);
   const careerJson  = JSON.stringify(careerDB);
   const benchJson   = JSON.stringify({ avgRbCarryPct });
   const teamJson    = JSON.stringify(teamDB);
   const depthJson   = JSON.stringify(depthDB);
+  const ryoeJson    = JSON.stringify(ryoeDB);
 
   writeFileSync(join(DATA_DIR, 'compdb.json'),     compJson);
   writeFileSync(join(DATA_DIR, 'careerdb.json'),   careerJson);
   writeFileSync(join(DATA_DIR, 'benchmarks.json'), benchJson);
   writeFileSync(join(DATA_DIR, 'teamdb.json'),     teamJson);
   writeFileSync(join(DATA_DIR, 'depthdb.json'),    depthJson);
+  writeFileSync(join(DATA_DIR, 'ryoedb.json'),     ryoeJson);
   progress(100, 'Done!');
   console.log('\n');
 
@@ -351,6 +421,7 @@ async function main() {
   console.log('  ✅  data/benchmarks.json ', kb(benchJson));
   console.log('  ✅  data/teamdb.json     ', kb(teamJson));
   console.log('  ✅  data/depthdb.json    ', kb(depthJson));
+  console.log('  ✅  data/ryoedb.json     ', kb(ryoeJson));
   console.log('\n  Next: git add data/ && git commit && git push\n');
 }
 
