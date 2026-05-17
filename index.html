@@ -2918,37 +2918,30 @@ async function loadPlayerProfile(pid) {
     }
   } catch(e) { /* stats unavailable */ }
 
-  // ── Fetch ESPN player-level stats + stat-season team (RBs) ────────────────
-  // Player stats (rushingFirstDowns etc.) + athlete team for statSeason run in parallel.
-  // AbortController caps the athlete endpoint at 3 s so a slow/missing endpoint can't
-  // hang the profile load. All JSON parsing is also guarded with .catch(() => null).
+  // ── Fetch ESPN player-level stats for RBs (first down rate, etc.) ─────────
   let espnPlayerStats = {};
-  let statTeamRaw     = null;   // team abbr from ESPN for statSeason, or null if unavailable
   if (pos === 'RB' && espnId) {
     const _eSeason = statSeason ?? String(new Date().getFullYear() - 1);
     try {
-      const _atCtrl   = new AbortController();
-      const _atTimer  = setTimeout(() => _atCtrl.abort(), 3000);
-      const [_eStatsRes, _eAthleteRes] = await Promise.all([
-        fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${_eSeason}/types/2/athletes/${espnId}/statistics`).catch(() => null),
-        fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${_eSeason}/athletes/${espnId}`, { signal: _atCtrl.signal }).catch(() => null),
-      ]);
-      clearTimeout(_atTimer);
-      if (_eStatsRes?.ok) {
-        const _eData = await _eStatsRes.json().catch(() => null);
+      const _eRes = await fetch(
+        `https://sports.core.api.espn.com/v2/sports/football/leagues/nfl` +
+        `/seasons/${_eSeason}/types/2/athletes/${espnId}/statistics`
+      );
+      if (_eRes.ok) {
+        const _eData = await _eRes.json().catch(() => null);
         for (const cat of (_eData?.splits?.categories ?? []))
           for (const stat of cat.stats) espnPlayerStats[stat.name] = stat.value;
       }
-      if (_eAthleteRes?.ok) {
-        const _eAtData  = await _eAthleteRes.json().catch(() => null);
-        const _teamRef  = _eAtData?.team?.$ref ?? '';
-        const _teamId   = _teamRef.split('/teams/').pop().split('/')[0];
-        statTeamRaw     = ESPN_TEAM_ID_TO_NFL[_teamId] ?? null;
-      }
-    } catch(e) { /* ESPN fetches unavailable — graceful fallback */ }
+    } catch(e) {}
   }
-  // statTeam: team the player was on during statSeason (= nflTeam when unchanged or unknown)
-  const statTeam   = statTeamRaw ?? nflTeam;
+
+  // ── Resolve stat-season team from pre-built statteamdb.json ───────────────
+  // statTeamDB is keyed by Sleeper player_id → team abbr they played for in
+  // the most recent stat season. When a player switched teams in the offseason,
+  // this gives us their 2025 team so team context (teamDB, rush att/g) reflects
+  // the offense they actually played in — not their new 2026 team.
+  const statTeamRaw = statTeamDB?.[String(pid)] ?? null;
+  const statTeam    = statTeamRaw ?? nflTeam;
   const teamChanged = statTeamRaw !== null && statTeam !== nflTeam;
 
   // ── Build stat display by position ──
@@ -4598,6 +4591,7 @@ let careerDB    = {};   // pid → [{season,ppr,ppg,games}]
 let teamDB      = {};   // teamAbbr → {rushAttPg,passAttPg,offPlaysPg,runRate,passRate,teamYpc,ypp,tdPg,offRating}
 let depthDB     = {};   // teamAbbr → { QB:[{name,rank,status}], RB:[…], WR:[…], TE:[…] }
 let ryoeDB      = {};   // playerName → { ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected }
+let statTeamDB  = {};   // sleeperPlayerId → NFL team abbr they played for in the most recent stat season
 
 // Bulk season stats cache — populated once before preWarmProjectionCache runs.
 // Maps pid → flat stats object so fetchSleeperStats() reads from memory
@@ -5176,13 +5170,14 @@ async function loadPrebuiltData(onProgress) {
   try {
     onProgress?.('Loading pre-built data files…', 5);
 
-    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw] = await Promise.all([
+    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw, statTeamResRaw] = await Promise.all([
       fetch(`${DATA_BASE_URL}/compdb.json`),
       fetch(`${DATA_BASE_URL}/careerdb.json`),
       fetch(`${DATA_BASE_URL}/benchmarks.json`),
-      fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),   // optional — graceful fallback
-      fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),   // optional — graceful fallback
-      fetch(`${DATA_BASE_URL}/ryoedb.json`).catch(() => null),   // optional — graceful fallback
+      fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),      // optional — graceful fallback
+      fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),      // optional — graceful fallback
+      fetch(`${DATA_BASE_URL}/ryoedb.json`).catch(() => null),       // optional — graceful fallback
+      fetch(`${DATA_BASE_URL}/statteamdb.json`).catch(() => null),   // optional — player 2025 team lookup
     ]);
 
     if (!compRes.ok || !careerRes.ok || !benchRes.ok) {
@@ -5214,6 +5209,10 @@ async function loadPrebuiltData(onProgress) {
     // ryoedb.json is optional — RYOE card falls back to proxy if absent
     if (ryoeResRaw?.ok) {
       try { ryoeDB = await ryoeResRaw.json(); } catch(e) {}
+    }
+    // statteamdb.json is optional — maps Sleeper pid → 2025 team for traded players
+    if (statTeamResRaw?.ok) {
+      try { statTeamDB = await statTeamResRaw.json(); } catch(e) {}
     }
 
     // Cache to localStorage so repeat loads skip even the static fetch

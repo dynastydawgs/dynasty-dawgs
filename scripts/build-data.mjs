@@ -397,21 +397,70 @@ async function main() {
   progress(98, `RYOE DB: ${ryoePlayers} players (NGS)`);
   console.log();
 
+  // ── Step 5e: Build statTeamDB from nflverse weekly rosters ───────────────
+  // Maps Sleeper player_id → NFL team abbreviation for the most recent stat
+  // season. Needed for players who switched teams in the offseason — the
+  // client uses this to look up the correct team context (teamDB, rush att/g)
+  // instead of sp.team (which already reflects their new 2026 team).
+  // nflverse weekly rosters include a sleeper_id column updated through the
+  // end of the 2025 regular season.
+  progress(98, 'Building 2025 player-team lookup from nflverse rosters…');
+  const statTeamDB = {};
+  let statTeamCount = 0;
+  try {
+    const ROSTER_URL = `https://github.com/nflverse/nflverse-data/releases/download/rosters/roster_${recentYr}.csv`;
+    const rosterRes  = await fetch(ROSTER_URL);
+    if (!rosterRes.ok) throw new Error(`HTTP ${rosterRes.status} for ${ROSTER_URL}`);
+    const rosterText  = await rosterRes.text();
+    const rosterLines = rosterText.split('\n').filter(l => l.trim());
+    const rosterHdrs  = parseCSVLine(rosterLines[0]);
+
+    // nflverse → Sleeper abbreviation differences (only LA/LAR commonly differs)
+    const NV_ABBR = { LA: 'LAR' };
+
+    // Track the latest-week entry per player to capture mid-season trades
+    const latest = {}; // sleeperId → { week, team }
+    for (const line of rosterLines.slice(1)) {
+      const vals = parseCSVLine(line);
+      const row  = {};
+      rosterHdrs.forEach((h, i) => { row[h] = vals[i] ?? ''; });
+      const sleeperId = row.sleeper_id?.trim();
+      const team      = row.team?.trim();
+      const week      = parseInt(row.week) || 0;
+      // Only regular-season rows; skip if key fields are missing
+      if (!sleeperId || !team || (row.game_type && row.game_type !== 'REG')) continue;
+      if (!latest[sleeperId] || week > latest[sleeperId].week) {
+        latest[sleeperId] = { week, team: NV_ABBR[team] ?? team };
+      }
+    }
+
+    for (const [sid, { team }] of Object.entries(latest)) {
+      statTeamDB[sid] = team;
+      statTeamCount++;
+    }
+  } catch(e) {
+    console.warn('\n  ⚠️  nflverse roster fetch failed:', e.message, '— statteamdb.json will be empty');
+  }
+  progress(99, `Stat-team DB: ${statTeamCount} players`);
+  console.log();
+
   // ── Step 6: Write output files ────────────────────────────────────────────
   progress(99, 'Writing data files…');
-  const compJson    = JSON.stringify(compDB);
-  const careerJson  = JSON.stringify(careerDB);
-  const benchJson   = JSON.stringify({ avgRbCarryPct });
-  const teamJson    = JSON.stringify(teamDB);
-  const depthJson   = JSON.stringify(depthDB);
-  const ryoeJson    = JSON.stringify(ryoeDB);
+  const compJson      = JSON.stringify(compDB);
+  const careerJson    = JSON.stringify(careerDB);
+  const benchJson     = JSON.stringify({ avgRbCarryPct });
+  const teamJson      = JSON.stringify(teamDB);
+  const depthJson     = JSON.stringify(depthDB);
+  const ryoeJson      = JSON.stringify(ryoeDB);
+  const statTeamJson  = JSON.stringify(statTeamDB);
 
-  writeFileSync(join(DATA_DIR, 'compdb.json'),     compJson);
-  writeFileSync(join(DATA_DIR, 'careerdb.json'),   careerJson);
-  writeFileSync(join(DATA_DIR, 'benchmarks.json'), benchJson);
-  writeFileSync(join(DATA_DIR, 'teamdb.json'),     teamJson);
-  writeFileSync(join(DATA_DIR, 'depthdb.json'),    depthJson);
-  writeFileSync(join(DATA_DIR, 'ryoedb.json'),     ryoeJson);
+  writeFileSync(join(DATA_DIR, 'compdb.json'),      compJson);
+  writeFileSync(join(DATA_DIR, 'careerdb.json'),    careerJson);
+  writeFileSync(join(DATA_DIR, 'benchmarks.json'),  benchJson);
+  writeFileSync(join(DATA_DIR, 'teamdb.json'),      teamJson);
+  writeFileSync(join(DATA_DIR, 'depthdb.json'),     depthJson);
+  writeFileSync(join(DATA_DIR, 'ryoedb.json'),      ryoeJson);
+  writeFileSync(join(DATA_DIR, 'statteamdb.json'),  statTeamJson);
   progress(100, 'Done!');
   console.log('\n');
 
@@ -422,6 +471,7 @@ async function main() {
   console.log('  ✅  data/teamdb.json     ', kb(teamJson));
   console.log('  ✅  data/depthdb.json    ', kb(depthJson));
   console.log('  ✅  data/ryoedb.json     ', kb(ryoeJson));
+  console.log('  ✅  data/statteamdb.json ', kb(statTeamJson));
   console.log('\n  Next: git add data/ && git commit && git push\n');
 }
 
