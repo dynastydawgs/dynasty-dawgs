@@ -197,7 +197,20 @@ async function main() {
     }
   }
 
+  // 2025 team rushing benchmarks — same source as the hardcoded HTML table.
+  // Used as a fallback when Sleeper aggregation produces bad data for a team.
+  // Pass att estimated as (65 avg total plays − rush att/g); teamYpc at league avg.
+  const RUSH_ATT_2025 = {
+    BUF:32.2,NYG:30.1,BAL:29.8,SEA:29.8,CHI:29.7,NE:29.1,GB:28.9,JAX:28.8,
+    WAS:28.5,SF:28.3,PHI:28.1,ATL:28.1,HOU:27.9,TB:27.8,LAC:27.4,DAL:27.4,
+    LAR:27.4,CAR:27.1,DEN:26.8,NYJ:26.8,IND:26.0,DET:26.0,NO:25.6,MIA:25.4,
+    KC:25.3,CLE:24.8,MIN:24.1,PIT:23.9,CIN:22.4,TEN:22.2,LV:21.7,ARI:21.5,
+  };
+
   const teamDB = {};
+  let liveTeams = 0, fallbackTeams = 0;
+
+  // ── Try live Sleeper aggregation first ──────────────────────────────────
   for (const [team, t] of Object.entries(teamAgg)) {
     const gp          = Math.max(1, t.gpMax);
     const rushAttPg   = +(t.rushAtt / gp).toFixed(1);
@@ -205,8 +218,7 @@ async function main() {
 
     // Sanity-check: a real NFL team in a full season has ≥ 15 rush att/g and
     // ≥ 15 pass att/g.  Values below that flag corrupted team attribution
-    // (e.g. a traded QB's pass stats landed on the wrong team).  Skip rather
-    // than publish garbage that renders as "WEAK 0/100" in the UI.
+    // (e.g. a traded QB's pass stats landed on the wrong team).
     if (rushAttPg < 15 || passAttPg < 15) continue;
 
     const offPlaysPg  = +(rushAttPg + passAttPg).toFixed(1);
@@ -218,17 +230,30 @@ async function main() {
     const ypp         = +(totalYd / totalAtt).toFixed(2);
     const totalTd     = t.rushTd + t.passTd;
     const tdPg        = +(totalTd / gp).toFixed(2);
-    // Off. Rating: normalize yards/play (4.5–7.5 range) and TD rate (2.0–5.0/game), equal weight
     const yppNorm    = Math.min(100, Math.max(0, (ypp - 4.5) / 3.0 * 100));
     const tdNorm     = Math.min(100, Math.max(0, (tdPg - 2.0) / 3.0 * 100));
     const offRating  = Math.round(yppNorm * 0.5 + tdNorm * 0.5);
 
-    teamDB[team] = {
-      rushAttPg, passAttPg, offPlaysPg, runRate, passRate,
-      teamYpc, ypp, tdPg, offRating,
-    };
+    teamDB[team] = { rushAttPg, passAttPg, offPlaysPg, runRate, passRate,
+                     teamYpc, ypp, tdPg, offRating };
+    liveTeams++;
   }
-  progress(95, `Team DB: ${Object.keys(teamDB).length} teams`);
+
+  // ── Fallback: fill any missing team using 2025 hardcoded rush data ───────
+  // Uses avg 65 total plays/g and 4.3 teamYpc when Sleeper aggregation failed.
+  for (const [team, rushAttPg] of Object.entries(RUSH_ATT_2025)) {
+    if (teamDB[team]) continue; // live data already present
+    const passAttPg  = +(65 - rushAttPg).toFixed(1);
+    const offPlaysPg = +(rushAttPg + passAttPg).toFixed(1);
+    const runRate    = +(rushAttPg / offPlaysPg * 100).toFixed(1);
+    const passRate   = +(100 - runRate).toFixed(1);
+    // Off. Rating: neutral 50 since we don't have reliable pass yard/TD data
+    teamDB[team] = { rushAttPg, passAttPg, offPlaysPg, runRate, passRate,
+                     teamYpc: 4.3, ypp: 5.7, tdPg: 3.8, offRating: 50, estimated: true };
+    fallbackTeams++;
+  }
+
+  progress(95, `Team DB: ${liveTeams} live + ${fallbackTeams} estimated teams`);
   console.log();
 
   // ── Step 6: Write output files ────────────────────────────────────────────
