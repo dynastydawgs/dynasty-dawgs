@@ -216,10 +216,9 @@ async function main() {
     const gp         = statMap['gamesPlayed']?.value               ?? 17;
     const rushAtt    = statMap['rushingAttempts']?.value            ?? null;
     const passAtt    = statMap['passingAttempts']?.value            ?? null;
-    const rushTd     = statMap['rushingTouchdowns']?.value          ?? null;
-    const passTd     = statMap['passingTouchdowns']?.value          ?? null;
     const totalPlays = statMap['totalOffensivePlays']?.value        ?? null;
     const totalYd    = statMap['totalYards']?.value                 ?? null;
+    const totalPts   = statMap['totalPoints']?.value                ?? null;
     const teamYpc    = statMap['yardsPerRushAttempt']?.value        ?? null; // already a rate
 
     const rushAttPg  = rushAtt    !== null ? +(rushAtt    / gp).toFixed(1) : null;
@@ -227,9 +226,7 @@ async function main() {
     const offPlaysPg = totalPlays !== null ? +(totalPlays / gp).toFixed(1)
                        : (rushAttPg !== null && passAttPg !== null
                            ? +(rushAttPg + passAttPg).toFixed(1) : null);
-    // Offensive TDs only (rush + pass) — excludes return/defensive TDs
-    const tdPg       = (rushTd !== null && passTd !== null)
-                       ? +((rushTd + passTd) / gp).toFixed(2) : null;
+    const ppg        = totalPts   !== null ? +(totalPts   / gp).toFixed(1) : null;
     const ypp        = (totalYd !== null && totalPlays > 0)
                        ? +(totalYd / totalPlays).toFixed(2) : null;
 
@@ -237,9 +234,12 @@ async function main() {
 
     const runRate   = +(rushAttPg / offPlaysPg * 100).toFixed(1);
     const passRate  = +(100 - runRate).toFixed(1);
-    const yppNorm   = ypp  !== null ? Math.min(100, Math.max(0, (ypp  - 4.5) / 3.0 * 100)) : 50;
-    const tdNorm    = tdPg !== null ? Math.min(100, Math.max(0, (tdPg - 2.0) / 3.0 * 100)) : 50;
-    const offRating = Math.round(yppNorm * 0.5 + tdNorm * 0.5);
+    // Off. Rating: yards/play (efficiency per snap) + pts/game (scoring output)
+    // PPG and PPD rank teams identically (ESPN's totalDrives is broken/zero);
+    // normalised so 14 ppg = 0, 35 ppg = 100 (NFL range ≈ 14–38).
+    const yppNorm   = ypp !== null ? Math.min(100, Math.max(0, (ypp - 4.5) / 3.0 * 100)) : 50;
+    const ppgNorm   = ppg !== null ? Math.min(100, Math.max(0, (ppg - 14) / (35 - 14) * 100)) : 50;
+    const offRating = Math.round(yppNorm * 0.5 + ppgNorm * 0.5);
 
     teamDB[abbr] = {
       rushAttPg:  +rushAttPg.toFixed(1),
@@ -249,7 +249,7 @@ async function main() {
       passRate,
       teamYpc:    teamYpc !== null ? +teamYpc.toFixed(2) : 4.3,
       ypp:        ypp     !== null ? +ypp.toFixed(2)     : 5.7,
-      tdPg:       tdPg    !== null ? +tdPg.toFixed(2)    : 3.8,
+      ppg:        ppg     !== null ? +ppg.toFixed(1)     : null,
       offRating,
     };
     liveTeams++;

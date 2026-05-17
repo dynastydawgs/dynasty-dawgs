@@ -2881,6 +2881,25 @@ async function loadPlayerProfile(pid) {
     }
   } catch(e) { /* stats unavailable */ }
 
+  // ── Fetch ESPN player-level stats for RBs (first down rate, etc.) ─────────
+  // Runs in parallel conceptually: espnId is already resolved above; this gives
+  // us rushingFirstDowns and other metrics Sleeper doesn't expose.
+  let espnPlayerStats = {};
+  if (pos === 'RB' && espnId) {
+    const _eSeason = statSeason ?? String(new Date().getFullYear() - 1);
+    try {
+      const _eRes = await fetch(
+        `https://sports.core.api.espn.com/v2/sports/football/leagues/nfl` +
+        `/seasons/${_eSeason}/types/2/athletes/${espnId}/statistics`
+      );
+      if (_eRes.ok) {
+        const _eData = await _eRes.json();
+        for (const cat of (_eData?.splits?.categories ?? []))
+          for (const stat of cat.stats) espnPlayerStats[stat.name] = stat.value;
+      }
+    } catch(e) {}
+  }
+
   // ── Build stat display by position ──
   function fmt(v, decimals=0) {
     if (v == null || v === 0) return '—';
@@ -3206,7 +3225,6 @@ async function loadPlayerProfile(pid) {
 
     // Ground Game: Yards Per Carry + Red Zone Carries
     const rushYd    = +(stats.rush_yd ?? 0);
-    const rzAtt     = +(stats.rz_att  ?? 0);
     const rushTd    = +(stats.rush_td ?? 0);
     const ypc       = rushAtt > 0 ? Math.round(rushYd / rushAtt * 10) / 10 : null;
     const avgYpc    = 4.3;
@@ -3216,14 +3234,18 @@ async function loadPlayerProfile(pid) {
                     : ypc >= 3.8    ? {label:'Average',    color:'var(--accent)' }
                     : ypc >= 3.0    ? {label:'Below Avg',  color:'var(--orange)' }
                     :                 {label:'Inefficient',color:'var(--red)'    };
-    const rzAttPg   = rzAtt > 0 ? (rzAtt / gp).toFixed(1) : null;
-    const avgRzAttPg = 3.5;
-    const rzClass   = !rzAttPg           ? {label:'No Data',   color:'var(--text-dim)'}
-                    : +rzAttPg >= 5.5   ? {label:'Goal-Line', color:'var(--green)'  }
-                    : +rzAttPg >= 4.0   ? {label:'High',      color:'var(--blue)'   }
-                    : +rzAttPg >= 2.5   ? {label:'Average',   color:'var(--accent)' }
-                    : +rzAttPg >= 1.5   ? {label:'Limited',   color:'var(--orange)' }
-                    :                     {label:'Minimal',   color:'var(--red)'    };
+    // First Down Rate — from ESPN player stats (rushingFirstDowns / rushingAttempts)
+    // Replaces the broken RZ Carries card (Sleeper doesn't expose red zone rush attempts)
+    const rushFD      = espnPlayerStats['rushingFirstDowns'] ?? null;
+    const rushFDRate  = (rushFD !== null && rushAtt > 0)
+                        ? Math.round(rushFD / rushAtt * 1000) / 10 : null;
+    const avgFDRate   = 19; // NFL avg: ~1 first down per 5-6 carries
+    const fdRateClass = rushFDRate === null ? {label:'No Data',   color:'var(--text-dim)'}
+                      : rushFDRate >= 28    ? {label:'Elite',     color:'var(--green)'  }
+                      : rushFDRate >= 22    ? {label:'Above Avg', color:'var(--blue)'   }
+                      : rushFDRate >= 17    ? {label:'Average',   color:'var(--accent)' }
+                      : rushFDRate >= 12    ? {label:'Below Avg', color:'var(--orange)' }
+                      :                      {label:'Poor',       color:'var(--red)'    };
 
     // RYOE proxy: (player YPC − team OL-adjusted YPC) × rush attempts = yards above a team-avg runner
     // Requires teamdb.json (built by CI).  ryoePerAtt null → card hidden.
@@ -3281,11 +3303,11 @@ async function loadPlayerProfile(pid) {
       :                      {label:'Inefficient', color:'var(--red)'    };
 
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
-    // Efficiency: YPC 40% · Pts/Touch 35% · RZ Carries/g 25%
-    const _ypcS  = ypc !== null     ? Math.min(100, Math.max(0, (ypc - 1.5) / 5.5 * 100))  : null;
-    const _pptS  = ptsPerTouch      ? Math.min(100, ptsPerTouch / 2.0 * 100)                : null;
-    const _rzS   = rzAttPg !== null ? Math.min(100, +rzAttPg / 8 * 100)                     : null;
-    const _effParts = [{s:_ypcS,w:0.40},{s:_pptS,w:0.35},{s:_rzS,w:0.25}].filter(c=>c.s!==null);
+    // Efficiency: YPC 40% · Pts/Touch 35% · First Down Rate 25%
+    const _ypcS  = ypc !== null        ? Math.min(100, Math.max(0, (ypc - 1.5) / 5.5 * 100))       : null;
+    const _pptS  = ptsPerTouch         ? Math.min(100, ptsPerTouch / 2.0 * 100)                     : null;
+    const _fdS   = rushFDRate !== null ? Math.min(100, Math.max(0, (rushFDRate - 10) / 20 * 100))   : null;
+    const _effParts = [{s:_ypcS,w:0.40},{s:_pptS,w:0.35},{s:_fdS,w:0.25}].filter(c=>c.s!==null);
     const _effW     = _effParts.reduce((a,c)=>a+c.w,0)||1;
     const _effScore = _effParts.length ? _effParts.reduce((a,c)=>a+c.s*c.w,0)/_effW : null;
 
@@ -3342,7 +3364,7 @@ async function loadPlayerProfile(pid) {
             <div class="pp-sc-grade" style="color:${_toColor(_effScore)};">${_toGrade(_effScore)}</div>
             <div class="pp-sc-stat-line"><b>${ypc ?? '—'} YPC</b></div>
             <div class="pp-sc-stat-line"><b>${ptsPerTouch?.toFixed(2) ?? '—'}</b> pts / touch</div>
-            <div class="pp-sc-stat-line"><b>${rzAttPg ?? '—'}</b> RZ att / game</div>
+            <div class="pp-sc-stat-line"><b>${rushFDRate !== null ? rushFDRate + '%' : '—'}</b> 1st down rate</div>
           </div>
           <div class="pp-sc-col">
             <div class="pp-sc-cat">Workload</div>
@@ -3426,20 +3448,20 @@ async function loadPlayerProfile(pid) {
                  <div class="pp-wl-card-sub">Not in Sleeper data</div>
                </div>`
           }
-          ${rzAttPg !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${rzClass.color};">
+          ${rushFDRate !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${fdRateClass.color};">
                  <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">RZ Carries / Game</span>
-                   <span class="pp-wl-card-cls" style="color:${rzClass.color};">${rzClass.label}</span>
+                   <span class="pp-wl-card-label">1st Down Rate</span>
+                   <span class="pp-wl-card-cls" style="color:${fdRateClass.color};">${fdRateClass.label}</span>
                  </div>
-                 <div class="pp-wl-card-val" style="color:${rzClass.color};">${rzAttPg}<span>/g</span></div>
-                 ${mkBarVal(+rzAttPg, 8, avgRzAttPg, rzClass.color, '/g')}
-                 <div class="pp-wl-card-sub">${rzAtt} total RZ carries · ${rushTd} rush TDs</div>
+                 <div class="pp-wl-card-val" style="color:${fdRateClass.color};">${rushFDRate}<span>%</span></div>
+                 ${mkBarVal(rushFDRate, 35, avgFDRate, fdRateClass.color, '%')}
+                 <div class="pp-wl-card-sub">${rushFD} first downs · ${rushAtt} carries · ${rushTd} rush TDs</div>
                </div>`
             : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">RZ Carries / Game</span></div>
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">1st Down Rate</span></div>
                  <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                 <div class="pp-wl-card-sub">Not in Sleeper data</div>
+                 <div class="pp-wl-card-sub">Requires ESPN player ID</div>
                </div>`}
           ${ryoePerAtt !== null
             ? `<div class="pp-wl-card" style="border-left-color:${ryoeClass.color};">
@@ -3578,7 +3600,7 @@ async function loadPlayerProfile(pid) {
                  </div>
                  <div class="pp-wl-card-val" style="color:${offRatingClass.color};">${offRating}<span>/100</span></div>
                  ${mkBar(offRating, 100, 50, offRatingClass.color)}
-                 <div class="pp-wl-card-sub">Composite: yards/play + TD rate</div>
+                 <div class="pp-wl-card-sub">Composite: yards/play + pts/game (ESPN live)</div>
                </div>`
             : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                  <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Rating</span></div>
