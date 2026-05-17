@@ -2918,24 +2918,33 @@ async function loadPlayerProfile(pid) {
     }
   } catch(e) { /* stats unavailable */ }
 
-  // ── Fetch ESPN player-level stats for RBs (first down rate, etc.) ─────────
-  // Runs in parallel conceptually: espnId is already resolved above; this gives
-  // us rushingFirstDowns and other metrics Sleeper doesn't expose.
+  // ── Fetch ESPN player-level stats + stat-season team (RBs) ────────────────
+  // Both fetches run in parallel. Player stats gives us rushingFirstDowns etc.
+  // Athlete fetch resolves the team the player was on during statSeason — needed
+  // for traded players whose sp.team is now their new 2026 team.
   let espnPlayerStats = {};
+  let statTeamRaw     = null;   // team abbr from ESPN for statSeason, or null if unavailable
   if (pos === 'RB' && espnId) {
     const _eSeason = statSeason ?? String(new Date().getFullYear() - 1);
-    try {
-      const _eRes = await fetch(
-        `https://sports.core.api.espn.com/v2/sports/football/leagues/nfl` +
-        `/seasons/${_eSeason}/types/2/athletes/${espnId}/statistics`
-      );
-      if (_eRes.ok) {
-        const _eData = await _eRes.json();
-        for (const cat of (_eData?.splits?.categories ?? []))
-          for (const stat of cat.stats) espnPlayerStats[stat.name] = stat.value;
-      }
-    } catch(e) {}
+    const [_eStatsRes, _eAthleteRes] = await Promise.all([
+      fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${_eSeason}/types/2/athletes/${espnId}/statistics`).catch(() => null),
+      fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${_eSeason}/athletes/${espnId}`).catch(() => null),
+    ]);
+    if (_eStatsRes?.ok) {
+      const _eData = await _eStatsRes.json();
+      for (const cat of (_eData?.splits?.categories ?? []))
+        for (const stat of cat.stats) espnPlayerStats[stat.name] = stat.value;
+    }
+    if (_eAthleteRes?.ok) {
+      const _eAtData = await _eAthleteRes.json();
+      const _teamRef  = _eAtData?.team?.$ref ?? '';
+      const _teamId   = _teamRef.split('/teams/').pop().split('/')[0];
+      statTeamRaw     = ESPN_TEAM_ID_TO_NFL[_teamId] ?? null;
+    }
   }
+  // statTeam: team the player was on during statSeason (= nflTeam when unchanged or unknown)
+  const statTeam   = statTeamRaw ?? nflTeam;
+  const teamChanged = statTeamRaw !== null && statTeam !== nflTeam;
 
   // ── Build stat display by position ──
   function fmt(v, decimals=0) {
@@ -3022,6 +3031,14 @@ async function loadPlayerProfile(pid) {
   // Map Sleeper team abbrev → ESPN team abbrev (mostly same, a few differ)
   const espnTeamMap = { JAX:'JAC', LV:'LV', WSH:'WSH', NE:'NE' };
   const espnTeam = nflTeam ? (espnTeamMap[nflTeam] ?? nflTeam) : null;
+
+  // ESPN team ID → Sleeper/NFL abbreviation (used to resolve stat-season team for traded players)
+  const ESPN_TEAM_ID_TO_NFL = {
+    '1':'ATL','2':'BUF','3':'CHI','4':'CIN','5':'CLE','6':'DAL','7':'DEN','8':'DET',
+    '9':'GB','10':'TEN','11':'IND','12':'KC','13':'LV','14':'LAR','15':'MIA','16':'MIN',
+    '17':'NE','18':'NO','19':'NYG','20':'NYJ','21':'PHI','22':'ARI','23':'PIT','24':'LAC',
+    '25':'SF','26':'SEA','27':'TB','28':'WAS','29':'CAR','30':'JAX','33':'BAL','34':'HOU',
+  };
   const teamLogoUrl = espnTeam
     ? `https://a.espncdn.com/i/teamlogos/nfl/500/${espnTeam.toLowerCase()}.png`
     : null;
@@ -3137,13 +3154,13 @@ async function loadPlayerProfile(pid) {
     // Includes QB scrambles + designed QB runs — intentionally so (mobile QB teams like BAL
     // correctly show a higher denominator, shrinking RB carry share accordingly).
     // Falls back to league average if the team abbreviation isn't matched.
-    const teamRushPg      = NFL_TEAM_RUSH_ATT_PG_2025[nflTeam] ?? avgTeamRushPgLeague;
-    const usingActualTeam = nflTeam in NFL_TEAM_RUSH_ATT_PG_2025;
+    const teamRushPg      = NFL_TEAM_RUSH_ATT_PG_2025[statTeam] ?? avgTeamRushPgLeague;
+    const usingActualTeam = statTeam in NFL_TEAM_RUSH_ATT_PG_2025;
 
     // Extended team context from teamDB (pre-built by scripts/build-data.mjs, updated weekly via CI).
-    // Validate before using: reject entries where passAttPg < 15 (indicates corrupted team
-    // attribution — e.g. a traded QB's stats landed on the wrong team, leaving this one with 0).
-    const _rawTeamCtx = teamDB?.[nflTeam] ?? null;
+    // Use statTeam (player's 2025 team) so traded players get context from the team they actually
+    // played on, not their new 2026 team. Depth charts still use nflTeam (current team is correct).
+    const _rawTeamCtx = teamDB?.[statTeam] ?? null;
     const teamCtx     = (_rawTeamCtx?.passAttPg >= 15 && _rawTeamCtx?.rushAttPg >= 15)
                         ? _rawTeamCtx : null;
     const passAttPg  = teamCtx?.passAttPg  ?? null;
@@ -3504,6 +3521,7 @@ async function loadPlayerProfile(pid) {
         <div class="pp-workload-header">
           <span class="pp-workload-title">// ${statSeason ?? '2025'} WORKLOAD</span>
           <span class="pp-wl-role-tag" style="color:${roleTag.color};border-color:${roleTag.color};background:${roleTag.color}18;">${roleTag.label}</span>
+          ${teamChanged ? `<span class="pp-wl-role-tag" style="color:var(--text-muted);border-color:var(--border);background:rgba(255,255,255,0.04);">on ${statTeam}</span>` : ''}
         </div>
         ${_scorecardHTML}
 
