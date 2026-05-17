@@ -163,15 +163,74 @@ async function main() {
   progress(90, `Avg carry share: ${avgRbCarryPct}%`);
   console.log();
 
+  // ── Step 5b: Build teamDB ─────────────────────────────────────────────────
+  // Aggregate team-level stats from the most recent season using the same
+  // recentStats map already in memory.  QB records provide pass volume;
+  // all positions contribute rush volume.
+  progress(92, 'Building team context database…');
+  const teamAgg = {};
+  for (const [pid, st] of Object.entries(recentStats)) {
+    const sp   = sleeperPlayers[pid];
+    const team = sp?.team ?? null;
+    if (!team || team === 'FA' || team === 'UFA') continue;
+
+    if (!teamAgg[team]) teamAgg[team] = {
+      rushAtt: 0, rushYd: 0, rushTd: 0,
+      passAtt: 0, passYd: 0, passTd: 0,
+      gpMax: 0,
+    };
+    const t  = teamAgg[team];
+    const gp = Math.max(1, +(st.gms_active ?? st.gp ?? st.gms ?? 1) || 1);
+    t.gpMax   = Math.max(t.gpMax, gp);
+    t.rushAtt += +(st.rush_att ?? 0);
+    t.rushYd  += +(st.rush_yd  ?? 0);
+    t.rushTd  += +(st.rush_td  ?? 0);
+    const pos = sp?.position ?? null;
+    if (pos === 'QB') {
+      t.passAtt += +(st.pass_att ?? 0);
+      t.passYd  += +(st.pass_yd  ?? 0);
+      t.passTd  += +(st.pass_td  ?? 0);
+    }
+  }
+
+  const teamDB = {};
+  for (const [team, t] of Object.entries(teamAgg)) {
+    const gp          = Math.max(1, t.gpMax);
+    const rushAttPg   = +(t.rushAtt / gp).toFixed(1);
+    const passAttPg   = +(t.passAtt / gp).toFixed(1);
+    const offPlaysPg  = +(rushAttPg + passAttPg).toFixed(1);
+    const runRate     = offPlaysPg > 0 ? +(rushAttPg / offPlaysPg * 100).toFixed(1) : 0;
+    const passRate    = offPlaysPg > 0 ? +(100 - runRate).toFixed(1) : 0;
+    const teamYpc     = t.rushAtt > 0  ? +(t.rushYd / t.rushAtt).toFixed(2) : 0;
+    const totalYd     = t.rushYd + t.passYd;
+    const totalAtt    = t.rushAtt + t.passAtt;
+    const ypp         = totalAtt > 0 ? +(totalYd / totalAtt).toFixed(2) : 0;
+    const totalTd     = t.rushTd + t.passTd;
+    const tdPg        = +(totalTd / gp).toFixed(2);
+    // Off. Rating: normalize yards/play (4.5–7.5 range) and TD rate (2.0–5.0/game), equal weight
+    const yppNorm    = Math.min(100, Math.max(0, (ypp - 4.5) / 3.0 * 100));
+    const tdNorm     = Math.min(100, Math.max(0, (tdPg - 2.0) / 3.0 * 100));
+    const offRating  = Math.round(yppNorm * 0.5 + tdNorm * 0.5);
+
+    teamDB[team] = {
+      rushAttPg, passAttPg, offPlaysPg, runRate, passRate,
+      teamYpc, ypp, tdPg, offRating,
+    };
+  }
+  progress(95, `Team DB: ${Object.keys(teamDB).length} teams`);
+  console.log();
+
   // ── Step 6: Write output files ────────────────────────────────────────────
-  progress(95, 'Writing data files…');
+  progress(97, 'Writing data files…');
   const compJson    = JSON.stringify(compDB);
   const careerJson  = JSON.stringify(careerDB);
   const benchJson   = JSON.stringify({ avgRbCarryPct });
+  const teamJson    = JSON.stringify(teamDB);
 
   writeFileSync(join(DATA_DIR, 'compdb.json'),     compJson);
   writeFileSync(join(DATA_DIR, 'careerdb.json'),   careerJson);
   writeFileSync(join(DATA_DIR, 'benchmarks.json'), benchJson);
+  writeFileSync(join(DATA_DIR, 'teamdb.json'),     teamJson);
   progress(100, 'Done!');
   console.log('\n');
 
@@ -179,6 +238,7 @@ async function main() {
   console.log('  ✅  data/compdb.json     ', kb(compJson));
   console.log('  ✅  data/careerdb.json   ', kb(careerJson));
   console.log('  ✅  data/benchmarks.json ', kb(benchJson));
+  console.log('  ✅  data/teamdb.json     ', kb(teamJson));
   console.log('\n  Next: git add data/ && git commit && git push\n');
 }
 

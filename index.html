@@ -3084,6 +3084,16 @@ async function loadPlayerProfile(pid) {
     const teamRushPg      = NFL_TEAM_RUSH_ATT_PG_2025[nflTeam] ?? avgTeamRushPgLeague;
     const usingActualTeam = nflTeam in NFL_TEAM_RUSH_ATT_PG_2025;
 
+    // Extended team context from teamDB (pre-built by scripts/build-data.mjs, updated weekly via CI).
+    // Falls back gracefully to null if teamdb.json hasn't been built yet.
+    const teamCtx    = teamDB?.[nflTeam] ?? null;
+    const passAttPg  = teamCtx?.passAttPg  ?? null;
+    const offPlaysPg = teamCtx?.offPlaysPg ?? null;
+    const runRate    = teamCtx?.runRate    ?? null;
+    const passRate   = teamCtx?.passRate   ?? null;
+    const teamYpc    = teamCtx?.teamYpc    ?? null;
+    const offRating  = teamCtx?.offRating  ?? null;
+
     const avgTeamRushPg = teamRushPg; // alias used in touch-share calc below
 
     const carryPct  = Math.round(attPg / teamRushPg * 1000) / 10;
@@ -3211,6 +3221,58 @@ async function loadPlayerProfile(pid) {
                     : +rzAttPg >= 2.5   ? {label:'Average',   color:'var(--accent)' }
                     : +rzAttPg >= 1.5   ? {label:'Limited',   color:'var(--orange)' }
                     :                     {label:'Minimal',   color:'var(--red)'    };
+
+    // RYOE proxy: (player YPC − team OL-adjusted YPC) × rush attempts = yards above a team-avg runner
+    // Requires teamdb.json (built by CI).  ryoePerAtt null → card hidden.
+    const ryoePerAtt = (ypc !== null && teamYpc !== null)
+      ? Math.round((ypc - teamYpc) * 100) / 100
+      : null;
+    const ryoeTotal  = (ryoePerAtt !== null && rushAtt >= 20)
+      ? Math.round(ryoePerAtt * rushAtt)
+      : null;
+
+    // Classifiers for new Situation and Efficiency cards
+    const runRateClass   = !runRate     ? {label:'No Data',     color:'var(--text-dim)'}
+      : runRate   >= 50   ? {label:'Run-Heavy',    color:'var(--green)'  }
+      : runRate   >= 45   ? {label:'Run-Leaning',  color:'var(--blue)'   }
+      : runRate   >= 40   ? {label:'Balanced',     color:'var(--accent)' }
+      : runRate   >= 35   ? {label:'Pass-Leaning', color:'var(--orange)' }
+      :                     {label:'Pass-Heavy',   color:'var(--red)'    };
+
+    const passVolClass   = !passAttPg   ? {label:'No Data',     color:'var(--text-dim)'}
+      : passAttPg >= 42   ? {label:'Pass-Heavy',   color:'var(--red)'    }
+      : passAttPg >= 37   ? {label:'Pass-Leaning', color:'var(--orange)' }
+      : passAttPg >= 32   ? {label:'Balanced',     color:'var(--accent)' }
+      : passAttPg >= 27   ? {label:'Run-Leaning',  color:'var(--blue)'   }
+      :                     {label:'Run-Heavy',    color:'var(--green)'  };
+
+    const offPlaysClass  = !offPlaysPg  ? {label:'No Data',     color:'var(--text-dim)'}
+      : offPlaysPg >= 72  ? {label:'High Volume',  color:'var(--green)'  }
+      : offPlaysPg >= 66  ? {label:'Above Avg',    color:'var(--blue)'   }
+      : offPlaysPg >= 60  ? {label:'Average',      color:'var(--accent)' }
+      : offPlaysPg >= 54  ? {label:'Below Avg',    color:'var(--orange)' }
+      :                     {label:'Low Volume',   color:'var(--red)'    };
+
+    const olProxyClass   = !teamYpc     ? {label:'No Data',     color:'var(--text-dim)'}
+      : teamYpc   >= 5.0  ? {label:'Elite OL',     color:'var(--green)'  }
+      : teamYpc   >= 4.5  ? {label:'Strong OL',    color:'var(--blue)'   }
+      : teamYpc   >= 4.0  ? {label:'Average OL',   color:'var(--accent)' }
+      : teamYpc   >= 3.5  ? {label:'Weak OL',      color:'var(--orange)' }
+      :                     {label:'Poor OL',      color:'var(--red)'    };
+
+    const offRatingClass = offRating == null ? {label:'No Data',   color:'var(--text-dim)'}
+      : offRating >= 75   ? {label:'Elite',        color:'var(--green)'  }
+      : offRating >= 60   ? {label:'Strong',       color:'var(--blue)'   }
+      : offRating >= 45   ? {label:'Average',      color:'var(--accent)' }
+      : offRating >= 30   ? {label:'Below Avg',    color:'var(--orange)' }
+      :                     {label:'Weak',         color:'var(--red)'    };
+
+    const ryoeClass      = ryoePerAtt === null ? {label:'No Data',  color:'var(--text-dim)'}
+      : ryoePerAtt >= 0.8  ? {label:'Elite',       color:'var(--green)'  }
+      : ryoePerAtt >= 0.3  ? {label:'Above Avg',   color:'var(--blue)'   }
+      : ryoePerAtt >= -0.3 ? {label:'On Par',      color:'var(--accent)' }
+      : ryoePerAtt >= -0.8 ? {label:'Below Avg',   color:'var(--orange)' }
+      :                      {label:'Inefficient', color:'var(--red)'    };
 
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
     // Efficiency: YPC 40% · Pts/Touch 35% · RZ Carries/g 25%
@@ -3369,6 +3431,21 @@ async function loadPlayerProfile(pid) {
                  <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                  <div class="pp-wl-card-sub">Not in Sleeper data</div>
                </div>`}
+          ${ryoePerAtt !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${ryoeClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Rush Eff. vs. Team</span>
+                   <span class="pp-wl-card-cls" style="color:${ryoeClass.color};">${ryoeClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${ryoeClass.color};">${ryoePerAtt >= 0 ? '+' : ''}${ryoePerAtt}<span> yds/att</span></div>
+                 ${mkBarVal(ryoePerAtt + 2.0, 4.0, 2.0, ryoeClass.color, ' yds/att')}
+                 <div class="pp-wl-card-sub">${ryoeTotal !== null ? `${ryoeTotal >= 0 ? '+' : ''}${ryoeTotal} total · ` : ''}${ypc} YPC vs ${teamYpc} team avg</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Rush Eff. vs. Team</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+               </div>`}
         </div>
 
         <div class="pp-wl-row-label" style="margin-top:14px;">Workload</div>
@@ -3414,15 +3491,90 @@ async function loadPlayerProfile(pid) {
 
         <div class="pp-wl-row-label" style="margin-top:14px;">Situation</div>
         <div class="pp-wl-cards">
+          ${runRate !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${runRateClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Run Rate</span>
+                   <span class="pp-wl-card-cls" style="color:${runRateClass.color};">${runRateClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${runRateClass.color};">${runRate}<span>%</span></div>
+                 ${mkBar(runRate, 60, 41, runRateClass.color)}
+                 <div class="pp-wl-card-sub">${runRate}% runs · ${passRate}% passes of ${offPlaysPg} plays/g</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Run Rate</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+               </div>`}
           <div class="pp-wl-card" style="border-left-color:${teamVolClass.color};">
             <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Team Rush Volume</span>
+              <span class="pp-wl-card-label">Rush att / Game</span>
               <span class="pp-wl-card-cls" style="color:${teamVolClass.color};">${teamVolClass.label}</span>
             </div>
-            <div class="pp-wl-card-val" style="color:${teamVolClass.color};">${teamRushPg.toFixed(1)}<span> att/g</span></div>
-            ${mkBarVal(teamRushPg, 38, 26, teamVolClass.color, ' att/g')}
-            <div class="pp-wl-card-sub">${usingActualTeam ? `${sp?.team ?? 'Team'} rush att/game · season avg` : 'Using league avg (no team data)'}</div>
+            <div class="pp-wl-card-val" style="color:${teamVolClass.color};">${teamRushPg.toFixed(1)}<span>/g</span></div>
+            ${mkBarVal(teamRushPg, 38, 26, teamVolClass.color, '/g')}
+            <div class="pp-wl-card-sub">${usingActualTeam ? `${sp?.team ?? 'Team'} season rush att/game` : 'Using league avg (no team data)'}</div>
           </div>
+          ${passAttPg !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${passVolClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Pass att / Game</span>
+                   <span class="pp-wl-card-cls" style="color:${passVolClass.color};">${passVolClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${passVolClass.color};">${passAttPg}<span>/g</span></div>
+                 ${mkBarVal(passAttPg, 48, 33, passVolClass.color, '/g')}
+                 <div class="pp-wl-card-sub">${sp?.team ?? 'Team'} season pass att/game</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Pass att / Game</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+               </div>`}
+          ${offPlaysPg !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${offPlaysClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Off. Plays / Game</span>
+                   <span class="pp-wl-card-cls" style="color:${offPlaysClass.color};">${offPlaysClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${offPlaysClass.color};">${offPlaysPg}<span>/g</span></div>
+                 ${mkBarVal(offPlaysPg, 80, 63, offPlaysClass.color, '/g')}
+                 <div class="pp-wl-card-sub">Rush + pass att · excl. sacks</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Plays / Game</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+               </div>`}
+          ${teamYpc !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${olProxyClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">OL Proxy</span>
+                   <span class="pp-wl-card-cls" style="color:${olProxyClass.color};">${olProxyClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${olProxyClass.color};">${teamYpc}<span> ypc</span></div>
+                 ${mkBarVal(teamYpc, 6.0, 4.2, olProxyClass.color, ' ypc')}
+                 <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">OL Proxy</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+               </div>`}
+          ${offRating !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${offRatingClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Off. Rating</span>
+                   <span class="pp-wl-card-cls" style="color:${offRatingClass.color};">${offRatingClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${offRatingClass.color};">${offRating}<span>/100</span></div>
+                 ${mkBar(offRating, 100, 50, offRatingClass.color)}
+                 <div class="pp-wl-card-sub">Composite: yards/play + TD rate</div>
+               </div>`
+            : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                 <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Rating</span></div>
+                 <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                 <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+               </div>`}
           <div class="pp-wl-card" style="border-left-color:${dcClass.color};">
             <div class="pp-wl-card-header">
               <span class="pp-wl-card-label">Depth Chart</span>
@@ -4287,6 +4439,7 @@ const AVG_CARRY_KEY   = 'dynasty_hub_avg_carry_pct_v1'; // stored avg RB carry s
 const DATA_BASE_URL = './data';
 let compDB      = {};   // "POS_tier_carYr" → [p15,p50,p85]
 let careerDB    = {};   // pid → [{season,ppr,ppg,games}]
+let teamDB      = {};   // teamAbbr → {rushAttPg,passAttPg,offPlaysPg,runRate,passRate,teamYpc,ypp,tdPg,offRating}
 
 // Bulk season stats cache — populated once before preWarmProjectionCache runs.
 // Maps pid → flat stats object so fetchSleeperStats() reads from memory
@@ -4865,10 +5018,11 @@ async function loadPrebuiltData(onProgress) {
   try {
     onProgress?.('Loading pre-built data files…', 5);
 
-    const [compRes, careerRes, benchRes] = await Promise.all([
+    const [compRes, careerRes, benchRes, teamResRaw] = await Promise.all([
       fetch(`${DATA_BASE_URL}/compdb.json`),
       fetch(`${DATA_BASE_URL}/careerdb.json`),
       fetch(`${DATA_BASE_URL}/benchmarks.json`),
+      fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),  // optional — graceful fallback
     ]);
 
     if (!compRes.ok || !careerRes.ok || !benchRes.ok) {
@@ -4887,6 +5041,11 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbCarryPct) {
       avgRbCarryPct = bench.avgRbCarryPct;
       try { localStorage.setItem(AVG_CARRY_KEY, String(avgRbCarryPct)); } catch(e) {}
+    }
+
+    // teamdb.json is optional — new cards show "—" if it hasn't been built yet
+    if (teamResRaw?.ok) {
+      try { teamDB = await teamResRaw.json(); } catch(e) {}
     }
 
     // Cache to localStorage so repeat loads skip even the static fetch
