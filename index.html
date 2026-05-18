@@ -5763,15 +5763,18 @@ async function loadPrebuiltData(onProgress) {
   try {
     onProgress?.('Loading pre-built data files…', 5);
 
+    // no-cache: always revalidate with server — gets a fast 304 if unchanged,
+    // new content if CI has rebuilt the data. Prevents stale data for repeat users.
+    const NC = { cache: 'no-cache' };
     const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw, statTeamResRaw, advstatsResRaw] = await Promise.all([
-      fetch(`${DATA_BASE_URL}/compdb.json`),
-      fetch(`${DATA_BASE_URL}/careerdb.json`),
-      fetch(`${DATA_BASE_URL}/benchmarks.json`),
-      fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),      // optional — graceful fallback
-      fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),      // optional — graceful fallback
-      fetch(`${DATA_BASE_URL}/ryoedb.json`).catch(() => null),       // optional — graceful fallback
-      fetch(`${DATA_BASE_URL}/statteamdb.json`).catch(() => null),   // optional — player 2025 team lookup
-      fetch(`${DATA_BASE_URL}/advstatsdb.json`).catch(() => null),   // optional — success% + MTF/att
+      fetch(`${DATA_BASE_URL}/compdb.json`,      NC),
+      fetch(`${DATA_BASE_URL}/careerdb.json`,    NC),
+      fetch(`${DATA_BASE_URL}/benchmarks.json`,  NC),
+      fetch(`${DATA_BASE_URL}/teamdb.json`,      NC).catch(() => null),
+      fetch(`${DATA_BASE_URL}/depthdb.json`,     NC).catch(() => null),
+      fetch(`${DATA_BASE_URL}/ryoedb.json`,      NC).catch(() => null),
+      fetch(`${DATA_BASE_URL}/statteamdb.json`,  NC).catch(() => null),
+      fetch(`${DATA_BASE_URL}/advstatsdb.json`,  NC).catch(() => null),
     ]);
 
     if (!compRes.ok || !careerRes.ok || !benchRes.ok) {
@@ -5853,13 +5856,14 @@ function _loadOptionalDataFiles() {
   if (_optionalFilesPromise) return _optionalFilesPromise;
   _optionalFilesPromise = (async () => {
     try {
+      const NC = { cache: 'no-cache' };
       const [benchRes, teamRes, depthRes, ryoeRes, statTeamRes, advstatsRes] = await Promise.all([
-        fetch(`${DATA_BASE_URL}/benchmarks.json`).catch(() => null),
-        fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),
-        fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),
-        fetch(`${DATA_BASE_URL}/ryoedb.json`).catch(() => null),
-        fetch(`${DATA_BASE_URL}/statteamdb.json`).catch(() => null),
-        fetch(`${DATA_BASE_URL}/advstatsdb.json`).catch(() => null),
+        fetch(`${DATA_BASE_URL}/benchmarks.json`,  NC).catch(() => null),
+        fetch(`${DATA_BASE_URL}/teamdb.json`,      NC).catch(() => null),
+        fetch(`${DATA_BASE_URL}/depthdb.json`,     NC).catch(() => null),
+        fetch(`${DATA_BASE_URL}/ryoedb.json`,      NC).catch(() => null),
+        fetch(`${DATA_BASE_URL}/statteamdb.json`,  NC).catch(() => null),
+        fetch(`${DATA_BASE_URL}/advstatsdb.json`,  NC).catch(() => null),
       ]);
       if (benchRes?.ok) {
         try {
