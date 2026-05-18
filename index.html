@@ -2903,7 +2903,7 @@ async function loadPlayerProfile(pid) {
   // Backup QB detection: prefer live 2026 ESPN depth chart (depthDB), fall back to Sleeper.
   // Includes rookies — depth charts reflect pre-season roster decisions for drafted QBs.
   const yearsExp  = sp?.years_exp ?? null;
-  const _qbDcEntry26 = depthDB?.[nflTeam]?.QB?.find(e => e.name === sp?.name);
+  const _qbDcEntry26 = depthDB?.[nflTeam]?.QB?.find(e => _dcNormName(e.name) === _dcNormName(sp?.name));
   const _qbDcOrder26 = _qbDcEntry26?.rank ?? sp?.depth_chart_order ?? 1;
   const isBackupQb   = pos === 'QB' && _qbDcOrder26 >= 2;
 
@@ -3508,13 +3508,13 @@ async function loadPlayerProfile(pid) {
     // so the player won't appear in depthDB[statTeam] — show as null rather than
     // falling back to sp.depth_chart_order (which reflects the new team).
     const _dcEspn25    = depthDB?.[statTeam]?.[pos] ?? [];
-    const _dcEntry25   = _dcEspn25.find(e => e.name === sp?.name);
+    const _dcEntry25   = _dcEspn25.find(e => _dcNormName(e.name) === _dcNormName(sp?.name));
     const _dcOrder25   = teamChanged ? (_dcEntry25?.rank ?? null) : (_dcEntry25?.rank ?? sp?.depth_chart_order ?? null);
     const _dcInj25     = _dcEntry25?.status ?? null;
 
     // 2026 depth chart (nflTeam — current team, forward-looking)
     const _dcEspn26    = depthDB?.[nflTeam]?.[pos] ?? [];
-    const _dcEntry26   = _dcEspn26.find(e => e.name === sp?.name);
+    const _dcEntry26   = _dcEspn26.find(e => _dcNormName(e.name) === _dcNormName(sp?.name));
     const _dcOrder26   = _dcEntry26?.rank ?? sp?.depth_chart_order ?? null;
     const _dcInj26     = _dcEntry26?.status ?? null;
 
@@ -5039,6 +5039,8 @@ let compDB      = {};   // "POS_tier_carYr" → [p15,p50,p85]
 let careerDB    = {};   // pid → [{season,ppr,ppg,games}]
 let teamDB      = {};   // teamAbbr → {rushAttPg,passAttPg,offPlaysPg,runRate,passRate,teamYpc,ypp,tdPg,offRating}
 let depthDB     = {};   // teamAbbr → { QB:[{name,rank,status}], RB:[…], WR:[…], TE:[…] }
+// ESPN stores suffixes ("Jr.", "II") that Sleeper omits — strip before name-matching depthDB.
+const _dcNormName = n => (n ?? '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv|v)$/i, '').trim();
 let ryoeDB      = {};   // playerName → { ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected }
 let statTeamDB  = {};   // sleeperPlayerId → NFL team abbr they played for in the most recent stat season
 
@@ -6591,7 +6593,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     //   No projection discount — keep standard rookie model outputs.
     //   Only bear description is overridden (sits behind veteran).
     const spLocalBackup   = sleeperPlayers[pid] ?? {};
-    const _projDcEntry    = depthDB?.[spLocalBackup.team ?? '']?.QB?.find(e => e.name === spLocalBackup.name);
+    const _projDcEntry    = depthDB?.[spLocalBackup.team ?? '']?.QB?.find(e => _dcNormName(e.name) === _dcNormName(spLocalBackup.name));
     const _projDcOrder    = _projDcEntry?.rank ?? (spLocalBackup.depth_chart_order ?? 1);
     const isVeteranBackupQb = pos === 'QB' && careerStage.stage !== 'rookie' && _projDcOrder >= 2;
     const isRookieBackupQb  = pos === 'QB' && careerStage.stage === 'rookie'  && _projDcOrder >= 2;
@@ -8294,7 +8296,7 @@ function computeBaseProjection(pid, pos, age, yearsExp, draftRound, draftPick) {
 
   // ── Veteran backup QB discount ──
   // Mirrors runProjection: bear=0 (stays on bench), base=4 starts, bull=12 starts.
-  const _coldDcEntry       = depthDB?.[_spCold.team ?? '']?.QB?.find(e => e.name === _spCold.name);
+  const _coldDcEntry       = depthDB?.[_spCold.team ?? '']?.QB?.find(e => _dcNormName(e.name) === _dcNormName(_spCold.name));
   const _coldDcOrder       = _coldDcEntry?.rank ?? (_spCold.depth_chart_order ?? 1);
   const isVeteranBackupQbCold = posNorm === 'QB' && stage !== 'rookie' && _coldDcOrder >= 2;
   if (isVeteranBackupQbCold) {
