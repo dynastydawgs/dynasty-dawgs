@@ -829,14 +829,14 @@ async function main() {
         const median = vals.length % 2 === 1 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
         return Math.round(median * 10) / 10;
       };
-      avgRbCarryPct     = _bm('carryPct',       44.1);
-      avgRbTouchesPg    = _bm('touchesPg',      15.0);
-      avgRbTouchShare   = _bm('touchSharePct',  31.0);
-      avgRbTargetShare  = _bm('targetSharePct',  9.0);
-      avgRbSnapPct      = _bm('snapPct',         62.0);
-      avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
-      avgRbRzCarries    = _bm('rzCarries',       22.0);
-      avgRbYpc          = _ba('ypc',              4.3);  // mean for normally-distributed efficiency metric
+      avgRbCarryPct     = _ba('carryPct',       44.1);
+      avgRbTouchesPg    = _ba('touchesPg',      15.0);
+      avgRbTouchShare   = _ba('touchSharePct',  31.0);
+      avgRbTargetShare  = _ba('targetSharePct',  9.0);
+      avgRbSnapPct      = _ba('snapPct',         62.0);
+      avgRbRzCarryShare = _ba('rzCarryShare',    38.0);
+      avgRbRzCarries    = _ba('rzCarries',       22.0);
+      avgRbYpc          = _ba('ypc',              4.3);
       avgRbYpcN         = rbBenchRows.filter(r => r.ypc != null).length;
       console.log(`  Workload bench — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
       console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (n=${avgRbYpcN})`)
