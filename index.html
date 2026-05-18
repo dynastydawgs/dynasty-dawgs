@@ -2881,6 +2881,12 @@ async function loadPlayerProfile(pid) {
   const area = document.getElementById('pp-profile-area');
   area.innerHTML = `<div class="pp-generating"><span class="spinner"></span>Loading profile…</div>`;
 
+  // Ensure optional data files (ryoeDB, advstatsDB, teamDB…) are loaded.
+  // On first-ever visits these are already fetched in loadPrebuiltData.
+  // On repeat visits (localStorage fast-path) we load them in the background —
+  // await here so RB efficiency cards always have data before rendering.
+  await _loadOptionalDataFiles();
+
   const fc = fcPlayerMap[pid];
   const sp = sleeperPlayers[pid];
   const name = fc?.name ?? sp?.name ?? pid;
@@ -5753,6 +5759,10 @@ async function loadPrebuiltData(onProgress) {
       try { advstatsDB = await advstatsResRaw.json(); } catch(e) {}
     }
 
+    // Mark optional files as already loaded so _loadOptionalDataFiles() is a no-op
+    // if called later (e.g. from loadPlayerProfile on a first-ever visit).
+    _optionalFilesPromise = Promise.resolve();
+
     // Cache to localStorage so repeat loads skip even the static fetch
     saveDB();
 
@@ -5768,6 +5778,34 @@ async function loadPrebuiltData(onProgress) {
   }
 }
 
+// _optionalFilesPromise — resolves once teamDB / ryoeDB / advstatsDB etc. are loaded.
+// Stored so callers that need these files (e.g. renderPlayerProfile) can await it.
+let _optionalFilesPromise = null;
+
+// _loadOptionalDataFiles — fetches the supplemental data files that are NOT stored
+// in localStorage (teamDB, ryoeDB, advstatsDB, depthDB, statTeamDB).
+// Called on the localStorage fast-path so the RB efficiency cards still populate.
+function _loadOptionalDataFiles() {
+  if (_optionalFilesPromise) return _optionalFilesPromise;
+  _optionalFilesPromise = (async () => {
+    try {
+      const [teamRes, depthRes, ryoeRes, statTeamRes, advstatsRes] = await Promise.all([
+        fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),
+        fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),
+        fetch(`${DATA_BASE_URL}/ryoedb.json`).catch(() => null),
+        fetch(`${DATA_BASE_URL}/statteamdb.json`).catch(() => null),
+        fetch(`${DATA_BASE_URL}/advstatsdb.json`).catch(() => null),
+      ]);
+      if (teamRes?.ok)     try { teamDB     = await teamRes.json();     } catch(e) {}
+      if (depthRes?.ok)    try { depthDB    = await depthRes.json();    } catch(e) {}
+      if (ryoeRes?.ok)     try { ryoeDB     = await ryoeRes.json();     } catch(e) {}
+      if (statTeamRes?.ok) try { statTeamDB = await statTeamRes.json(); } catch(e) {}
+      if (advstatsRes?.ok) try { advstatsDB = await advstatsRes.json(); } catch(e) {}
+    } catch(e) { /* optional — silent failure is fine */ }
+  })();
+  return _optionalFilesPromise;
+}
+
 // ensureDB: priority order —
 //   ① in-memory (dbReady)      — instant
 //   ② localStorage cache       — ~5ms
@@ -5779,6 +5817,10 @@ async function ensureDB(onProgress) {
   // ① localStorage cache — instant on repeat visits
   if (loadDB() && Object.keys(compDB).length > 10) {
     dbReady = true;
+    // compDB/careerDB came from localStorage, but the optional data files
+    // (ryoeDB, advstatsDB, teamDB, depthDB, statTeamDB) are never stored there —
+    // fetch them now so RB efficiency cards aren't all "—".
+    _loadOptionalDataFiles();
     return;
   }
 
