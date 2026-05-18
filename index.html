@@ -3274,7 +3274,11 @@ async function loadPlayerProfile(pid) {
 
     const avgTeamRushPg = teamRushPg; // alias used in touch-share calc below
 
-    const carryPct  = Math.round(attPg / teamRushPg * 1000) / 10;
+    // Prefer PBP-derived carry share (player carries / team carries, recentYr).
+    // Falls back to Sleeper att/g ÷ team rush att/g if advstatsDB hasn't been built.
+    const carryPct  = adsCarryShare !== null
+                    ? adsCarryShare
+                    : Math.round(attPg / teamRushPg * 1000) / 10;
     const targetPct = Math.round(tgtPg / avgTeamTgtPg  * 1000) / 10;
 
     const carryClass  = carryPct  >= 65 ? { label:'Workhorse',        color:'var(--green)'  }
@@ -3494,10 +3498,11 @@ async function loadPlayerProfile(pid) {
     const _advSpNorm = _advNorm(sp?.name);
     const _advKey    = Object.keys(advstatsDB).find(k => _advNorm(k) === _advSpNorm);
     const _advEntry  = _advKey ? advstatsDB[_advKey] : null;
-    const successPct   = _advEntry?.successPct  ?? null;
-    const adsMtfPerAtt = _advEntry?.mtfPerAtt   ?? null;
-    const adsBrkTkl    = _advEntry?.brkTkl      ?? null;
-    const adsAtt       = _advEntry?.att         ?? null;
+    const successPct    = _advEntry?.successPct  ?? null;
+    const adsMtfPerAtt  = _advEntry?.mtfPerAtt   ?? null;
+    const adsBrkTkl     = _advEntry?.brkTkl      ?? null;
+    const adsAtt        = _advEntry?.att         ?? null;
+    const adsCarryShare = _advEntry?.carryShare  ?? null; // PBP-derived: player carries / team carries
 
     const successClass = successPct === null ? {label:'No Data',  color:'var(--text-dim)'}
       : successPct >= 48  ? {label:'Elite',      color:'var(--green)'  }
@@ -3831,7 +3836,7 @@ async function loadPlayerProfile(pid) {
               </div>
               <div class="pp-wl-card-val" style="color:${carryClass.color};">${carryPct}<span>%</span></div>
               <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color, 'MED')}</div>
-              <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att${usingActualTeam ? ` · team ${teamRushPg.toFixed(1)} att/g` : ' · vs league avg'} · bench: top 64 RBs (min 50 carries)</div>
+              <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att · ${adsCarryShare !== null ? 'player÷team carries · nflverse PBP' : (usingActualTeam ? `team ${teamRushPg.toFixed(1)} att/g` : 'vs league avg')} · bench: top 64 RBs (min 50 carries)</div>
             </div>
             ${snapCard}
             <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">

@@ -603,8 +603,9 @@ async function main() {
     // ── 3. Play-by-play → success rate + workload by GSIS ───────────────────
     // Single pass: rush plays → success rate + carries; pass plays → targets/rec.
     // workloadByGsis is used below (step 6) to compute RB workload benchmarks.
-    const successByGsis  = {};
-    const workloadByGsis = {}; // gsis_id → { carries, tgts, rec, gameIds }
+    const successByGsis      = {};
+    const workloadByGsis     = {}; // gsis_id → { carries, rushYds, tgts, rec, gameIds, team }
+    const teamCarriesPerGame = {}; // gameId → { posteam → total rush attempts (incl. QB) }
     try {
       const pbpRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
@@ -612,9 +613,9 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI] =
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
-           'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id', 'rushing_yards']
+           'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id', 'rushing_yards', 'posteam']
           .map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
@@ -622,7 +623,15 @@ async function main() {
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
 
           if (v[raI] === '1') {
-            const gsis = v[ridI]?.trim();
+            const gsis  = v[ridI]?.trim();
+            const pteam = pteamI >= 0 ? v[pteamI]?.trim() : null;
+
+            // Track ALL team rushes (incl. QB) for carry-share denominator
+            if (gameId && pteam) {
+              if (!teamCarriesPerGame[gameId]) teamCarriesPerGame[gameId] = {};
+              teamCarriesPerGame[gameId][pteam] = (teamCarriesPerGame[gameId][pteam] ?? 0) + 1;
+            }
+
             if (gsis) {
               const isQb = gsisToPos[gsis] === 'QB';
               const succ = v[sucI];
@@ -632,10 +641,11 @@ async function main() {
                 successByGsis[gsis].n++;
               }
               if (!isQb) {
-                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set() };
+                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
                 workloadByGsis[gsis].carries++;
                 workloadByGsis[gsis].rushYds += ryI >= 0 ? (parseFloat(v[ryI]) || 0) : 0;
                 if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
+                if (pteam && !workloadByGsis[gsis].team) workloadByGsis[gsis].team = pteam;
               }
             }
           }
@@ -643,7 +653,7 @@ async function main() {
           if (paI >= 0 && v[paI] === '1') {
             const gsis = recvI >= 0 ? v[recvI]?.trim() : null;
             if (gsis) {
-              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set() };
+              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
               workloadByGsis[gsis].tgts++;
               if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
               if (cpI >= 0 && v[cpI] === '1') workloadByGsis[gsis].rec++;
@@ -665,12 +675,27 @@ async function main() {
     }
     console.log(`  Success rate: ${Object.keys(successMap).length} qualified players`);
 
-    // ── 5. Merge into advstatsDB keyed by canonical display name ─────────────
-    const allNormKeys = new Set([...Object.keys(mtfMap), ...Object.keys(successMap)]);
+    // ── 5a. Build carry share map from PBP (player carries / team carries) ────
+    const carryShareMap = {};  // normKey → carrySharePct
+    for (const [gsis, d] of Object.entries(workloadByGsis)) {
+      if (d.carries < 20 || !d.team) continue;
+      const teamCarries = [...d.gameIds].reduce((sum, gid) =>
+        sum + (teamCarriesPerGame[gid]?.[d.team] ?? 0), 0);
+      if (teamCarries < 1) continue;
+      const nk = gsisToNormName[gsis];
+      if (!nk) continue;
+      carryShareMap[nk] = Math.round(d.carries / teamCarries * 1000) / 10;
+      if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+    }
+    console.log(`  Carry share: ${Object.keys(carryShareMap).length} players`);
+
+    // ── 5b. Merge into advstatsDB keyed by canonical display name ─────────────
+    const allNormKeys = new Set([...Object.keys(mtfMap), ...Object.keys(successMap), ...Object.keys(carryShareMap)]);
     for (const nk of allNormKeys) {
       const entry = {};
-      if (mtfMap[nk])     Object.assign(entry, mtfMap[nk]);
-      if (successMap[nk]) entry.successPct = successMap[nk];
+      if (mtfMap[nk])        Object.assign(entry, mtfMap[nk]);
+      if (successMap[nk])    entry.successPct  = successMap[nk];
+      if (carryShareMap[nk]) entry.carryShare  = carryShareMap[nk];
       if (!Object.keys(entry).length) continue;
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
