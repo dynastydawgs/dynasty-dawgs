@@ -3311,7 +3311,7 @@ async function loadPlayerProfile(pid) {
                     : snapPct >= 30    ? { label: 'Limited',     color: 'var(--red)'  }
                     :                    { label: 'Minimal',     color: 'var(--red)'     };
 
-    const mkBar = (pct, maxPct, avgPct, color) => {
+    const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'AVG') => {
       const fillW  = Math.min(pct / maxPct * 100, 100).toFixed(1);
       const showAvg = avgPct != null;
       const avgPos  = showAvg ? Math.min(avgPct / maxPct * 100, 100).toFixed(1) : 0;
@@ -3323,12 +3323,12 @@ async function loadPlayerProfile(pid) {
         </div>
         <div class="pp-wl-scale">
           <span>0%</span>
-          ${showAvg ? `<span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgPct}%</span>` : ''}
+          ${showAvg ? `<span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgPct}%</span>` : ''}
           <span>${maxPct}%</span>
         </div>`;
     };
     // Raw-value bar (for non-percentage metrics like pts/touch)
-    const mkBarVal = (val, maxVal, avgVal, color, unit) => {
+    const mkBarVal = (val, maxVal, avgVal, color, unit, benchLabel = 'AVG') => {
       const fillW  = Math.min(val / maxVal * 100, 100).toFixed(1);
       const avgPos = Math.min(avgVal / maxVal * 100, 100).toFixed(1);
       return `
@@ -3339,7 +3339,7 @@ async function loadPlayerProfile(pid) {
         </div>
         <div class="pp-wl-scale">
           <span>0</span>
-          <span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgVal}${unit}</span>
+          <span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgVal}${unit}</span>
           <span>${maxVal}${unit}</span>
         </div>`;
     };
@@ -3721,7 +3721,7 @@ async function loadPlayerProfile(pid) {
              <span class="pp-wl-card-cls" style="color:${snapClass.color};">${snapClass.label}</span>
            </div>
            <div class="pp-wl-card-val" style="color:${snapClass.color};">${snapPct}<span>%</span></div>
-           ${mkBar(snapPct, 100, avgSnapPct, snapClass.color)}
+           ${mkBar(snapPct, 100, avgSnapPct, snapClass.color, 'MED')}
            <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench: top 64 RBs (min 50 carries)</div>
          </div>`
       : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -3845,7 +3845,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${carryClass.color};">${carryClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${carryClass.color};">${carryPct}<span>%</span></div>
-              <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color)}</div>
+              <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color, 'MED')}</div>
               <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att${usingActualTeam ? ` · team ${teamRushPg.toFixed(1)} att/g` : ' · vs league avg'} · bench: top 64 RBs (min 50 carries)</div>
             </div>
             ${snapCard}
@@ -3855,7 +3855,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${touchPgClass.color};">${touchPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '')}
+              ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '', 'MED')}
               <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · ${touches} total · bench: top 64 RBs (min 50 carries)</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
@@ -3864,7 +3864,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${touchShareClass.color};">${touchShareClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${touchShareClass.color};">${touchSharePct}<span>%</span></div>
-              ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color)}
+              ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color, 'MED')}
               <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g of ~${avgTmTouchPg} team avg · bench: top 64 RBs (min 50 carries)</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
@@ -3873,7 +3873,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${tgtClass.color};">${tgtClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
-              ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color)}
+              ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color, 'MED')}
               <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench: top 64 RBs (min 50 carries)</div>
             </div>
           </div>
@@ -4135,7 +4135,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${carryClass.color};">${carryClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${carryClass.color};">${carryPct}<span>%</span></div>
-              ${mkBar(carryPct, 100, avgCarryPct, carryClass.color)}
+              ${mkBar(carryPct, 100, avgCarryPct, carryClass.color, 'MED')}
               <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att · 2025 stats</div>
             </div>
             ${snapCard}
@@ -4145,7 +4145,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${touchPgClass.color};">${touchPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '')}
+              ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '', 'MED')}
               <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · 2025 stats</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
@@ -4154,7 +4154,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${touchShareClass.color};">${touchShareClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${touchShareClass.color};">${touchSharePct}<span>%</span></div>
-              ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color)}
+              ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color, 'MED')}
               <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g · 2025 stats</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
@@ -4163,7 +4163,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${tgtClass.color};">${tgtClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
-              ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color)}
+              ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color, 'MED')}
               <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench: top 64 RBs (min 50 carries) · 2025 stats</div>
             </div>
           </div>
@@ -4373,7 +4373,7 @@ async function loadPlayerProfile(pid) {
                       :   { label:'Depth / Rotational',  color:'var(--red)' };
 
     // ── Bar helpers ──
-    const mkBar = (pct, maxPct, avgPct, color) => {
+    const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'AVG') => {
       const fillW  = Math.min(pct / maxPct * 100, 100).toFixed(1);
       const showAvg = avgPct != null;
       const avgPos  = showAvg ? Math.min(avgPct / maxPct * 100, 100).toFixed(1) : 0;
@@ -4385,12 +4385,12 @@ async function loadPlayerProfile(pid) {
         </div>
         <div class="pp-wl-scale">
           <span>0%</span>
-          ${showAvg ? `<span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgPct}%</span>` : ''}
+          ${showAvg ? `<span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgPct}%</span>` : ''}
           <span>${maxPct}%</span>
         </div>`;
     };
     // Raw-value bar (for non-percentage metrics like yds/tgt, tgt/game)
-    const mkBarVal = (val, maxVal, avgVal, color, unit) => {
+    const mkBarVal = (val, maxVal, avgVal, color, unit, benchLabel = 'AVG') => {
       const fillW  = Math.min(val / maxVal * 100, 100).toFixed(1);
       const avgPos = Math.min(avgVal / maxVal * 100, 100).toFixed(1);
       return `
@@ -4401,7 +4401,7 @@ async function loadPlayerProfile(pid) {
         </div>
         <div class="pp-wl-scale">
           <span>0</span>
-          <span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgVal}${unit}</span>
+          <span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgVal}${unit}</span>
           <span>${maxVal}${unit}</span>
         </div>`;
     };

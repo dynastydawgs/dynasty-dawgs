@@ -729,11 +729,18 @@ async function main() {
           ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10
           : fb;
       };
-      avgRbCarryPct    = _ba('carryPct',       44.1);
-      avgRbTouchesPg   = _ba('touchesPg',      15.0);
-      avgRbTouchShare  = _ba('touchSharePct',  31.0);
-      avgRbTargetShare = _ba('targetSharePct',  9.0);
-      avgRbSnapPct     = _ba('snapPct',         62.0);
+      const _bm = (field, fb) => {
+        const vals = rbBenchRows.map(r => r[field]).filter(v => v != null).sort((a, b) => a - b);
+        if (vals.length < 10) return fb;
+        const mid = Math.floor(vals.length / 2);
+        const median = vals.length % 2 === 1 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+        return Math.round(median * 10) / 10;
+      };
+      avgRbCarryPct    = _bm('carryPct',       44.1);
+      avgRbTouchesPg   = _bm('touchesPg',      15.0);
+      avgRbTouchShare  = _bm('touchSharePct',  31.0);
+      avgRbTargetShare = _bm('targetSharePct',  9.0);
+      avgRbSnapPct     = _bm('snapPct',         62.0);
       console.log(`  Benchmarks — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}%`);
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
