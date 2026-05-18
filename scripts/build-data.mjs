@@ -312,9 +312,13 @@ async function main() {
   const ESPN_ROSTER_BASE = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
   const SKILL_POS = { qb: 'QB', rb: 'RB', wr: 'WR', te: 'TE' };
 
+  // Depth charts are always current — try the upcoming season first (2026),
+  // fall back to recentYr (2025) if ESPN hasn't published it yet.
   const depthFetches = espnTeams.map(({ id, abbr }) =>
     Promise.all([
-      fetchJson(`${ESPN_DEPTH_BASE}/seasons/${recentYr}/teams/${id}/depthcharts`).catch(() => null),
+      fetchJson(`${ESPN_DEPTH_BASE}/seasons/${currentYear}/teams/${id}/depthcharts`)
+        .catch(() => fetchJson(`${ESPN_DEPTH_BASE}/seasons/${recentYr}/teams/${id}/depthcharts`)
+        .catch(() => null)),
       fetchJson(`${ESPN_ROSTER_BASE}/teams/${id}/roster`).catch(() => null),
     ]).then(([dcData, rosterData]) => ({ abbr, dcData, rosterData }))
   );
