@@ -5847,19 +5847,36 @@ async function loadPrebuiltData(onProgress) {
 let _optionalFilesPromise = null;
 
 // _loadOptionalDataFiles — fetches the supplemental data files that are NOT stored
-// in localStorage (teamDB, ryoeDB, advstatsDB, depthDB, statTeamDB).
-// Called on the localStorage fast-path so the RB efficiency cards still populate.
+// in localStorage (benchmarks, teamDB, ryoeDB, advstatsDB, depthDB, statTeamDB).
+// Called on the localStorage fast-path so benchmark bars and RB cards populate.
 function _loadOptionalDataFiles() {
   if (_optionalFilesPromise) return _optionalFilesPromise;
   _optionalFilesPromise = (async () => {
     try {
-      const [teamRes, depthRes, ryoeRes, statTeamRes, advstatsRes] = await Promise.all([
+      const [benchRes, teamRes, depthRes, ryoeRes, statTeamRes, advstatsRes] = await Promise.all([
+        fetch(`${DATA_BASE_URL}/benchmarks.json`).catch(() => null),
         fetch(`${DATA_BASE_URL}/teamdb.json`).catch(() => null),
         fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),
         fetch(`${DATA_BASE_URL}/ryoedb.json`).catch(() => null),
         fetch(`${DATA_BASE_URL}/statteamdb.json`).catch(() => null),
         fetch(`${DATA_BASE_URL}/advstatsdb.json`).catch(() => null),
       ]);
+      if (benchRes?.ok) {
+        try {
+          const bench = await benchRes.json();
+          if (bench?.avgRbCarryPct)      { avgRbCarryPct = bench.avgRbCarryPct; try { localStorage.setItem(AVG_CARRY_KEY, String(avgRbCarryPct)); } catch(e) {} }
+          if (bench?.avgRbSnapPct)       avgRbSnapPct       = bench.avgRbSnapPct;
+          if (bench?.avgRbTouchesPg)     avgRbTouchesPg     = bench.avgRbTouchesPg;
+          if (bench?.avgRbTouchShare)    avgRbTouchShare    = bench.avgRbTouchShare;
+          if (bench?.avgRbTargetShare)   avgRbTargetShare   = bench.avgRbTargetShare;
+          if (bench?.avgRbRzCarryShare)  avgRbRzCarryShare  = bench.avgRbRzCarryShare;
+          if (bench?.avgRbRzCarries)     avgRbRzCarries     = bench.avgRbRzCarries;
+          if (bench?.avgRbYpc)           avgRbYpc           = bench.avgRbYpc;
+          if (bench?.avgRbYpcN)          avgRbYpcN          = bench.avgRbYpcN;
+          if (bench?.avgRbPpt)           avgRbPpt           = bench.avgRbPpt;
+          if (bench?.avgRbPptN)          avgRbPptN          = bench.avgRbPptN;
+        } catch(e) {}
+      }
       if (teamRes?.ok)     try { teamDB     = await teamRes.json();     } catch(e) {}
       if (depthRes?.ok)    try { depthDB    = await depthRes.json();    } catch(e) {}
       if (ryoeRes?.ok)     try { ryoeDB     = await ryoeRes.json();     } catch(e) {}
