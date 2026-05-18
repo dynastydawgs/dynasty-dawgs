@@ -6,7 +6,7 @@
 // Output files:
 //   data/compdb.json      — comp buckets: "POS_tier_carYr" → [p15, p50, p85]
 //   data/careerdb.json    — pid → [{season, ppr, ppg, games, touches}]
-//   data/benchmarks.json  — { avgRbCarryPct }
+//   data/benchmarks.json  — { avgRbCarryPct, avgRbSnapPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare }
 //   data/teamdb.json      — teamAbbr → {rushAttPg, passAttPg, offPlaysPg, …, offRating}
 //   data/depthdb.json     — teamAbbr → {QB/RB/WR/TE: [{name, rank, status}]}
 //   data/ryoedb.json      — playerName → {ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected}
@@ -173,56 +173,83 @@ async function main() {
   progress(80, `Comp DB: ${Object.keys(compDB).length.toLocaleString()} buckets`);
   console.log();
 
-  // ── Step 5: Compute RB workload benchmarks from most recent completed season ─
+  // ── Step 5: Fetch nflverse player stats + compute RB workload benchmarks ────
+  // nflverse player_stats has carries, receptions, targets, offense_snaps, and
+  // offense_pct (snap % as 0–1 fraction) per player per week — far more reliable
+  // than Sleeper season totals which omit snap counts entirely.
   // Population: top 64 RBs by rush attempts, minimum 50 carries.
-  // Same pool for all five metrics so every average represents the same group.
-  // Snap % is the only exception — only rows with valid snap data contribute.
-  progress(85, 'Computing RB workload benchmarks…');
-  const recentYr    = currentYear - 1;
-  const recentStats = seasonMaps[recentYr] ?? seasonMaps[currentYear] ?? {};
-  const rbRows      = [];
-  const AVG_TEAM_TGT_PG  = 33.5;  // stable league-avg pass targets/game
-  const AVG_TEAM_REC_PG  = 22.0;  // stable league-avg receptions/game (≈ tgt × 66% catch rate)
+  // offense_pct averaged only over weeks where the player recorded at least one snap.
+  // psRows is reused by Step 5e (statTeamDB) to avoid a duplicate fetch.
+  progress(85, 'Fetching nflverse player stats…');
+  const recentYr = currentYear - 1;
+  const AVG_TEAM_TGT_PG = 33.5;  // stable league-avg pass targets/game
+  const AVG_TEAM_REC_PG = 22.0;  // stable league-avg receptions/game
 
-  for (const [pid, st] of Object.entries(recentStats)) {
-    const rushAtt = +(st.rush_att ?? 0);
-    if (rushAtt < 50) continue;                              // minimum 50 carries
-    const sp  = sleeperPlayers[pid];
-    const pos = sp?.position ?? st.pos ?? null;
-    if (pos !== 'RB') continue;
-    const games    = Math.max(1, +(st.gms_active ?? st.gp ?? 1) || 1);
-    const rec      = +(st.rec     ?? 0);
-    const tgts     = +(st.rec_tgt ?? 0);
-    const offSnp   = +(st.off_snp    ?? 0);
-    const tmOffSnp = +(st.tm_off_snp ?? 0);
-    const teamAbbr = sp?.team ?? null;
-    const tmRushPg = NFL_AVG_RUSH_ATT_PG;   // league-avg fallback; teamDB not yet built at this step
-    const touchesPg    = (rushAtt + rec) / games;
-    const avgTmTouchPg = tmRushPg + AVG_TEAM_REC_PG;
-    rbRows.push({
-      rushAtt,
-      carryPct:     (rushAtt / games) / tmRushPg * 100,
-      touchesPg,
-      touchSharePct: touchesPg / avgTmTouchPg * 100,
-      targetSharePct: (tgts / games) / AVG_TEAM_TGT_PG * 100,
-      snapPct: (offSnp > 0 && tmOffSnp > 0) ? offSnp / tmOffSnp * 100 : null,
-    });
+  let psRows = [];
+  try {
+    const psRes = await fetch(
+      `https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${recentYr}.csv`
+    );
+    if (psRes.ok) {
+      const lines = (await psRes.text()).split('\n').filter(l => l.trim());
+      const hdrs  = parseCSVLine(lines[0]);
+      psRows = lines.slice(1).map(line => {
+        const vals = parseCSVLine(line);
+        const row  = {};
+        hdrs.forEach((h, i) => { row[h] = vals[i] ?? ''; });
+        return row;
+      });
+      console.log(`\n  player_stats: ${psRows.length} rows`);
+    }
+  } catch(e) {
+    console.warn('\n  ⚠️  player_stats fetch failed:', e.message);
   }
-  rbRows.sort((a, b) => b.rushAtt - a.rushAtt);
-  const top64 = rbRows.slice(0, 64);
+
+  progress(87, 'Computing RB workload benchmarks…');
+  const rbAgg = {}; // gsis_id → aggregated season totals
+  for (const row of psRows) {
+    if (row.season_type !== 'REG') continue;
+    if (row.position    !== 'RB')  continue;
+    const pid = row.player_id?.trim();
+    if (!pid) continue;
+    if (!rbAgg[pid]) rbAgg[pid] = { carries: 0, rec: 0, tgts: 0, snapSum: 0, snapN: 0, games: 0 };
+    rbAgg[pid].carries += parseFloat(row.carries)    || 0;
+    rbAgg[pid].rec     += parseFloat(row.receptions) || 0;
+    rbAgg[pid].tgts    += parseFloat(row.targets)    || 0;
+    rbAgg[pid].games++;
+    const snps = parseFloat(row.offense_snaps) || 0;
+    const pct  = parseFloat(row.offense_pct);
+    if (snps > 0 && !isNaN(pct)) {
+      rbAgg[pid].snapSum += pct * 100; // offense_pct is 0–1; convert to percentage
+      rbAgg[pid].snapN++;
+    }
+  }
+
+  const rbRows = Object.values(rbAgg)
+    .filter(r => r.carries >= 50)
+    .map(r => ({
+      carries:        r.carries,
+      carryPct:       (r.carries / r.games) / NFL_AVG_RUSH_ATT_PG * 100,
+      touchesPg:      (r.carries + r.rec) / r.games,
+      touchSharePct:  ((r.carries + r.rec) / r.games) / (NFL_AVG_RUSH_ATT_PG + AVG_TEAM_REC_PG) * 100,
+      targetSharePct: (r.tgts / r.games) / AVG_TEAM_TGT_PG * 100,
+      snapPct:        r.snapN >= 4 ? r.snapSum / r.snapN : null, // require 4+ games with snap data
+    }))
+    .sort((a, b) => b.carries - a.carries)
+    .slice(0, 64);
 
   const _avg = (field, fallback) => {
-    const vals = top64.map(r => r[field]).filter(v => v != null);
+    const vals = rbRows.map(r => r[field]).filter(v => v != null);
     return vals.length >= 10
       ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10
       : fallback;
   };
 
-  const avgRbCarryPct     = _avg('carryPct',      44.1);
-  const avgRbTouchesPg    = _avg('touchesPg',     15.0);
-  const avgRbTouchShare   = _avg('touchSharePct', 31.0);
-  const avgRbTargetShare  = _avg('targetSharePct', 9.0);
-  const avgRbSnapPct      = _avg('snapPct',        62.0);  // snap-only rows filtered inside _avg
+  const avgRbCarryPct    = _avg('carryPct',       44.1);
+  const avgRbTouchesPg   = _avg('touchesPg',      15.0);
+  const avgRbTouchShare  = _avg('touchSharePct',  31.0);
+  const avgRbTargetShare = _avg('targetSharePct',  9.0);
+  const avgRbSnapPct     = _avg('snapPct',         62.0);
 
   progress(90, `Benchmarks — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}%`);
   console.log();
@@ -491,25 +518,17 @@ async function main() {
       if (!latest[sid] || week > latest[sid].week) latest[sid] = { week, team };
     };
 
-    // ── Pass 1: player_stats (game-log — primary source) ─────────────────────
-    try {
-      const res = await fetch(`https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${recentYr}.csv`);
-      if (res.ok) {
-        const lines = (await res.text()).split('\n').filter(l => l.trim());
-        const hdrs  = parseCSVLine(lines[0]);
-        let hits = 0;
-        for (const line of lines.slice(1)) {
-          const vals = parseCSVLine(line);
-          const row  = {};
-          hdrs.forEach((h, i) => { row[h] = vals[i] ?? ''; });
-          if (row.season_type?.trim() !== 'REG') continue;
-          const sid = resolveSid(row);
-          bump(sid, parseInt(row.week) || 0, row.recent_team?.trim());
-          if (sid) hits++;
-        }
-        console.log(`  player_stats pass: ${hits} rows resolved`);
+    // ── Pass 1: player_stats (reused from Step 5 — no duplicate fetch) ──────
+    {
+      let hits = 0;
+      for (const row of psRows) {
+        if (row.season_type?.trim() !== 'REG') continue;
+        const sid = resolveSid(row);
+        bump(sid, parseInt(row.week) || 0, row.recent_team?.trim());
+        if (sid) hits++;
       }
-    } catch(e) { console.warn('  ⚠️  player_stats fetch failed:', e.message); }
+      console.log(`  player_stats pass: ${hits} rows resolved`);
+    }
 
     // ── Pass 2: weekly roster (IR / inactive fallback) ────────────────────────
     try {
