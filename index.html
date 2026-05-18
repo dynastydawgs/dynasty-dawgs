@@ -3329,9 +3329,10 @@ async function loadPlayerProfile(pid) {
                     :                    { label: 'Minimal',     color: 'var(--red)'     };
 
     const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'MED') => {
-      const fillW  = Math.min(pct / maxPct * 100, 100).toFixed(1);
+      const effMax  = Math.max(maxPct, pct);
+      const fillW   = (pct / effMax * 100).toFixed(1);
       const showAvg = avgPct != null;
-      const avgPos  = showAvg ? Math.min(avgPct / maxPct * 100, 100).toFixed(1) : 0;
+      const avgPos  = showAvg ? Math.min(avgPct / effMax * 100, 100).toFixed(1) : 0;
       return `
         <div class="pp-wl-track">
           <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
@@ -3341,13 +3342,14 @@ async function loadPlayerProfile(pid) {
         <div class="pp-wl-scale">
           <span>0%</span>
           ${showAvg ? `<span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgPct}%</span>` : ''}
-          <span>${maxPct}%</span>
+          <span>${effMax}%</span>
         </div>`;
     };
     // Raw-value bar (for non-percentage metrics like pts/touch)
     const mkBarVal = (val, maxVal, avgVal, color, unit, benchLabel = 'MED') => {
-      const fillW  = Math.min(val / maxVal * 100, 100).toFixed(1);
-      const avgPos = Math.min(avgVal / maxVal * 100, 100).toFixed(1);
+      const effMax = Math.max(maxVal, val);
+      const fillW  = (val / effMax * 100).toFixed(1);
+      const avgPos = Math.min(avgVal / effMax * 100, 100).toFixed(1);
       return `
         <div class="pp-wl-track">
           <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
