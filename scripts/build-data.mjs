@@ -354,7 +354,7 @@ async function main() {
       teamDepth[posAbbr] = posGroup.athletes
         .sort((a, b) => a.rank - b.rank)
         .map(a => {
-          const espnId = a.athlete.$ref.split('/').pop();
+          const espnId = a.athlete.$ref.split('/').pop().split('?')[0];
           const info   = rosterMap[espnId] ?? {};
           return { name: info.name ?? null, rank: a.rank, status: info.status ?? null };
         })
