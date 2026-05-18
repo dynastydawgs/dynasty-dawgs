@@ -196,8 +196,7 @@ async function main() {
     console.log(`\n  player_stats: ${psRows.length} rows`);
   } catch(e) {
     // 404 is expected — nflverse doesn't always publish per-year player_stats files.
-    // statTeamDB will fall back to the roster pass; benchmarks use PBP below.
-    console.error('\n  ⚠️  player_stats unavailable:', e.message);
+    // statTeamDB falls back to the roster pass; benchmarks are sourced from PBP.
   }
   console.log();
 
