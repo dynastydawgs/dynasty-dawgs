@@ -7572,7 +7572,7 @@ function switchMainView(view, btn) {
   if (view === 'profiles') {
     setTimeout(() => document.getElementById('pp-search')?.focus(), 50);
   }
-  if (view === 'model') { renderModelBuilding(); setTimeout(() => _mbRenderInjTable(_mbPos), 0); }
+  if (view === 'model') { renderModelBuilding(); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -10605,87 +10605,19 @@ function renderModelBuilding() {
     <button class="mb-pos-tab${_mbPos === p ? ' active' : ''}" data-pos="${p}"
       onclick="_mbSetPos('${p}')">${p}</button>`).join('');
 
-  const flowHtml    = _mbBuildFlow(_mbPos);
   const stagesHtml  = _mbStagesHtml(_mbPos);
   const weightsHtml = _mbWeightsHtml(_mbPos);
 
-  const nextProjYear = projSeasonYear();
-  const availPanel = `
-    <div class="mb-beta-panel" style="margin-top:16px;">
-      <div class="mb-beta-header">
-        <span class="mb-beta-badge">🏥 Availability</span>
-        <span class="mb-beta-title">${_mbPos} Projected Missed Games — ${nextProjYear} Season</span>
-      </div>
-      <div class="mb-beta-sub">
-        Historical games-played data from the career database projected forward to ${nextProjYear}.
-        Sorted by projected missed games. Current Sleeper injury status shown in brackets.
-        <strong>Informational only — does not affect live projections.</strong>
-      </div>
-      <div id="mb-inj-table-wrap"></div>
-    </div>`;
-
-  const betaPanel = _mbPos === 'RB' ? `
-    <div class="mb-beta-panel">
-      <div class="mb-beta-header">
-        <span class="mb-beta-badge">🧪 Beta Testing</span>
-        <span class="mb-beta-title">RB Team Factors — Live Data Sandbox</span>
-      </div>
-      <div class="mb-beta-sub">
-        Fetches the most recently completed NFL season stats from Sleeper and aggregates team-level workload metrics for all 32 NFL teams.
-        These values are computed <strong>independently</strong> from the live projection model — nothing here
-        touches <code>projectionCache</code> or any live projection output.
-        Once validated, these factors will be wired into the RB workload layer.
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <button class="mb-fetch-btn" id="mb-fetch-btn" onclick="mbFetchTeamFactors()">
-          ⬇ Fetch ${_mbSeasonYear()} Team Factors
-        </button>
-        <div>
-          <div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-bottom:2px;">Off. Rating formula:</div>
-          <code style="font-size:10px;color:var(--text-muted);">
-            (yds/play ÷ league median) × 0.55 + (TD/gm ÷ league median) × 0.45
-          </code>
-        </div>
-      </div>
-      <div class="mb-fetch-status" id="mb-fetch-status"></div>
-      <div id="mb-team-table-wrap"></div>
-    </div>` : '';
-
   root.innerHTML = `
     <div class="mb-pos-tabs">${posTabs}</div>
-    <div style="margin-bottom:20px;">
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;font-family:var(--mono);color:var(--text-dim);">
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(56,196,232,0.35);margin-right:4px;"></span>Input</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(168,85,247,0.35);margin-right:4px;"></span>Compute</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(245,158,66,0.35);margin-right:4px;"></span>Adjust</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(45,214,168,0.35);margin-right:4px;"></span>Output</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:1px dashed rgba(45,214,168,0.6);margin-right:4px;"></span>Beta (RB only)</span>
-      </div>
-    </div>
-    ${flowHtml}
     ${stagesHtml}
-    ${weightsHtml}
-    ${betaPanel}
-    ${availPanel}`;
+    ${weightsHtml}`;
 
-  // Restore team table if already loaded
-  if (_mbPos === 'RB' && _mbTeamStats) {
-    _mbRenderInjTable(_mbPos);
-    _mbRenderTeamTable();
-    const st = document.getElementById('mb-fetch-status');
-    if (st) {
-      const srcLabel = _mbTeamStatsSrc === 'espn'
-        ? 'ESPN + Sleeper (carry conc.)'
-        : 'Sleeper · off. plays excl. sacks';
-      st.textContent = `Loaded ${_mbTeamStats.length} teams · ${new Date().getFullYear() - 1} season · ${srcLabel}`;
-    }
-  }
 }
 
 function _mbSetPos(pos) {
   _mbPos = pos;
   renderModelBuilding();
-  setTimeout(() => _mbRenderInjTable(pos), 0);
 }
 </script>
 </body>
