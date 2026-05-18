@@ -115,35 +115,24 @@ async function main() {
   HIST_SEASONS.forEach((yr, i) => { seasonMaps[yr] = seasonResults[i] || {}; });
   progress(40, `${HIST_SEASONS.length} seasons loaded`);
 
-  // ── DEBUG: inspect Sleeper API response shape ────────────────────────────
-  {
-    const sampleYr  = HIST_SEASONS.at(-2) ?? HIST_SEASONS.at(-1); // e.g. 2024
-    const sampleMap = seasonMaps[sampleYr] ?? {};
-    const entries   = Object.entries(sampleMap);
-    console.log(`  [DEBUG] Season ${sampleYr}: ${entries.length} entries`);
-    if (entries.length > 0) {
-      const [pid, stats] = entries[0];
-      console.log(`  [DEBUG] Sample pid="${pid}", keys: ${Object.keys(stats).slice(0, 15).join(', ')}`);
-      console.log(`  [DEBUG] pts_ppr=${stats.pts_ppr}, gms_active=${stats.gms_active}, gp=${stats.gp}, pos=${stats.pos}`);
-    } else {
-      // Response may be an array instead of a pid-keyed object
-      console.log(`  [DEBUG] Raw type: ${typeof sampleMap}, isArray: ${Array.isArray(sampleMap)}`);
-      console.log(`  [DEBUG] Raw (first 200 chars): ${JSON.stringify(sampleMap).slice(0, 200)}`);
-    }
-  }
-  console.log();
-
   // ── Step 3: Build careerDB ────────────────────────────────────────────────
   progress(40, 'Building career database…');
   const rawCareers = {};
   const pidToPos   = {};
 
   for (const yr of HIST_SEASONS) {
-    for (const [pid, stats] of Object.entries(seasonMaps[yr])) {
+    const raw = seasonMaps[yr];
+    // Sleeper API v2 returns an array; v1 returned a pid-keyed object.
+    // Normalize to a flat list of { pid, stats, pos }.
+    const entries = Array.isArray(raw)
+      ? raw.map(e => ({ pid: String(e.player_id), stats: e.stats ?? {}, pos: e.player?.position ?? null }))
+      : Object.entries(raw).map(([pid, stats]) => ({ pid, stats, pos: stats.pos ?? null }));
+
+    for (const { pid, stats, pos } of entries) {
       const ppr   = parseFloat(stats.pts_ppr   ?? 0);
       const games = parseFloat(stats.gms_active ?? stats.gp ?? stats.gms ?? 0);
       if (ppr < 15 || games < 5) continue;
-      if (stats.pos && !pidToPos[pid]) pidToPos[pid] = stats.pos;
+      if (pos && !pidToPos[pid]) pidToPos[pid] = pos;
       if (!rawCareers[pid]) rawCareers[pid] = [];
       const touches = Math.round(+(stats.rush_att ?? 0) + +(stats.rec ?? 0));
       rawCareers[pid].push({ season: yr, ppr: Math.round(ppr * 10) / 10, games, touches });
