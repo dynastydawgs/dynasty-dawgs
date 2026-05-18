@@ -534,6 +534,7 @@ async function main() {
     const gsisToNormName = {};  // gsis_id → normKey(display_name)
     const normToDisplay  = {};  // normKey  → canonical display_name (for final key)
     const gsisToPos      = {};  // gsis_id  → position (to filter QBs)
+    const pfrToGsis      = {};  // pfr_id   → gsis_id (for snap_counts bridge)
     try {
       const res = await fetch(
         'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv'
@@ -541,7 +542,7 @@ async function main() {
       if (res.ok) {
         const lines = (await res.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [gI, dI, pI] = ['gsis_id', 'display_name', 'position'].map(h => hdrs.indexOf(h));
+        const [gI, dI, pI, pfrI] = ['gsis_id', 'display_name', 'position', 'pfr_id'].map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
           const g = v[gI]?.trim(), d = v[dI]?.trim(), p = v[pI]?.trim();
@@ -550,8 +551,10 @@ async function main() {
           gsisToNormName[g] = nk;
           gsisToPos[g]      = p;
           if (!normToDisplay[nk]) normToDisplay[nk] = d; // first-seen wins
+          const pfr = pfrI >= 0 ? v[pfrI]?.trim() : null;
+          if (pfr) pfrToGsis[pfr] = g;
         }
-        console.log(`\n  GSIS→name bridge: ${Object.keys(gsisToNormName).length} entries`);
+        console.log(`\n  GSIS→name bridge: ${Object.keys(gsisToNormName).length} entries, PFR→GSIS: ${Object.keys(pfrToGsis).length} entries`);
       }
     } catch(e) { console.warn('\n  ⚠️  players.csv bridge failed:', e.message); }
 
@@ -676,25 +679,19 @@ async function main() {
       if (scRes.ok) {
         const lines = (await scRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        console.log(`  snap_counts columns: ${hdrs.slice(0, 12).join(', ')}`);
-        // Sample first data row for debugging
-        if (lines[1]) {
-          const sample = parseCSVLine(lines[1]);
-          console.log(`  snap_counts sample:  ${hdrs.slice(0, 12).map((h, i) => `${h}=${sample[i]}`).join(', ')}`);
-        }
-        const pidI  = hdrs.indexOf('player_id');
+        // snap_counts uses pfr_player_id (not GSIS) — bridge via pfrToGsis from players.csv
+        const pfrI  = hdrs.indexOf('pfr_player_id');
         const pctI  = hdrs.indexOf('offense_pct');
         const snpsI = hdrs.indexOf('offense_snaps');
-        const gtI   = hdrs.indexOf('game_type');   // 'REG' / 'POST' / 'PRE' (may not exist)
+        const gtI   = hdrs.indexOf('game_type');
         const snapAgg = {};
-        let scTotal = 0, scFiltered = 0;
         for (const line of lines.slice(1)) {
           const v    = parseCSVLine(line);
-          scTotal++;
-          if (gtI >= 0 && v[gtI] !== 'REG') { scFiltered++; continue; }
-          const gsis = pidI >= 0 ? v[pidI]?.trim() : null;
-          const pct  = pctI >= 0 ? parseFloat(v[pctI]) : NaN;
-          const snps = snpsI >= 0 ? parseFloat(v[snpsI]) || 0 : 0;
+          if (gtI >= 0 && v[gtI] !== 'REG') continue;
+          const pfrId = pfrI >= 0 ? v[pfrI]?.trim() : null;
+          const gsis  = pfrId ? pfrToGsis[pfrId] : null;
+          const pct   = pctI >= 0 ? parseFloat(v[pctI]) : NaN;
+          const snps  = snpsI >= 0 ? parseFloat(v[snpsI]) || 0 : 0;
           if (!gsis || isNaN(pct) || snps === 0) continue;
           if (!snapAgg[gsis]) snapAgg[gsis] = { sum: 0, n: 0 };
           snapAgg[gsis].sum += pct * 100;
@@ -703,7 +700,6 @@ async function main() {
         for (const [gsis, { sum, n }] of Object.entries(snapAgg)) {
           if (n >= 4) snapPctByGsis[gsis] = Math.round(sum / n * 10) / 10;
         }
-        console.log(`  snap_counts rows: ${scTotal} total, ${scFiltered} filtered by game_type, snapAgg: ${Object.keys(snapAgg).length} players`);
         console.log(`  Snap counts: ${Object.keys(snapPctByGsis).length} players`);
       } else {
         console.error(`  ⚠️  snap_counts HTTP ${scRes.status} — snap% will use fallback`);
