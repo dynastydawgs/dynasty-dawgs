@@ -193,8 +193,9 @@ async function main() {
   let avgRbTouchShare     = 31.0;
   let avgRbTargetShare    =  9.0;
   let avgRbSnapPct        = 62.0;
-  let avgRbRzCarryShare   = 38.0; // median RZ carry share among top-64 RBs
-  let avgRbRzCarries      = 22.0; // median RZ carries among top-64 RBs
+  let avgRbRzCarryShare   = 38.0; // median RZ carry share among top-32 RBs
+  let avgRbRzCarries      = 22.0; // median RZ carries among top-32 RBs
+  let avgRbRzTdRate       = 17.0; // mean RZ TD rate % (TDs / RZ carries) among top-32 RBs
   // RB efficiency benchmarks — seeded with estimates, updated below.
   let avgRbYpc         =  4.3;   // avg yards/carry (from PBP, same top-64 pool)
   let avgRbYpcN        =  0;
@@ -616,10 +617,10 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI] =
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
            'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id',
-           'rushing_yards', 'posteam', 'yardline_100']
+           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown']
           .map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
@@ -651,9 +652,12 @@ async function main() {
                 successByGsis[gsis].n++;
               }
               if (!isQb) {
-                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
+                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rzTDs: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
                 workloadByGsis[gsis].carries++;
-                if (inRz) workloadByGsis[gsis].rzCarries++;
+                if (inRz) {
+                  workloadByGsis[gsis].rzCarries++;
+                  if (rtdI >= 0 && v[rtdI] === '1') workloadByGsis[gsis].rzTDs++;
+                }
                 workloadByGsis[gsis].rushYds += ryI >= 0 ? (parseFloat(v[ryI]) || 0) : 0;
                 if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
                 if (pteam && !workloadByGsis[gsis].team) workloadByGsis[gsis].team = pteam;
@@ -705,7 +709,7 @@ async function main() {
         }
       }
 
-      // RZ carry share (min 8 RZ carries — starters average ~20-35/season)
+      // RZ carry share + RZ TD rate (min 8 RZ carries — starters average ~20-35/season)
       if ((d.rzCarries ?? 0) >= 8) {
         const teamRzCarries = [...d.gameIds].reduce((sum, gid) =>
           sum + (teamRzCarriesPerGame[gid]?.[d.team] ?? 0), 0);
@@ -719,10 +723,23 @@ async function main() {
     console.log(`  Carry share: ${Object.keys(carryShareMap).length} players`);
     console.log(`  RZ carry share: ${Object.keys(rzCarryShareMap).length} players`);
 
+    // ── 5a-ii. RZ TD rate (rzTDs / rzCarries, min 8 RZ carries) ─────────────
+    const rzTdRateMap = {};  // normKey → rzTdRate (0–100 pct)
+    const rzTdMap     = {};  // normKey → rzTDs count
+    for (const [gsis, d] of Object.entries(workloadByGsis)) {
+      if ((d.rzCarries ?? 0) < 8) continue;
+      const nk = gsisToNormName[gsis];
+      if (!nk) continue;
+      rzTdRateMap[nk] = Math.round(d.rzTDs / d.rzCarries * 1000) / 10;
+      rzTdMap[nk]     = d.rzTDs;
+    }
+    console.log(`  RZ TD rate: ${Object.keys(rzTdRateMap).length} players`);
+
     // ── 5b. Merge into advstatsDB keyed by canonical display name ─────────────
     const allNormKeys = new Set([
       ...Object.keys(mtfMap), ...Object.keys(successMap),
       ...Object.keys(carryShareMap), ...Object.keys(rzCarryShareMap),
+      ...Object.keys(rzTdRateMap),
     ]);
     for (const nk of allNormKeys) {
       const entry = {};
@@ -731,6 +748,8 @@ async function main() {
       if (carryShareMap[nk])   entry.carryShare   = carryShareMap[nk];
       if (rzCarryShareMap[nk]) entry.rzCarryShare = rzCarryShareMap[nk];
       if (rzCarriesMap[nk])    entry.rzCarries    = rzCarriesMap[nk];
+      if (rzTdRateMap[nk])     entry.rzTdRate     = rzTdRateMap[nk];
+      if (rzTdMap[nk])         entry.rzTDs        = rzTdMap[nk];
       if (!Object.keys(entry).length) continue;
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
@@ -812,6 +831,7 @@ async function main() {
           ypc:            d.carries > 0 ? d.rushYds / d.carries : null,
           rzCarryShare:   nk ? (rzCarryShareMap[nk] ?? null) : null,
           rzCarries:      d.rzCarries > 0 ? d.rzCarries : null,
+          rzTdRate:       nk ? (rzTdRateMap[nk] ?? null) : null,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -832,10 +852,12 @@ async function main() {
       avgRbSnapPct      = _bm('snapPct',         62.0);
       avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
       avgRbRzCarries    = _bm('rzCarries',       22.0);
-      // YPC is an efficiency metric with a roughly normal distribution — use mean
+      // YPC + RZ TD rate are efficiency metrics — use mean
       const _ypcVals    = rbBenchRows.map(r => r.ypc).filter(v => v != null);
       avgRbYpc          = _ypcVals.length >= 5 ? Math.round(_ypcVals.reduce((s, v) => s + v, 0) / _ypcVals.length * 10) / 10 : 4.3;
       avgRbYpcN         = _ypcVals.length;
+      const _rzTdVals   = rbBenchRows.map(r => r.rzTdRate).filter(v => v != null);
+      avgRbRzTdRate     = _rzTdVals.length >= 5 ? Math.round(_rzTdVals.reduce((s, v) => s + v, 0) / _rzTdVals.length * 10) / 10 : 17.0;
       console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
       console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (mean, n=${avgRbYpcN})`)
     } else {
@@ -851,7 +873,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
+  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
