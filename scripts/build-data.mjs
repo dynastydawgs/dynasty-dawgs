@@ -188,11 +188,12 @@ async function main() {
   const AVG_TEAM_REC_PG = 22.0;  // stable league-avg receptions/game
 
   // RB workload benchmarks — seeded with estimates, updated from PBP in Step 5f.
-  let avgRbCarryPct    = 44.1;
-  let avgRbTouchesPg   = 15.0;
-  let avgRbTouchShare  = 31.0;
-  let avgRbTargetShare =  9.0;
-  let avgRbSnapPct     = 62.0;
+  let avgRbCarryPct       = 44.1;
+  let avgRbTouchesPg      = 15.0;
+  let avgRbTouchShare     = 31.0;
+  let avgRbTargetShare    =  9.0;
+  let avgRbSnapPct        = 62.0;
+  let avgRbRzCarryShare   = 38.0; // median RZ carry share among top-64 RBs
   // RB efficiency benchmarks — seeded with estimates, updated below.
   let avgRbYpc         =  4.3;   // avg yards/carry (from PBP, same top-64 pool)
   let avgRbYpcN        =  0;
@@ -603,9 +604,10 @@ async function main() {
     // ── 3. Play-by-play → success rate + workload by GSIS ───────────────────
     // Single pass: rush plays → success rate + carries; pass plays → targets/rec.
     // workloadByGsis is used below (step 6) to compute RB workload benchmarks.
-    const successByGsis      = {};
-    const workloadByGsis     = {}; // gsis_id → { carries, rushYds, tgts, rec, gameIds, team }
-    const teamCarriesPerGame = {}; // gameId → { posteam → total rush attempts (incl. QB) }
+    const successByGsis        = {};
+    const workloadByGsis       = {}; // gsis_id → { carries, rzCarries, rushYds, tgts, rec, gameIds, team }
+    const teamCarriesPerGame   = {}; // gameId → { posteam → total rush attempts (incl. QB) }
+    const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
     try {
       const pbpRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
@@ -613,9 +615,10 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI] =
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
-           'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id', 'rushing_yards', 'posteam']
+           'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id',
+           'rushing_yards', 'posteam', 'yardline_100']
           .map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
@@ -625,11 +628,17 @@ async function main() {
           if (v[raI] === '1') {
             const gsis  = v[ridI]?.trim();
             const pteam = pteamI >= 0 ? v[pteamI]?.trim() : null;
+            const yl    = ylI >= 0 ? parseFloat(v[ylI]) : NaN;
+            const inRz  = !isNaN(yl) && yl <= 20;
 
             // Track ALL team rushes (incl. QB) for carry-share denominator
             if (gameId && pteam) {
               if (!teamCarriesPerGame[gameId]) teamCarriesPerGame[gameId] = {};
               teamCarriesPerGame[gameId][pteam] = (teamCarriesPerGame[gameId][pteam] ?? 0) + 1;
+              if (inRz) {
+                if (!teamRzCarriesPerGame[gameId]) teamRzCarriesPerGame[gameId] = {};
+                teamRzCarriesPerGame[gameId][pteam] = (teamRzCarriesPerGame[gameId][pteam] ?? 0) + 1;
+              }
             }
 
             if (gsis) {
@@ -641,8 +650,9 @@ async function main() {
                 successByGsis[gsis].n++;
               }
               if (!isQb) {
-                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
+                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
                 workloadByGsis[gsis].carries++;
+                if (inRz) workloadByGsis[gsis].rzCarries++;
                 workloadByGsis[gsis].rushYds += ryI >= 0 ? (parseFloat(v[ryI]) || 0) : 0;
                 if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
                 if (pteam && !workloadByGsis[gsis].team) workloadByGsis[gsis].team = pteam;
@@ -653,7 +663,7 @@ async function main() {
           if (paI >= 0 && v[paI] === '1') {
             const gsis = recvI >= 0 ? v[recvI]?.trim() : null;
             if (gsis) {
-              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
+              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
               workloadByGsis[gsis].tgts++;
               if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
               if (cpI >= 0 && v[cpI] === '1') workloadByGsis[gsis].rec++;
@@ -675,27 +685,51 @@ async function main() {
     }
     console.log(`  Success rate: ${Object.keys(successMap).length} qualified players`);
 
-    // ── 5a. Build carry share map from PBP (player carries / team carries) ────
-    const carryShareMap = {};  // normKey → carrySharePct
+    // ── 5a. Build carry share + RZ carry share maps from PBP ─────────────────
+    const carryShareMap   = {};  // normKey → carrySharePct
+    const rzCarryShareMap = {};  // normKey → rzCarrySharePct
+    const rzCarriesMap    = {};  // normKey → rzCarries count
     for (const [gsis, d] of Object.entries(workloadByGsis)) {
-      if (d.carries < 20 || !d.team) continue;
-      const teamCarries = [...d.gameIds].reduce((sum, gid) =>
-        sum + (teamCarriesPerGame[gid]?.[d.team] ?? 0), 0);
-      if (teamCarries < 1) continue;
+      if (!d.team) continue;
       const nk = gsisToNormName[gsis];
       if (!nk) continue;
-      carryShareMap[nk] = Math.round(d.carries / teamCarries * 1000) / 10;
-      if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+
+      // Overall carry share (min 20 carries)
+      if (d.carries >= 20) {
+        const teamCarries = [...d.gameIds].reduce((sum, gid) =>
+          sum + (teamCarriesPerGame[gid]?.[d.team] ?? 0), 0);
+        if (teamCarries >= 1) {
+          carryShareMap[nk] = Math.round(d.carries / teamCarries * 1000) / 10;
+          if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+        }
+      }
+
+      // RZ carry share (min 8 RZ carries — starters average ~20-35/season)
+      if ((d.rzCarries ?? 0) >= 8) {
+        const teamRzCarries = [...d.gameIds].reduce((sum, gid) =>
+          sum + (teamRzCarriesPerGame[gid]?.[d.team] ?? 0), 0);
+        if (teamRzCarries >= 1) {
+          rzCarryShareMap[nk] = Math.round(d.rzCarries / teamRzCarries * 1000) / 10;
+          rzCarriesMap[nk]    = d.rzCarries;
+          if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+        }
+      }
     }
     console.log(`  Carry share: ${Object.keys(carryShareMap).length} players`);
+    console.log(`  RZ carry share: ${Object.keys(rzCarryShareMap).length} players`);
 
     // ── 5b. Merge into advstatsDB keyed by canonical display name ─────────────
-    const allNormKeys = new Set([...Object.keys(mtfMap), ...Object.keys(successMap), ...Object.keys(carryShareMap)]);
+    const allNormKeys = new Set([
+      ...Object.keys(mtfMap), ...Object.keys(successMap),
+      ...Object.keys(carryShareMap), ...Object.keys(rzCarryShareMap),
+    ]);
     for (const nk of allNormKeys) {
       const entry = {};
-      if (mtfMap[nk])        Object.assign(entry, mtfMap[nk]);
-      if (successMap[nk])    entry.successPct  = successMap[nk];
-      if (carryShareMap[nk]) entry.carryShare  = carryShareMap[nk];
+      if (mtfMap[nk])          Object.assign(entry, mtfMap[nk]);
+      if (successMap[nk])      entry.successPct   = successMap[nk];
+      if (carryShareMap[nk])   entry.carryShare   = carryShareMap[nk];
+      if (rzCarryShareMap[nk]) entry.rzCarryShare = rzCarryShareMap[nk];
+      if (rzCarriesMap[nk])    entry.rzCarries    = rzCarriesMap[nk];
       if (!Object.keys(entry).length) continue;
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
@@ -764,6 +798,7 @@ async function main() {
       .map(([gsis, d]) => {
         const games     = d.gameIds.size || 1;
         const touchesPg = (d.carries + d.rec) / games;
+        const nk        = gsisToNormName[gsis];
         return {
           carries:        d.carries,
           carryPct:       (d.carries / games) / NFL_AVG_RUSH_ATT_PG * 100,
@@ -772,6 +807,7 @@ async function main() {
           targetSharePct: (d.tgts / games) / AVG_TEAM_TGT_PG * 100,
           snapPct:        snapPctByGsis[gsis] ?? null,
           ypc:            d.carries > 0 ? d.rushYds / d.carries : null,
+          rzCarryShare:   nk ? (rzCarryShareMap[nk] ?? null) : null,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -791,14 +827,15 @@ async function main() {
         const median = vals.length % 2 === 1 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
         return Math.round(median * 10) / 10;
       };
-      avgRbCarryPct    = _bm('carryPct',       44.1);
-      avgRbTouchesPg   = _bm('touchesPg',      15.0);
-      avgRbTouchShare  = _bm('touchSharePct',  31.0);
-      avgRbTargetShare = _bm('targetSharePct',  9.0);
-      avgRbSnapPct     = _bm('snapPct',         62.0);
-      avgRbYpc         = _ba('ypc',              4.3);  // mean for normally-distributed efficiency metric
-      avgRbYpcN        = rbBenchRows.filter(r => r.ypc != null).length;
-      console.log(`  Workload bench — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}%`);
+      avgRbCarryPct     = _bm('carryPct',       44.1);
+      avgRbTouchesPg    = _bm('touchesPg',      15.0);
+      avgRbTouchShare   = _bm('touchSharePct',  31.0);
+      avgRbTargetShare  = _bm('targetSharePct',  9.0);
+      avgRbSnapPct      = _bm('snapPct',         62.0);
+      avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
+      avgRbYpc          = _ba('ypc',              4.3);  // mean for normally-distributed efficiency metric
+      avgRbYpcN         = rbBenchRows.filter(r => r.ypc != null).length;
+      console.log(`  Workload bench — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}%`);
       console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (n=${avgRbYpcN})`)
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
@@ -813,7 +850,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
+  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);

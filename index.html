@@ -3524,6 +3524,16 @@ async function loadPlayerProfile(pid) {
       : adsMtfPerAtt >= 0.03 ? {label:'Below Avg',  color:'var(--red)' }
       :                        {label:'Poor',       color:'var(--red)'    };
 
+    // ── Redzone carry share (PBP-derived, advstatsdb.json) ───────────────────
+    const rzCarryShare = _advEntry?.rzCarryShare ?? null;
+    const rzCarries    = _advEntry?.rzCarries    ?? null;
+
+    const rzCarryClass = rzCarryShare === null ? {label:'No Data',     color:'var(--text-dim)'}
+      : rzCarryShare >= 55 ? {label:'RZ Dominant',  color:'var(--green)'  }
+      : rzCarryShare >= 40 ? {label:'RZ Featured',  color:'var(--accent)'   }
+      : rzCarryShare >= 25 ? {label:'RZ Shared',    color:'var(--orange)' }
+      :                      {label:'RZ Rotational',color:'var(--red)'    };
+
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
     // Efficiency: YPC 40% · Pts/Touch 35% · First Down Rate 25%
     const _ypcS  = ypc !== null        ? Math.min(100, Math.max(0, (ypc - 1.5) / 5.5 * 100))       : null;
@@ -3844,6 +3854,17 @@ async function loadPlayerProfile(pid) {
               <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color, 'MED')}</div>
               <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att · ${adsCarryShare !== null ? 'player÷team carries · nflverse PBP' : (usingActualTeam ? `team ${teamRushPg.toFixed(1)} att/g` : 'vs league avg')} · bench: top 64 RBs (min 50 carries)</div>
             </div>
+            ${rzCarryShare !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rzCarryClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">RZ Carry Share</span>
+                     <span class="pp-wl-card-cls" style="color:${rzCarryClass.color};">${rzCarryClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rzCarryClass.color};">${rzCarryShare}<span>%</span></div>
+                   ${mkBar(rzCarryShare, 100, avgRbRzCarryShare, rzCarryClass.color, 'MED')}
+                   <div class="pp-wl-card-sub">${rzCarries !== null ? `${rzCarries} carries · ` : ''}% of team RZ rush att inside the 20 · correlates with TDs · nflverse PBP</div>
+                 </div>`
+              : ''}
             ${snapCard}
             <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
               <div class="pp-wl-card-header">
@@ -4119,6 +4140,17 @@ async function loadPlayerProfile(pid) {
               ${mkBar(carryPct, 100, avgCarryPct, carryClass.color, 'MED')}
               <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att · 2025 stats</div>
             </div>
+            ${rzCarryShare !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rzCarryClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">RZ Carry Share</span>
+                     <span class="pp-wl-card-cls" style="color:${rzCarryClass.color};">${rzCarryClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rzCarryClass.color};">${rzCarryShare}<span>%</span></div>
+                   ${mkBar(rzCarryShare, 100, avgRbRzCarryShare, rzCarryClass.color, 'MED')}
+                   <div class="pp-wl-card-sub">${rzCarries !== null ? `${rzCarries} carries · ` : ''}% of team RZ rush att inside the 20 · correlates with TDs · nflverse PBP</div>
+                 </div>`
+              : ''}
             ${snapCard}
             <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
               <div class="pp-wl-card-header">
@@ -5133,10 +5165,11 @@ let avgRbCarryPct = (() => {
 
 // Remaining RB workload benchmarks — seeded with 2025 estimates, overridden by benchmarks.json
 // when CI has been run. All computed from the same top-64-by-carries pool (min 50 att).
-let avgRbSnapPct     = 62.0;   // avg offensive snap share
-let avgRbTouchesPg   = 15.0;   // avg touches per game
-let avgRbTouchShare  = 31.0;   // avg touch share %
-let avgRbTargetShare =  9.0;   // avg target share %
+let avgRbSnapPct       = 62.0;   // avg offensive snap share
+let avgRbTouchesPg     = 15.0;   // avg touches per game
+let avgRbTouchShare    = 31.0;   // avg touch share %
+let avgRbTargetShare   =  9.0;   // avg target share %
+let avgRbRzCarryShare  = 38.0;   // median RZ carry share % (carries inside the 20 / team RZ carries)
 // RB efficiency benchmarks — seeded with estimates, overridden by benchmarks.json
 let avgRbYpc         =  4.3;   // avg yards/carry (top-64 RBs, recentYr PBP)
 let avgRbYpcN        =  0;     // sample count
@@ -5729,10 +5762,11 @@ async function loadPrebuiltData(onProgress) {
       avgRbCarryPct = bench.avgRbCarryPct;
       try { localStorage.setItem(AVG_CARRY_KEY, String(avgRbCarryPct)); } catch(e) {}
     }
-    if (bench?.avgRbSnapPct)     avgRbSnapPct     = bench.avgRbSnapPct;
-    if (bench?.avgRbTouchesPg)   avgRbTouchesPg   = bench.avgRbTouchesPg;
-    if (bench?.avgRbTouchShare)  avgRbTouchShare  = bench.avgRbTouchShare;
-    if (bench?.avgRbTargetShare) avgRbTargetShare = bench.avgRbTargetShare;
+    if (bench?.avgRbSnapPct)       avgRbSnapPct       = bench.avgRbSnapPct;
+    if (bench?.avgRbTouchesPg)     avgRbTouchesPg     = bench.avgRbTouchesPg;
+    if (bench?.avgRbTouchShare)    avgRbTouchShare    = bench.avgRbTouchShare;
+    if (bench?.avgRbTargetShare)   avgRbTargetShare   = bench.avgRbTargetShare;
+    if (bench?.avgRbRzCarryShare)  avgRbRzCarryShare  = bench.avgRbRzCarryShare;
     if (bench?.avgRbYpc)         avgRbYpc         = bench.avgRbYpc;
     if (bench?.avgRbYpcN)        avgRbYpcN        = bench.avgRbYpcN;
     if (bench?.avgRbPpt)         avgRbPpt         = bench.avgRbPpt;
