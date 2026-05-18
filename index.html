@@ -3888,7 +3888,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rzCarriesClass.color};">${rzCarriesClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rzCarriesClass.color};">${rzCarries}<span> att</span></div>
-                   ${mkBarVal(rzCarries, 55, avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
+                   ${mkBarVal(rzCarries, Math.max(55, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
                    <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
                  </div>`
               : ''}
@@ -4196,7 +4196,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rzCarriesClass.color};">${rzCarriesClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rzCarriesClass.color};">${rzCarries}<span> att</span></div>
-                   ${mkBarVal(rzCarries, 55, avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
+                   ${mkBarVal(rzCarries, Math.max(55, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
                    <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
                  </div>`
               : ''}
