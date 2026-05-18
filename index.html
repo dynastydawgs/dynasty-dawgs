@@ -1712,6 +1712,43 @@
   .mb-output-node .out-val { font-family: var(--display); font-size: 18px; color: var(--text); }
   .mb-output-node .out-sub { font-size: 10px; color: var(--text-muted); font-family: var(--mono); margin-top: 2px; }
 
+  /* Career stage model breakdown */
+  .mb-stages-panel { margin-top: 28px; background: var(--surface); border: 1px solid rgba(168,85,247,0.22); border-radius: var(--radius-lg); padding: 20px; }
+  .mb-stages-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .mb-stages-badge { font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em; padding: 3px 10px; border-radius: 99px; background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); text-transform: uppercase; }
+  .mb-stages-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .mb-stages-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .mb-stage-card { background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+  .mb-stage-card-head { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+  .mb-stage-label { font-family: var(--display); font-size: 13px; letter-spacing: 0.04em; }
+  .mb-stage-trigger { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+  .mb-stage-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .mb-stage-section { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 5px; }
+  .mb-stage-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 10px; }
+  .mb-stage-row:last-child { border-bottom: none; }
+  .mb-stage-row-label { color: var(--text-muted); font-family: var(--mono); flex: 1; }
+  .mb-stage-row-val { color: var(--text); font-family: var(--mono); font-size: 10px; text-align: right; white-space: nowrap; }
+  .mb-stage-clauses { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+  .mb-clause { font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 99px; letter-spacing: 0.06em; line-height: 1.5; }
+  .mb-clause.always  { background: rgba(56,196,232,0.10); color: var(--blue);   border: 1px solid rgba(56,196,232,0.25); }
+  .mb-clause.cond    { background: rgba(245,158,66,0.10);  color: var(--orange); border: 1px solid rgba(245,158,66,0.25); }
+  .mb-clause.boost   { background: rgba(45,214,168,0.10);  color: var(--green);  border: 1px solid rgba(45,214,168,0.25); }
+  .mb-clause.risk    { background: rgba(255,92,114,0.10);  color: var(--red);    border: 1px solid rgba(255,92,114,0.22); }
+  .mb-clause.pos     { background: rgba(168,85,247,0.10);  color: #c084fc;       border: 1px solid rgba(168,85,247,0.25); }
+  /* Stage head color bands */
+  .mb-stage-card.s-rookie    .mb-stage-card-head { background: rgba(45,214,168,0.07);  border-bottom-color: rgba(45,214,168,0.2); }
+  .mb-stage-card.s-rookie    .mb-stage-label     { color: var(--green); }
+  .mb-stage-card.s-sophomore .mb-stage-card-head { background: rgba(56,196,232,0.07);  border-bottom-color: rgba(56,196,232,0.2); }
+  .mb-stage-card.s-sophomore .mb-stage-label     { color: var(--blue); }
+  .mb-stage-card.s-ascending .mb-stage-card-head { background: rgba(56,196,232,0.05);  border-bottom-color: rgba(56,196,232,0.15); }
+  .mb-stage-card.s-ascending .mb-stage-label     { color: var(--blue); }
+  .mb-stage-card.s-prime     .mb-stage-card-head { background: rgba(245,200,66,0.07);  border-bottom-color: rgba(245,200,66,0.2); }
+  .mb-stage-card.s-prime     .mb-stage-label     { color: var(--accent); }
+  .mb-stage-card.s-declining .mb-stage-card-head { background: rgba(245,158,66,0.07);  border-bottom-color: rgba(245,158,66,0.2); }
+  .mb-stage-card.s-declining .mb-stage-label     { color: var(--orange); }
+  .mb-stage-card.s-cliff     .mb-stage-card-head { background: rgba(255,92,114,0.07);  border-bottom-color: rgba(255,92,114,0.2); }
+  .mb-stage-card.s-cliff     .mb-stage-label     { color: var(--red); }
+
   /* Weights breakdown panel */
   .mb-weights-panel { margin-top: 28px; background: var(--surface); border: 1px solid rgba(56,196,232,0.22); border-radius: var(--radius-lg); padding: 20px; }
   .mb-weights-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
@@ -9776,6 +9813,218 @@ function _mbPhaseHtml(phase) {
   </div>`;
 }
 
+function _mbStagesHtml(pos) {
+  const isQb = pos === 'QB';
+  const isRb = pos === 'RB';
+  const isWr = pos === 'WR';
+  const isTe = pos === 'TE';
+
+  // Age thresholds by position (mirrors classifyCareer)
+  const primeStart = {QB:26,RB:23,WR:24,TE:25}[pos] ?? 24;
+  const primeEnd   = {QB:33,RB:27,WR:29,TE:29}[pos] ?? 28;
+  const cliffAge   = {QB:34,RB:29,WR:31,TE:31}[pos] ?? 30;
+
+  const row = (label, val, valCls='') =>
+    `<div class="mb-stage-row"><span class="mb-stage-row-label">${label}</span><span class="mb-stage-row-val${valCls ? ' '+valCls : ''}">${val}</span></div>`;
+  const clause = (text, type) => `<span class="mb-clause ${type}">${text}</span>`;
+  const section = t => `<div class="mb-stage-section">${t}</div>`;
+
+  const stageCard = (slug, title, trigger, rows, clauses) => `
+    <div class="mb-stage-card s-${slug}">
+      <div class="mb-stage-card-head">
+        <span class="mb-stage-label">${title}</span>
+        <span class="mb-stage-trigger">${trigger}</span>
+      </div>
+      <div class="mb-stage-body">
+        ${rows}
+        <div>
+          ${section('Active Clauses')}
+          <div class="mb-stage-clauses">${clauses}</div>
+        </div>
+      </div>
+    </div>`;
+
+  // ── ROOKIE ──
+  const rookieRows = `
+    <div>${section('Data Source')}
+      ${row('Own stats', 'None — first NFL season')}
+      ${row('Base median', 'Comp pool p50 × draft tier boost')}
+      ${row('Age factor', 'Not applied (no prior baseline)')}
+    </div>
+    <div>${section('Bands')}
+      ${row('Floor', isQb ? '70%' : '52%', 'lo')}
+      ${row('Ceiling', isQb ? '114%' : '155%', 'hi')}
+    </div>
+    <div>${section('Comp Pool Blend')}
+      ${row('Own weight', '0% (no data)', 'dim')}
+      ${row('Comp pool weight', '100% of p50 × tier boost', 'mid')}
+    </div>`;
+  const rookieClauses = [
+    clause('Draft tier boost applied (0.45×–1.40×)', 'always'),
+    clause('No momentum — no history', 'always'),
+    isQb ? clause('QB rookie damp: R1 0.55×, R2 0.60×, R3+ 0.67×', 'risk') : '',
+    isQb ? clause('No tier floor override — own data anchors yr 2', 'always') : '',
+    !isQb ? clause('Bull case = draftTierBoost × p50 for low-production sophs', 'cond') : '',
+  ].filter(Boolean).join('');
+
+  // ── SOPHOMORE ──
+  const sophRows = `
+    <div>${section('Data Source')}
+      ${row('hasOwn threshold', '≥4 games played AND ownPpr > 20')}
+      ${row('Own weight (if hasOwn)', '65%', 'mid')}
+      ${row('Comp pool weight (if hasOwn)', '35%', 'lo')}
+      ${row('No own data', 'Pure comp pool + tier boost')}
+    </div>
+    <div>${section('Bands')}
+      ${row('Floor', isQb ? '75%' : '68%', 'lo')}
+      ${row('Ceiling', isQb ? '118%' : '135%', 'hi')}
+    </div>
+    <div>${section('Momentum')}
+      ${row('Lookback window', '1 prior season')}
+      ${row('Max upside cap', '6% of ownPpr', 'mid')}
+      ${row('Negative dampen', '40% of computed adj', 'lo')}
+    </div>`;
+  const sophClauses = [
+    clause('Soph floor = max(own×ageFactor, tier×p50)', 'always'),
+    !isQb ? clause(`Upper boost: ≥${isTe?10:12} PPG → +5–13% median`, 'boost') : '',
+    !isQb ? clause(`Lower boost: ≥${isTe?8:10} PPG → +2–4% median`, 'boost') : '',
+    isQb ? clause('QB: no soph boost, no tier floor — own data only', 'always') : '',
+    clause('Low-prod bull: ceil = draftTierBoost × p50 if ownPpr ≤ 30', 'cond'),
+    clause('Soph ceiling boost capped at +8 pts max cascade', 'always'),
+  ].filter(Boolean).join('');
+
+  // ── ASCENDING ──
+  const ascRows = `
+    <div>${section('Data Source')}
+      ${row('Own weight (yr 2)', '65%', 'mid')}
+      ${row('Own weight (yr 3–4)', '77%', 'mid')}
+      ${row('Comp pool (yr 2)', '35%', 'lo')}
+      ${row('Comp pool (yr 3–4)', '23%', 'lo')}
+    </div>
+    <div>${section('Bands')}
+      ${row('Floor', isQb ? '82%' : '75%', 'lo')}
+      ${row('Ceiling', isQb ? '112%' : '128%', 'hi')}
+    </div>
+    <div>${section('Momentum')}
+      ${row('Lookback window', '1–2 prior seasons')}
+      ${row('Max upside cap', '6–13% of ownPpr', 'mid')}
+      ${row('Negative dampen', '40% of computed adj', 'lo')}
+    </div>`;
+  const ascClauses = [
+    clause('Dev nudge: +4% floor (non-QB, growth still ongoing)', 'boost'),
+    clause('Proven producer floor: median ≥ own × ageFactor', 'always'),
+    clause('Bounce-back ceil: peak × ageFactor × 0.82 if ownPpr < 85% of peak', 'cond'),
+    clause('Bounce-back cascade: median +55% of lift, floor +25% of lift', 'cond'),
+    clause('Spike regression: if gap > 3.5 PPG vs prior avg (QB: 2.0), blend toward prior', 'cond'),
+    isWr ? clause('Young prime WR (yr 3–5): ceiling ×1.11–1.13 vs standard 1.10', 'pos') : '',
+    isRb ? clause('Emerging prime RB: big YoY jump >3 PPG + <14 PPG → ceil 1.35–1.50×', 'pos') : '',
+  ].filter(Boolean).join('');
+
+  // ── PRIME ──
+  const primeRows = `
+    <div>${section('Data Source')}
+      ${row('Own weight (yr 3–4)', '77%', 'mid')}
+      ${row('Own weight (yr 5+)', '86%', 'hi')}
+      ${row('Comp pool (yr 3–4)', '23%', 'lo')}
+      ${row('Comp pool (yr 5+)', '14%', 'dim')}
+    </div>
+    <div>${section('Bands')}
+      ${row('Floor', isQb ? '87%' : '82%', 'lo')}
+      ${row('Ceiling', isQb ? '110%' : '110%', 'hi')}
+    </div>
+    <div>${section('Momentum')}
+      ${row('Lookback window (yr 5+)', '3 prior seasons')}
+      ${row('Max upside cap', '13% of ownPpr', 'mid')}
+      ${row('No stage cap on momentum', 'Full signal used', 'hi')}
+    </div>`;
+  const primeClauses = [
+    clause('Proven producer floor: median ≥ own × ageFactor', 'always'),
+    clause('Bounce-back ceil: peak × ageFactor × 0.92 if ownPpr < 85% of peak', 'cond'),
+    clause('Bounce-back NOT fired if avgDelta < −1.5 PPG/yr (real decline)', 'risk'),
+    clause('Spike regression: if gap > 3.5 PPG vs prior avg (QB: 2.0)', 'cond'),
+    isWr ? clause('Young prime WR (yr 3–5): ceiling ×1.11–1.13', 'pos') : '',
+    isRb ? clause('Emerging prime RB: big YoY jump + <14 PPG → ceil 1.35–1.50×', 'pos') : '',
+    isQb ? clause('Spike ramp ÷5, cap 40% (vs ÷8/50% for skill positions)', 'pos') : '',
+  ].filter(Boolean).join('');
+
+  // ── DECLINING ──
+  const decRows = `
+    <div>${section('Data Source')}
+      ${row('Own weight (yr 3–4)', '77%', 'mid')}
+      ${row('Own weight (yr 5+)', '86%', 'hi')}
+      ${row('Median cap', isRb ? '97% of ownPpr (95% stableDecRb)' : '—', isRb ? 'lo' : 'dim')}
+    </div>
+    <div>${section('Bands')}
+      ${row('Floor', isQb ? '72%' : '67%', 'lo')}
+      ${row('Ceiling (base)', isQb ? '104%' : '105%', 'mid')}
+      ${isRb ? row('stableDecRb ceiling', '112%', 'hi') : ''}
+      ${isWr ? row('stableDecWr floor', '76%', 'mid') : ''}
+    </div>
+    <div>${section('Momentum')}
+      ${row('Lookback window', '3 prior seasons (full history)')}
+      ${row('Prior seasons winsorized', 'Capped at 130% of current PPG', 'dim')}
+      ${row('Positive momentum cap', '40% of computed (no stable exemption)', 'lo')}
+    </div>`;
+  const decClauses = [
+    clause('Declining bull cap: ceil ≤ recent peak PPG in momentum window', 'risk'),
+    isRb ? clause('stableDecRb (≥12 PPG, delta ≥ −2): lighter age penalty + floor 79%, ceil 112%', 'pos') : '',
+    isWr ? clause('stableDecWr (delta ≥ −1.5, lastDrop > −5): floor 76%, bounce-back 0.87 scale', 'pos') : '',
+    isWr ? clause('earlyDecWr (stableDecWr + age ≤31): higher floor, dampening extends to 8 PPG', 'pos') : '',
+    clause('Bounce-back ceil: scale 0.72 / cap 80%; stableDecWr 0.87/90%; stableDecRb 0.78/85%', 'cond'),
+    clause('stableDecRb/stableDecWr exempt from 40% positive momentum cap', 'cond'),
+  ].filter(Boolean).join('');
+
+  // ── CLIFF ──
+  const cliffRows = `
+    <div>${section('Data Source')}
+      ${row('Own weight (yr 5+)', '86%', 'hi')}
+      ${row('Age penalty dampen', '30–55% of penalty applied (25–42% stableCliffRb)', 'lo')}
+    </div>
+    <div>${section('Bands')}
+      ${row('Floor', isQb ? '45%' : '55%', 'risk')}
+      ${row('Ceiling', isQb ? '92%' : '88%', 'lo')}
+      ${isRb ? row('stableCliffRb floor', '78%', 'mid') : ''}
+    </div>
+    <div>${section('Anchors')}
+      ${row('Floor anchor', 'max(floor, own × 0.56–0.68 scaled by PPG)', 'lo')}
+      ${row('Ceiling anchor', 'max(ceil, own × 0.82)', 'mid')}
+      ${row('Positive momentum cap', '40% of computed', 'lo')}
+    </div>`;
+  const cliffClauses = [
+    isQb ? clause('QB cliff: base capped at ownPpr − 2.5 PPG×17 (≈−40 pts)', 'risk') : '',
+    isQb ? clause('QB cliff: bull capped at ownPpr + ~17 pts (≈+1 PPG)', 'risk') : '',
+    isRb ? clause('stableCliffRb (≥12 PPG, delta ≥ −5): lighter age penalty + floor 78%, ceil 96%', 'pos') : '',
+    clause('Bounce-back ceil: scale 0.70 / cap 78%; stableCliffRb 0.78/85%', 'cond'),
+    clause('Floor anchor scales: 68% at 10 PPG → 56% at 22+ PPG', 'always'),
+    clause('stableCliffRb cascade: median +20% of bounce-back lift (vs 12%)', 'cond'),
+  ].filter(Boolean).join('');
+
+  const cards = [
+    stageCard('rookie',    'Rookie',    'yearsExp = 0',                     rookieRows,  rookieClauses),
+    stageCard('sophomore', 'Sophomore', 'yearsExp = 1',                     sophRows,    sophClauses),
+    stageCard('ascending', 'Ascending', `yearsExp ≥ 2, age < ${primeStart}`,ascRows,     ascClauses),
+    stageCard('prime',     'Prime',     `age ${primeStart}–${primeEnd-1}`,   primeRows,   primeClauses),
+    stageCard('declining', 'Declining', `age ${primeEnd}–${cliffAge-1}`,     decRows,     decClauses),
+    stageCard('cliff',     'Cliff Risk',`age ${cliffAge}+`,                  cliffRows,   cliffClauses),
+  ].join('');
+
+  return `
+  <div class="mb-stages-panel">
+    <div class="mb-stages-header">
+      <span class="mb-stages-badge">◈ Stage Models</span>
+      <span class="mb-stages-title">Career Stage Model Paths &amp; Active Clauses — ${pos}</span>
+    </div>
+    <div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-bottom:14px;display:flex;gap:16px;flex-wrap:wrap;">
+      <span><span class="mb-clause always" style="font-size:8px;">always</span> applies to all players at this stage</span>
+      <span><span class="mb-clause cond" style="font-size:8px;">conditional</span> fires only when scenario criteria are met</span>
+      <span><span class="mb-clause boost" style="font-size:8px;">boost</span> positive adjustment clause</span>
+      <span><span class="mb-clause risk" style="font-size:8px;">risk</span> downside / compression clause</span>
+      <span><span class="mb-clause pos" style="font-size:8px;">${pos}-specific</span> position-specific logic</span>
+    </div>
+    <div class="mb-stages-grid">${cards}</div>
+  </div>`;
+}
+
 function _mbWeightsHtml(pos) {
   // ── Blend weights ──
   const blendRows = [
@@ -10357,6 +10606,7 @@ function renderModelBuilding() {
       onclick="_mbSetPos('${p}')">${p}</button>`).join('');
 
   const flowHtml    = _mbBuildFlow(_mbPos);
+  const stagesHtml  = _mbStagesHtml(_mbPos);
   const weightsHtml = _mbWeightsHtml(_mbPos);
 
   const nextProjYear = projSeasonYear();
@@ -10413,6 +10663,7 @@ function renderModelBuilding() {
       </div>
     </div>
     ${flowHtml}
+    ${stagesHtml}
     ${weightsHtml}
     ${betaPanel}
     ${availPanel}`;
