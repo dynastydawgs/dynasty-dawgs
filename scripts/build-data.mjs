@@ -173,27 +173,58 @@ async function main() {
   progress(80, `Comp DB: ${Object.keys(compDB).length.toLocaleString()} buckets`);
   console.log();
 
-  // ── Step 5: Compute avgRbCarryPct from most recent completed season ───────
-  progress(85, 'Computing avg RB carry share…');
+  // ── Step 5: Compute RB workload benchmarks from most recent completed season ─
+  // Population: top 64 RBs by rush attempts, minimum 50 carries.
+  // Same pool for all five metrics so every average represents the same group.
+  // Snap % is the only exception — only rows with valid snap data contribute.
+  progress(85, 'Computing RB workload benchmarks…');
   const recentYr    = currentYear - 1;
   const recentStats = seasonMaps[recentYr] ?? seasonMaps[currentYear] ?? {};
   const rbRows      = [];
+  const AVG_TEAM_TGT_PG  = 33.5;  // stable league-avg pass targets/game
+  const AVG_TEAM_REC_PG  = 22.0;  // stable league-avg receptions/game (≈ tgt × 66% catch rate)
 
   for (const [pid, st] of Object.entries(recentStats)) {
     const rushAtt = +(st.rush_att ?? 0);
-    if (rushAtt < 1) continue;
+    if (rushAtt < 50) continue;                              // minimum 50 carries
     const sp  = sleeperPlayers[pid];
     const pos = sp?.position ?? st.pos ?? null;
     if (pos !== 'RB') continue;
-    const games = Math.max(1, +(st.gms_active ?? st.gp ?? 1) || 1);
-    rbRows.push({ rushAtt, carryPct: (rushAtt / games) / NFL_AVG_RUSH_ATT_PG * 100 });
+    const games    = Math.max(1, +(st.gms_active ?? st.gp ?? 1) || 1);
+    const rec      = +(st.rec     ?? 0);
+    const tgts     = +(st.rec_tgt ?? 0);
+    const offSnp   = +(st.off_snp    ?? 0);
+    const tmOffSnp = +(st.tm_off_snp ?? 0);
+    const teamAbbr = sp?.team ?? null;
+    const tmRushPg = NFL_AVG_RUSH_ATT_PG;   // league-avg fallback; teamDB not yet built at this step
+    const touchesPg    = (rushAtt + rec) / games;
+    const avgTmTouchPg = tmRushPg + AVG_TEAM_REC_PG;
+    rbRows.push({
+      rushAtt,
+      carryPct:     (rushAtt / games) / tmRushPg * 100,
+      touchesPg,
+      touchSharePct: touchesPg / avgTmTouchPg * 100,
+      targetSharePct: (tgts / games) / AVG_TEAM_TGT_PG * 100,
+      snapPct: (offSnp > 0 && tmOffSnp > 0) ? offSnp / tmOffSnp * 100 : null,
+    });
   }
   rbRows.sort((a, b) => b.rushAtt - a.rushAtt);
-  const top64        = rbRows.slice(0, 64);
-  const avgRbCarryPct = top64.length >= 10
-    ? Math.round(top64.reduce((s, r) => s + r.carryPct, 0) / top64.length * 10) / 10
-    : 44.1;
-  progress(90, `Avg carry share: ${avgRbCarryPct}%`);
+  const top64 = rbRows.slice(0, 64);
+
+  const _avg = (field, fallback) => {
+    const vals = top64.map(r => r[field]).filter(v => v != null);
+    return vals.length >= 10
+      ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10
+      : fallback;
+  };
+
+  const avgRbCarryPct     = _avg('carryPct',      44.1);
+  const avgRbTouchesPg    = _avg('touchesPg',     15.0);
+  const avgRbTouchShare   = _avg('touchSharePct', 31.0);
+  const avgRbTargetShare  = _avg('targetSharePct', 9.0);
+  const avgRbSnapPct      = _avg('snapPct',        62.0);  // snap-only rows filtered inside _avg
+
+  progress(90, `Benchmarks — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}%`);
   console.log();
 
   // ── Step 5b: Build teamDB from ESPN ──────────────────────────────────────
@@ -649,7 +680,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgRbCarryPct });
+  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);

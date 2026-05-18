@@ -3250,7 +3250,7 @@ async function loadPlayerProfile(pid) {
     // Always has a value — seeded at 44.1% (computed 2025 benchmark), overridden by
     // localStorage if refreshAvgCarryShare() has been run more recently.
     const avgCarryPct = avgRbCarryPct;
-    const avgTgtPct           = 9;     // avg starting RB target share
+    const avgTgtPct   = avgRbTargetShare;
 
     // Look up this player's actual team rush attempts/game from the 2025 hardcoded table.
     // Includes QB scrambles + designed QB runs — intentionally so (mobile QB teams like BAL
@@ -3302,7 +3302,7 @@ async function loadPlayerProfile(pid) {
     const tmOffSnp = +(stats.tm_off_snp ?? 0);
     const hasSnap  = offSnp > 0 && tmOffSnp > 0;
     const snapPct  = hasSnap ? Math.round(offSnp / tmOffSnp * 1000) / 10 : null;
-    const avgSnapPct = 62; // avg starting RB snap share
+    const avgSnapPct = avgRbSnapPct;
 
     const snapClass = !hasSnap         ? { label: 'No Data',    color: 'var(--text-dim)' }
                     : snapPct >= 75    ? { label: 'Every-Down',  color: 'var(--green)'   }
@@ -3367,8 +3367,8 @@ async function loadPlayerProfile(pid) {
     // We don't have tm_rec from Sleeper so receiving side stays at league avg.
     const avgTmTouchPg  = teamRushPg + avgTeamRecPg;
     const touchSharePct = Math.round(touchesPg / avgTmTouchPg * 1000) / 10;
-    const avgTouchPg    = 15;   // avg starting RB touches/game
-    const avgTouchShare = 31;   // avg starting RB touch share %
+    const avgTouchPg    = avgRbTouchesPg;
+    const avgTouchShare = avgRbTouchShare;
 
     const touchPgClass  = touchesPg >= 20 ? { label: 'Elite Volume',  color: 'var(--green)'  }
                         : touchesPg >= 16 ? { label: 'High Volume',   color: 'var(--blue)'   }
@@ -5150,6 +5150,13 @@ let avgRbCarryPct = (() => {
   } catch(e) { return 44.1; }
 })();
 
+// Remaining RB workload benchmarks — seeded with 2025 estimates, overridden by benchmarks.json
+// when CI has been run. All computed from the same top-64-by-carries pool (min 50 att).
+let avgRbSnapPct     = 62.0;   // avg offensive snap share
+let avgRbTouchesPg   = 15.0;   // avg touches per game
+let avgRbTouchShare  = 31.0;   // avg touch share %
+let avgRbTargetShare =  9.0;   // avg target share %
+
 // Shared carry share math — all three callers (_computeAvgCarryPct, _computeAvgCarryShareFromStats,
 // buildDatabase) funnel through _avgCarryShare so the formula is defined exactly once.
 // Avg of a pre-built array of { carryPct } objects — shared by all three callers.
@@ -5736,6 +5743,10 @@ async function loadPrebuiltData(onProgress) {
       avgRbCarryPct = bench.avgRbCarryPct;
       try { localStorage.setItem(AVG_CARRY_KEY, String(avgRbCarryPct)); } catch(e) {}
     }
+    if (bench?.avgRbSnapPct)     avgRbSnapPct     = bench.avgRbSnapPct;
+    if (bench?.avgRbTouchesPg)   avgRbTouchesPg   = bench.avgRbTouchesPg;
+    if (bench?.avgRbTouchShare)  avgRbTouchShare  = bench.avgRbTouchShare;
+    if (bench?.avgRbTargetShare) avgRbTargetShare = bench.avgRbTargetShare;
 
     // teamdb.json is optional — new cards show "—" if it hasn't been built yet
     if (teamResRaw?.ok) {
