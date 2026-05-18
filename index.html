@@ -3488,24 +3488,29 @@ async function loadPlayerProfile(pid) {
       :                      {label:'Inefficient', color:'var(--red)'    };
 
     // ── Advanced RB stats — Success% + MTF/att (PFR via nflverse, advstatsdb.json) ──
-    const _advEntry    = advstatsDB?.[sp?.name] ?? null;
+    // advstatsDB keys are canonical display names normalised by the build script.
+    // Use the same normalisation here so name format differences don't miss lookups.
+    const _advNorm   = n => (n ?? '').replace(/['.]/g, '').replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const _advSpNorm = _advNorm(sp?.name);
+    const _advKey    = Object.keys(advstatsDB).find(k => _advNorm(k) === _advSpNorm);
+    const _advEntry  = _advKey ? advstatsDB[_advKey] : null;
     const successPct   = _advEntry?.successPct  ?? null;
     const adsMtfPerAtt = _advEntry?.mtfPerAtt   ?? null;
     const adsBrkTkl    = _advEntry?.brkTkl      ?? null;
     const adsAtt       = _advEntry?.att         ?? null;
 
     const successClass = successPct === null ? {label:'No Data',  color:'var(--text-dim)'}
-      : successPct >= 50  ? {label:'Elite',      color:'var(--green)'  }
-      : successPct >= 46  ? {label:'Good',       color:'var(--blue)'   }
-      : successPct >= 42  ? {label:'Average',    color:'var(--accent)' }
-      : successPct >= 38  ? {label:'Below Avg',  color:'var(--orange)' }
+      : successPct >= 48  ? {label:'Elite',      color:'var(--green)'  }
+      : successPct >= 44  ? {label:'Good',       color:'var(--blue)'   }
+      : successPct >= 40  ? {label:'Average',    color:'var(--accent)' }
+      : successPct >= 36  ? {label:'Below Avg',  color:'var(--orange)' }
       :                     {label:'Poor',       color:'var(--red)'    };
 
     const mtfAdsClass = adsMtfPerAtt === null ? {label:'No Data',  color:'var(--text-dim)'}
-      : adsMtfPerAtt >= 0.20 ? {label:'Elite',      color:'var(--green)'  }
-      : adsMtfPerAtt >= 0.14 ? {label:'Good',       color:'var(--blue)'   }
-      : adsMtfPerAtt >= 0.09 ? {label:'Average',    color:'var(--accent)' }
-      : adsMtfPerAtt >= 0.06 ? {label:'Below Avg',  color:'var(--orange)' }
+      : adsMtfPerAtt >= 0.11 ? {label:'Elite',      color:'var(--green)'  }
+      : adsMtfPerAtt >= 0.08 ? {label:'Good',       color:'var(--blue)'   }
+      : adsMtfPerAtt >= 0.05 ? {label:'Average',    color:'var(--accent)' }
+      : adsMtfPerAtt >= 0.03 ? {label:'Below Avg',  color:'var(--orange)' }
       :                        {label:'Poor',       color:'var(--red)'    };
 
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
@@ -3807,7 +3812,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${successClass.color};">${successClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
-                   ${mkBarVal(successPct, 60, 42, successClass.color, '%')}
+                   ${mkBarVal(successPct, 60, 41, successClass.color, '%')}
                    <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · nflverse PBP</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -3822,7 +3827,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
-                   ${mkBarVal(adsMtfPerAtt, 0.30, 0.10, mtfAdsClass.color, '')}
+                   ${mkBarVal(adsMtfPerAtt, 0.20, 0.063, mtfAdsClass.color, '')}
                    <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4097,7 +4102,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${successClass.color};">${successClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
-                   ${mkBarVal(successPct, 60, 42, successClass.color, '%')}
+                   ${mkBarVal(successPct, 60, 41, successClass.color, '%')}
                    <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · nflverse PBP</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4112,7 +4117,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
-                   ${mkBarVal(adsMtfPerAtt, 0.30, 0.10, mtfAdsClass.color, '')}
+                   ${mkBarVal(adsMtfPerAtt, 0.20, 0.063, mtfAdsClass.color, '')}
                    <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">

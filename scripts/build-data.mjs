@@ -514,40 +514,29 @@ async function main() {
   //   Definition: ≥40% of needed yards on 1st down, ≥60% on 2nd, 100% on 3rd/4th.
   // MTF/att   — PFR advanced rushing stats via nflverse (brk_tkl / att).
   // Both keyed by player display name (matches ryoedb.json / Sleeper full_name).
+  //
+  // Name normalisation: PFR strips apostrophes ("DAndre Swift") and omits suffixes;
+  // nflverse keeps them ("D'Andre Swift", "Kenneth Walker III").  Normalise both
+  // sides before merging so every player gets one unified entry.
+  // Also filter out QBs (≥50 rush att catches scrambles) using the nflverse position field.
   progress(99, 'Building advanced RB stats (Success% + MTF/att)…');
   const advstatsDB = {};
   let advstatsCount = 0;
   try {
-    // ── 1. PFR advanced rushing → MTF per attempt ───────────────────────────
-    const mtfMap = {};  // name → { mtfPerAtt, brkTkl, att }
-    try {
-      const pfrRes = await fetch(
-        'https://github.com/nflverse/nflverse-data/releases/download/pfr_advstats/advstats_season_rush.csv'
-      );
-      if (pfrRes.ok) {
-        const lines = (await pfrRes.text()).split('\n').filter(l => l.trim());
-        const hdrs  = parseCSVLine(lines[0]);
-        const [sI, nI, aI, bI] = ['season', 'player', 'att', 'brk_tkl'].map(h => hdrs.indexOf(h));
-        for (const line of lines.slice(1)) {
-          const v   = parseCSVLine(line);
-          if (v[sI] !== String(recentYr)) continue;
-          const att = parseFloat(v[aI]) || 0;
-          if (att < 50) continue;
-          const brkTkl = parseFloat(v[bI]) || 0;
-          const name   = v[nI]?.trim();
-          if (!name) continue;
-          mtfMap[name] = {
-            mtfPerAtt: Math.round(brkTkl / att * 1000) / 1000,
-            brkTkl:    Math.round(brkTkl),
-            att:       Math.round(att),
-          };
-        }
-        console.log(`\n  PFR advstats MTF: ${Object.keys(mtfMap).length} players`);
-      }
-    } catch(e) { console.warn('\n  ⚠️  PFR advstats fetch failed:', e.message); }
+    // Shared name-normalisation: strip apostrophes/periods, collapse whitespace,
+    // drop name suffixes (Jr./Sr./II/III/IV/V).  Used as dict key for merging.
+    const normKey = n => (n ?? '')
+      .replace(/['.]/g, '')
+      .replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
 
-    // ── 2. players.csv → GSIS ↔ display-name bridge ─────────────────────────
-    const gsisToName = {};
+    // ── 1. players.csv → GSIS ↔ normalised-name + position ──────────────────
+    // Built first so both MTF and success lookups can use it.
+    const gsisToNormName = {};  // gsis_id → normKey(display_name)
+    const normToDisplay  = {};  // normKey  → canonical display_name (for final key)
+    const gsisToPos      = {};  // gsis_id  → position (to filter QBs)
     try {
       const res = await fetch(
         'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv'
@@ -555,15 +544,51 @@ async function main() {
       if (res.ok) {
         const lines = (await res.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [gI, dI] = ['gsis_id', 'display_name'].map(h => hdrs.indexOf(h));
+        const [gI, dI, pI] = ['gsis_id', 'display_name', 'position'].map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
-          const g = v[gI]?.trim(), d = v[dI]?.trim();
-          if (g && d) gsisToName[g] = d;
+          const g = v[gI]?.trim(), d = v[dI]?.trim(), p = v[pI]?.trim();
+          if (!g || !d) continue;
+          const nk = normKey(d);
+          gsisToNormName[g] = nk;
+          gsisToPos[g]      = p;
+          if (!normToDisplay[nk]) normToDisplay[nk] = d; // first-seen wins
         }
-        console.log(`  GSIS→name bridge: ${Object.keys(gsisToName).length} entries`);
+        console.log(`\n  GSIS→name bridge: ${Object.keys(gsisToNormName).length} entries`);
       }
     } catch(e) { console.warn('\n  ⚠️  players.csv bridge failed:', e.message); }
+
+    // ── 2. PFR advanced rushing → MTF per attempt ───────────────────────────
+    const mtfMap = {};  // normKey → { mtfPerAtt, brkTkl, att }
+    try {
+      const pfrRes = await fetch(
+        'https://github.com/nflverse/nflverse-data/releases/download/pfr_advstats/advstats_season_rush.csv'
+      );
+      if (pfrRes.ok) {
+        const lines = (await pfrRes.text()).split('\n').filter(l => l.trim());
+        const hdrs  = parseCSVLine(lines[0]);
+        const [sI, nI, aI, bI, posI] = ['season', 'player', 'att', 'brk_tkl', 'pos']
+          .map(h => hdrs.indexOf(h));
+        for (const line of lines.slice(1)) {
+          const v   = parseCSVLine(line);
+          if (v[sI] !== String(recentYr)) continue;
+          if (posI >= 0 && v[posI]?.trim() === 'QB') continue; // skip QBs
+          const att = parseFloat(v[aI]) || 0;
+          if (att < 50) continue;
+          const brkTkl = parseFloat(v[bI]) || 0;
+          const name   = v[nI]?.trim();
+          if (!name) continue;
+          const nk = normKey(name);
+          mtfMap[nk] = {
+            mtfPerAtt: Math.round(brkTkl / att * 1000) / 1000,
+            brkTkl:    Math.round(brkTkl),
+            att:       Math.round(att),
+          };
+          if (!normToDisplay[nk]) normToDisplay[nk] = name;
+        }
+        console.log(`  PFR advstats MTF: ${Object.keys(mtfMap).length} players`);
+      }
+    } catch(e) { console.warn('\n  ⚠️  PFR advstats fetch failed:', e.message); }
 
     // ── 3. Play-by-play → success rate by GSIS ──────────────────────────────
     // PBP is ~40 MB uncompressed — loaded once, parsed with index-based access
@@ -584,6 +609,7 @@ async function main() {
           const gsis = v[ridI]?.trim();
           const succ = v[sucI];
           if (!gsis || !succ || succ === 'NA') continue;
+          if (gsisToPos[gsis] === 'QB') continue; // skip QBs
           if (!successByGsis[gsis]) successByGsis[gsis] = { sum: 0, n: 0 };
           successByGsis[gsis].sum += parseFloat(succ) || 0;
           successByGsis[gsis].n++;
@@ -592,23 +618,26 @@ async function main() {
       }
     } catch(e) { console.warn('\n  ⚠️  PBP fetch failed:', e.message); }
 
-    // ── 4. Build success rate by name (GSIS → display name) ─────────────────
-    const successMap = {};
+    // ── 4. Build success rate by normKey ────────────────────────────────────
+    const successMap = {};  // normKey → successPct
     for (const [gsis, { sum, n }] of Object.entries(successByGsis)) {
       if (n < 50) continue;
-      const name = gsisToName[gsis];
-      if (!name) continue;
-      successMap[name] = Math.round((sum / n) * 1000) / 10;
+      const nk = gsisToNormName[gsis];
+      if (!nk) continue;
+      successMap[nk] = Math.round((sum / n) * 1000) / 10;
     }
     console.log(`  Success rate: ${Object.keys(successMap).length} qualified players`);
 
-    // ── 5. Merge into advstatsDB keyed by display name ───────────────────────
-    const allNames = new Set([...Object.keys(mtfMap), ...Object.keys(successMap)]);
-    for (const name of allNames) {
+    // ── 5. Merge into advstatsDB keyed by canonical display name ─────────────
+    const allNormKeys = new Set([...Object.keys(mtfMap), ...Object.keys(successMap)]);
+    for (const nk of allNormKeys) {
       const entry = {};
-      if (mtfMap[name])      Object.assign(entry, mtfMap[name]);
-      if (successMap[name])  entry.successPct = successMap[name];
-      if (Object.keys(entry).length) { advstatsDB[name] = entry; advstatsCount++; }
+      if (mtfMap[nk])     Object.assign(entry, mtfMap[nk]);
+      if (successMap[nk]) entry.successPct = successMap[nk];
+      if (!Object.keys(entry).length) continue;
+      const displayName = normToDisplay[nk] ?? nk;
+      advstatsDB[displayName] = entry;
+      advstatsCount++;
     }
   } catch(e) {
     console.warn('\n  ⚠️  advstats build failed:', e.message, '— advstatsdb.json will be empty');
