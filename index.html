@@ -5850,32 +5850,16 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       }
     }
 
-    // For visible profiles, update the carry bar AVG tick now that avgRbCarryPct is current.
+    // For visible profiles, update only the MED tick position now that avgRbCarryPct is current.
+    // Only the tick/label move — fill and dot were rendered correctly from career stats and stay.
     if (pos === 'RB' && !headless) {
       const placeholder = document.getElementById('rb-carry-bar-placeholder');
       if (placeholder) {
-        const teamRushPg = NFL_TEAM_RUSH_ATT_PG_2025[nflTeam] ?? 26.0;
-        const rushAtt    = Math.max(0, liveTouches - liveRec);
-        const carryPct   = liveGamesPlayed > 0
-          ? Math.round((rushAtt / liveGamesPlayed) / teamRushPg * 1000) / 10
-          : 0;
-        const fillW    = Math.min(carryPct, 100).toFixed(1);
-        const avgPos   = Math.min(avgRbCarryPct, 100).toFixed(1);
-        const carryClr = carryPct >= 65 ? 'var(--green)'
-                       : carryPct >= 50 ? 'var(--accent)'
-                       : carryPct >= 35 ? 'var(--orange)'
-                       :                  'var(--red)';
-        placeholder.innerHTML = `
-          <div class="pp-wl-track">
-            <div class="pp-wl-fill"     style="width:${fillW}%;background:${carryClr};"></div>
-            <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
-            <div class="pp-wl-dot"      style="left:${fillW}%;background:${carryClr};box-shadow:0 0 6px ${carryClr};"></div>
-          </div>
-          <div class="pp-wl-scale">
-            <span>0%</span>
-            <span class="pp-wl-avg-label" style="left:${avgPos}%;">MED ${avgRbCarryPct}%</span>
-            <span>100%</span>
-          </div>`;
+        const avgPos = Math.min(avgRbCarryPct, 100).toFixed(1);
+        const tick   = placeholder.querySelector('.pp-wl-avg-tick');
+        const label  = placeholder.querySelector('.pp-wl-avg-label');
+        if (tick)  tick.style.left  = `${avgPos}%`;
+        if (label) { label.style.left = `${avgPos}%`; label.textContent = `MED ${avgRbCarryPct}%`; }
       }
     }
 
