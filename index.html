@@ -3642,7 +3642,7 @@ async function loadPlayerProfile(pid) {
         <div class="pp-workload-header">
           <span class="pp-workload-title">// ${statSeason ?? '2025'} WORKLOAD</span>
           <span class="pp-wl-role-tag" style="color:${roleTag.color};border-color:${roleTag.color};background:${roleTag.color}18;">${roleTag.label}</span>
-          ${teamChanged ? `<span class="pp-wl-role-tag" style="color:var(--text-muted);border-color:var(--border);background:rgba(255,255,255,0.04);">on ${statTeam}</span>` : ''}
+          <span class="pp-wl-role-tag" style="color:var(--text-muted);border-color:var(--border);background:rgba(255,255,255,0.04);">${statTeam}</span>
         </div>
         <div>
           ${_scorecardHTML}
