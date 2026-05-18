@@ -194,6 +194,7 @@ async function main() {
   let avgRbTargetShare    =  9.0;
   let avgRbSnapPct        = 62.0;
   let avgRbRzCarryShare   = 38.0; // median RZ carry share among top-64 RBs
+  let avgRbRzCarries      = 22.0; // median RZ carries among top-64 RBs
   // RB efficiency benchmarks — seeded with estimates, updated below.
   let avgRbYpc         =  4.3;   // avg yards/carry (from PBP, same top-64 pool)
   let avgRbYpcN        =  0;
@@ -808,6 +809,7 @@ async function main() {
           snapPct:        snapPctByGsis[gsis] ?? null,
           ypc:            d.carries > 0 ? d.rushYds / d.carries : null,
           rzCarryShare:   nk ? (rzCarryShareMap[nk] ?? null) : null,
+          rzCarries:      d.rzCarries > 0 ? d.rzCarries : null,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -833,9 +835,10 @@ async function main() {
       avgRbTargetShare  = _bm('targetSharePct',  9.0);
       avgRbSnapPct      = _bm('snapPct',         62.0);
       avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
+      avgRbRzCarries    = _bm('rzCarries',       22.0);
       avgRbYpc          = _ba('ypc',              4.3);  // mean for normally-distributed efficiency metric
       avgRbYpcN         = rbBenchRows.filter(r => r.ypc != null).length;
-      console.log(`  Workload bench — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}%`);
+      console.log(`  Workload bench — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
       console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (n=${avgRbYpcN})`)
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
@@ -850,7 +853,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
+  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
