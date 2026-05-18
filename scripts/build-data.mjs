@@ -794,6 +794,8 @@ async function main() {
       console.log(`  Pts/touch bench: ${avgRbPpt} pts/touch · ${avgRbPptN} RBs (${recentYr})`);
     }
 
+    // Top 32 by carries = true RB1 starters. Median is robust to outliers
+    // (e.g. Henry's ~50 RZ carries won't inflate the benchmark for everyone else).
     const rbBenchRows = Object.entries(workloadByGsis)
       .filter(([gsis, d]) => d.carries >= 50 && gsisToPos[gsis] === 'RB')
       .map(([gsis, d]) => {
@@ -813,32 +815,26 @@ async function main() {
         };
       })
       .sort((a, b) => b.carries - a.carries)
-      .slice(0, 64);
+      .slice(0, 32);
 
-    if (rbBenchRows.length >= 10) {
-      const _ba = (field, fb) => {
-        const vals = rbBenchRows.map(r => r[field]).filter(v => v != null);
-        return vals.length >= 10
-          ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10
-          : fb;
-      };
+    if (rbBenchRows.length >= 8) {
       const _bm = (field, fb) => {
         const vals = rbBenchRows.map(r => r[field]).filter(v => v != null).sort((a, b) => a - b);
-        if (vals.length < 10) return fb;
+        if (vals.length < 5) return fb;
         const mid = Math.floor(vals.length / 2);
         const median = vals.length % 2 === 1 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
         return Math.round(median * 10) / 10;
       };
-      avgRbCarryPct     = _ba('carryPct',       44.1);
-      avgRbTouchesPg    = _ba('touchesPg',      15.0);
-      avgRbTouchShare   = _ba('touchSharePct',  31.0);
-      avgRbTargetShare  = _ba('targetSharePct',  9.0);
-      avgRbSnapPct      = _ba('snapPct',         62.0);
-      avgRbRzCarryShare = _ba('rzCarryShare',    38.0);
-      avgRbRzCarries    = _ba('rzCarries',       22.0);
-      avgRbYpc          = _ba('ypc',              4.3);
+      avgRbCarryPct     = _bm('carryPct',       44.1);
+      avgRbTouchesPg    = _bm('touchesPg',      15.0);
+      avgRbTouchShare   = _bm('touchSharePct',  31.0);
+      avgRbTargetShare  = _bm('targetSharePct',  9.0);
+      avgRbSnapPct      = _bm('snapPct',         62.0);
+      avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
+      avgRbRzCarries    = _bm('rzCarries',       22.0);
+      avgRbYpc          = _bm('ypc',              4.3);
       avgRbYpcN         = rbBenchRows.filter(r => r.ypc != null).length;
-      console.log(`  Workload bench — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
+      console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
       console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (n=${avgRbYpcN})`)
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
