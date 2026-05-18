@@ -382,12 +382,17 @@ async function main() {
       const expYards   = parseFloat(row.expected_rush_yards              ?? 'NaN');
       const pctOver    = parseFloat(row.rush_pct_over_expected           ?? 'NaN');
       if (isNaN(ryoeTotal) || isNaN(ryoePerAtt)) continue;
+      // team_abbr is the team the player was on during this stat season —
+      // used client-side to detect when a player switched teams in the offseason.
+      const rawTeam = row.team_abbr?.trim() ?? '';
+      const ngsTeam = rawTeam === 'JAC' ? 'JAX' : rawTeam === 'LA' ? 'LAR' : rawTeam;
       ryoeDB[name] = {
         ryoeTotal:       Math.round(ryoeTotal  * 10) / 10,
         ryoePerAtt:      Math.round(ryoePerAtt * 1000) / 1000,
         expectedYards:   Math.round(expYards),
         pctOverExpected: isNaN(pctOver) ? null : Math.round(pctOver * 1000) / 10,
         attempts:        Math.round(attempts),
+        team:            ngsTeam || null,
       };
       ryoePlayers++;
     }

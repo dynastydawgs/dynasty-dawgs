@@ -2961,14 +2961,17 @@ async function loadPlayerProfile(pid) {
     } catch(e) {}
   }
 
-  // ── Resolve stat-season team from pre-built statteamdb.json ───────────────
-  // statTeamDB is keyed by Sleeper player_id → team abbr they played for in
-  // the most recent stat season. When a player switched teams in the offseason,
-  // this gives us their 2025 team so team context (teamDB, rush att/g) reflects
-  // the offense they actually played in — not their new 2026 team.
-  const statTeamRaw = statTeamDB?.[String(pid)] ?? null;
-  const statTeam    = statTeamRaw ?? nflTeam;
-  const teamChanged = statTeamRaw !== null && statTeam !== nflTeam;
+  // ── Resolve stat-season team ──────────────────────────────────────────────
+  // Priority 1: ryoeDB[name].team — NGS game-log data, most reliable for RBs
+  //             with enough carries. Already has JAC→JAX etc. corrected.
+  // Priority 2: statTeamDB[pid]  — nflverse roster/player_stats lookup, covers
+  //             players outside the RYOE dataset (WRs, TEs, QBs, low-carry RBs).
+  // Priority 3: nflTeam           — current Sleeper team (no switch detected).
+  const _ryoeTeam    = ryoeDB?.[sp?.name]?.team ?? null;
+  const _statDbTeam  = statTeamDB?.[String(pid)] ?? null;
+  const statTeamRaw  = _ryoeTeam ?? _statDbTeam;
+  const statTeam     = statTeamRaw ?? nflTeam;
+  const teamChanged  = statTeamRaw !== null && statTeam !== nflTeam;
 
   // ── Build stat display by position ──
   function switchYearTab(btn, year) {
