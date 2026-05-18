@@ -676,14 +676,22 @@ async function main() {
       if (scRes.ok) {
         const lines = (await scRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
+        console.log(`  snap_counts columns: ${hdrs.slice(0, 12).join(', ')}`);
+        // Sample first data row for debugging
+        if (lines[1]) {
+          const sample = parseCSVLine(lines[1]);
+          console.log(`  snap_counts sample:  ${hdrs.slice(0, 12).map((h, i) => `${h}=${sample[i]}`).join(', ')}`);
+        }
         const pidI  = hdrs.indexOf('player_id');
         const pctI  = hdrs.indexOf('offense_pct');
         const snpsI = hdrs.indexOf('offense_snaps');
         const gtI   = hdrs.indexOf('game_type');   // 'REG' / 'POST' / 'PRE' (may not exist)
         const snapAgg = {};
+        let scTotal = 0, scFiltered = 0;
         for (const line of lines.slice(1)) {
           const v    = parseCSVLine(line);
-          if (gtI >= 0 && v[gtI] !== 'REG') continue;
+          scTotal++;
+          if (gtI >= 0 && v[gtI] !== 'REG') { scFiltered++; continue; }
           const gsis = pidI >= 0 ? v[pidI]?.trim() : null;
           const pct  = pctI >= 0 ? parseFloat(v[pctI]) : NaN;
           const snps = snpsI >= 0 ? parseFloat(v[snpsI]) || 0 : 0;
@@ -695,6 +703,7 @@ async function main() {
         for (const [gsis, { sum, n }] of Object.entries(snapAgg)) {
           if (n >= 4) snapPctByGsis[gsis] = Math.round(sum / n * 10) / 10;
         }
+        console.log(`  snap_counts rows: ${scTotal} total, ${scFiltered} filtered by game_type, snapAgg: ${Object.keys(snapAgg).length} players`);
         console.log(`  Snap counts: ${Object.keys(snapPctByGsis).length} players`);
       } else {
         console.error(`  ⚠️  snap_counts HTTP ${scRes.status} — snap% will use fallback`);
