@@ -2830,18 +2830,18 @@ async function loadPlayerProfile(pid) {
   const posRank   = fcVal > 0 ? fcPosRank(pid, pos) : null;
   const thumbUrl  = `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`;
 
+  // NFL draft capital — start with Sleeper data, fill gaps from ESPN
+  let draftYear  = sp?.draft_year  ?? null;
+  let draftRound = sp?.draft_round ?? null;
+  let draftPick  = sp?.draft_pick  ?? null;
+  const nflTeam  = sp?.team        ?? null;
+
   // Backup QB detection: prefer live 2026 ESPN depth chart (depthDB), fall back to Sleeper.
   // Includes rookies — depth charts reflect pre-season roster decisions for drafted QBs.
   const yearsExp  = sp?.years_exp ?? null;
   const _qbDcEntry26 = depthDB?.[nflTeam]?.QB?.find(e => e.name === sp?.full_name);
   const _qbDcOrder26 = _qbDcEntry26?.rank ?? sp?.depth_chart_order ?? 1;
   const isBackupQb   = pos === 'QB' && _qbDcOrder26 >= 2;
-
-  // NFL draft capital — start with Sleeper data, fill gaps from ESPN
-  let draftYear  = sp?.draft_year  ?? null;
-  let draftRound = sp?.draft_round ?? null;
-  let draftPick  = sp?.draft_pick  ?? null;
-  const nflTeam  = sp?.team        ?? null;
 
   // Sleeper's college_draft_round is unreliable (missing for most 2016-2025 players).
   // Use FC's espnId first (more reliable), fall back to Sleeper's espn_id.
