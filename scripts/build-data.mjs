@@ -173,17 +173,20 @@ async function main() {
   progress(80, `Comp DB: ${Object.keys(compDB).length.toLocaleString()} buckets`);
   console.log();
 
-  // ── Step 5: Fetch nflverse player stats + compute RB workload benchmarks ────
-  // nflverse player_stats has carries, receptions, targets, offense_snaps, and
-  // offense_pct (snap % as 0–1 fraction) per player per week — far more reliable
-  // than Sleeper season totals which omit snap counts entirely.
-  // Population: top 64 RBs by rush attempts, minimum 50 carries.
-  // offense_pct averaged only over weeks where the player recorded at least one snap.
-  // psRows is reused by Step 5e (statTeamDB) to avoid a duplicate fetch.
+  // ── Step 5: Fetch nflverse player stats (used by Step 5e for statTeamDB) ────
+  // Benchmark computation moved to Step 5f where the PBP is already available —
+  // carries/rec/targets extracted from PBP in one pass, snap% from snap_counts.
   progress(85, 'Fetching nflverse player stats…');
-  const recentYr = currentYear - 1;
+  const recentYr        = currentYear - 1;
   const AVG_TEAM_TGT_PG = 33.5;  // stable league-avg pass targets/game
   const AVG_TEAM_REC_PG = 22.0;  // stable league-avg receptions/game
+
+  // RB workload benchmarks — seeded with estimates, updated from PBP in Step 5f.
+  let avgRbCarryPct    = 44.1;
+  let avgRbTouchesPg   = 15.0;
+  let avgRbTouchShare  = 31.0;
+  let avgRbTargetShare =  9.0;
+  let avgRbSnapPct     = 62.0;
 
   let psRows = [];
   try {
@@ -192,76 +195,10 @@ async function main() {
     );
     console.log(`\n  player_stats: ${psRows.length} rows`);
   } catch(e) {
-    console.error('\n  ⚠️  player_stats .gz fetch failed:', e.message, '— trying plain CSV…');
-    try {
-      const res = await fetch(
-        `https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${recentYr}.csv`
-      );
-      if (res.ok) {
-        const lines = (await res.text()).split('\n').filter(l => l.trim());
-        const hdrs  = parseCSVLine(lines[0]);
-        psRows = lines.slice(1).map(line => {
-          const vals = parseCSVLine(line);
-          const row  = {};
-          hdrs.forEach((h, i) => { row[h] = vals[i] ?? ''; });
-          return row;
-        });
-        console.log(`\n  player_stats (plain CSV): ${psRows.length} rows`);
-      } else {
-        console.error('\n  ⚠️  player_stats plain CSV failed: HTTP', res.status);
-      }
-    } catch(e2) {
-      console.error('\n  ⚠️  player_stats plain CSV also failed:', e2.message);
-    }
+    // 404 is expected — nflverse doesn't always publish per-year player_stats files.
+    // statTeamDB will fall back to the roster pass; benchmarks use PBP below.
+    console.error('\n  ⚠️  player_stats unavailable:', e.message);
   }
-
-  progress(87, 'Computing RB workload benchmarks…');
-  const rbAgg = {}; // gsis_id → aggregated season totals
-  for (const row of psRows) {
-    if (row.season_type !== 'REG') continue;
-    if (row.position    !== 'RB')  continue;
-    const pid = row.player_id?.trim();
-    if (!pid) continue;
-    if (!rbAgg[pid]) rbAgg[pid] = { carries: 0, rec: 0, tgts: 0, snapSum: 0, snapN: 0, games: 0 };
-    rbAgg[pid].carries += parseFloat(row.carries)    || 0;
-    rbAgg[pid].rec     += parseFloat(row.receptions) || 0;
-    rbAgg[pid].tgts    += parseFloat(row.targets)    || 0;
-    rbAgg[pid].games++;
-    const snps = parseFloat(row.offense_snaps) || 0;
-    const pct  = parseFloat(row.offense_pct);
-    if (snps > 0 && !isNaN(pct)) {
-      rbAgg[pid].snapSum += pct * 100; // offense_pct is 0–1; convert to percentage
-      rbAgg[pid].snapN++;
-    }
-  }
-
-  const rbRows = Object.values(rbAgg)
-    .filter(r => r.carries >= 50)
-    .map(r => ({
-      carries:        r.carries,
-      carryPct:       (r.carries / r.games) / NFL_AVG_RUSH_ATT_PG * 100,
-      touchesPg:      (r.carries + r.rec) / r.games,
-      touchSharePct:  ((r.carries + r.rec) / r.games) / (NFL_AVG_RUSH_ATT_PG + AVG_TEAM_REC_PG) * 100,
-      targetSharePct: (r.tgts / r.games) / AVG_TEAM_TGT_PG * 100,
-      snapPct:        r.snapN >= 4 ? r.snapSum / r.snapN : null, // require 4+ games with snap data
-    }))
-    .sort((a, b) => b.carries - a.carries)
-    .slice(0, 64);
-
-  const _avg = (field, fallback) => {
-    const vals = rbRows.map(r => r[field]).filter(v => v != null);
-    return vals.length >= 10
-      ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10
-      : fallback;
-  };
-
-  const avgRbCarryPct    = _avg('carryPct',       44.1);
-  const avgRbTouchesPg   = _avg('touchesPg',      15.0);
-  const avgRbTouchShare  = _avg('touchSharePct',  31.0);
-  const avgRbTargetShare = _avg('targetSharePct',  9.0);
-  const avgRbSnapPct     = _avg('snapPct',         62.0);
-
-  progress(90, `Benchmarks — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}%`);
   console.log();
 
   // ── Step 5b: Build teamDB from ESPN ──────────────────────────────────────
@@ -650,10 +587,11 @@ async function main() {
       }
     } catch(e) { console.warn('\n  ⚠️  PFR advstats fetch failed:', e.message); }
 
-    // ── 3. Play-by-play → success rate by GSIS ──────────────────────────────
-    // PBP is ~40 MB uncompressed — loaded once, parsed with index-based access
-    // to avoid full object allocation for 300+ columns per row.
-    const successByGsis = {};
+    // ── 3. Play-by-play → success rate + workload by GSIS ───────────────────
+    // Single pass: rush plays → success rate + carries; pass plays → targets/rec.
+    // workloadByGsis is used below (step 6) to compute RB workload benchmarks.
+    const successByGsis  = {};
+    const workloadByGsis = {}; // gsis_id → { carries, tgts, rec, gameIds }
     try {
       const pbpRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
@@ -661,20 +599,45 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [raI, stI, ridI, sucI] = ['rush_attempt', 'season_type', 'rusher_player_id', 'success']
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI] =
+          ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
+           'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id']
           .map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
-          const v    = parseCSVLine(line);
-          if (v[stI] !== 'REG' || v[raI] !== '1') continue;
-          const gsis = v[ridI]?.trim();
-          const succ = v[sucI];
-          if (!gsis || !succ || succ === 'NA') continue;
-          if (gsisToPos[gsis] === 'QB') continue; // skip QBs
-          if (!successByGsis[gsis]) successByGsis[gsis] = { sum: 0, n: 0 };
-          successByGsis[gsis].sum += parseFloat(succ) || 0;
-          successByGsis[gsis].n++;
+          const v = parseCSVLine(line);
+          if (v[stI] !== 'REG') continue;
+          const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
+
+          if (v[raI] === '1') {
+            const gsis = v[ridI]?.trim();
+            if (gsis) {
+              const isQb = gsisToPos[gsis] === 'QB';
+              const succ = v[sucI];
+              if (!isQb && succ && succ !== 'NA') {
+                if (!successByGsis[gsis]) successByGsis[gsis] = { sum: 0, n: 0 };
+                successByGsis[gsis].sum += parseFloat(succ) || 0;
+                successByGsis[gsis].n++;
+              }
+              if (!isQb) {
+                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, tgts: 0, rec: 0, gameIds: new Set() };
+                workloadByGsis[gsis].carries++;
+                if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
+              }
+            }
+          }
+
+          if (paI >= 0 && v[paI] === '1') {
+            const gsis = recvI >= 0 ? v[recvI]?.trim() : null;
+            if (gsis) {
+              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, tgts: 0, rec: 0, gameIds: new Set() };
+              workloadByGsis[gsis].tgts++;
+              if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
+              if (cpI >= 0 && v[cpI] === '1') workloadByGsis[gsis].rec++;
+            }
+          }
         }
         console.log(`  PBP success: ${Object.keys(successByGsis).length} players`);
+        console.log(`  PBP workload: ${Object.keys(workloadByGsis).length} players tracked`);
       }
     } catch(e) { console.warn('\n  ⚠️  PBP fetch failed:', e.message); }
 
@@ -698,6 +661,78 @@ async function main() {
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
       advstatsCount++;
+    }
+
+    // ── 6. Snap counts + RB workload benchmarks ──────────────────────────────
+    // Snap % via nflverse snap_counts (offense_pct per game, 0–1 fraction),
+    // averaged over games where the player took at least one offensive snap.
+    // Workload metrics (carry%, touches/g, touch share, target share) come from
+    // the PBP workloadByGsis collected above.
+    const snapPctByGsis = {};
+    try {
+      const scRes = await fetch(
+        `https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_${recentYr}.csv`
+      );
+      if (scRes.ok) {
+        const lines = (await scRes.text()).split('\n').filter(l => l.trim());
+        const hdrs  = parseCSVLine(lines[0]);
+        const pidI  = hdrs.indexOf('player_id');
+        const pctI  = hdrs.indexOf('offense_pct');
+        const snpsI = hdrs.indexOf('offense_snaps');
+        const gtI   = hdrs.indexOf('game_type');   // 'REG' / 'POST' / 'PRE' (may not exist)
+        const snapAgg = {};
+        for (const line of lines.slice(1)) {
+          const v    = parseCSVLine(line);
+          if (gtI >= 0 && v[gtI] !== 'REG') continue;
+          const gsis = pidI >= 0 ? v[pidI]?.trim() : null;
+          const pct  = pctI >= 0 ? parseFloat(v[pctI]) : NaN;
+          const snps = snpsI >= 0 ? parseFloat(v[snpsI]) || 0 : 0;
+          if (!gsis || isNaN(pct) || snps === 0) continue;
+          if (!snapAgg[gsis]) snapAgg[gsis] = { sum: 0, n: 0 };
+          snapAgg[gsis].sum += pct * 100;
+          snapAgg[gsis].n++;
+        }
+        for (const [gsis, { sum, n }] of Object.entries(snapAgg)) {
+          if (n >= 4) snapPctByGsis[gsis] = Math.round(sum / n * 10) / 10;
+        }
+        console.log(`  Snap counts: ${Object.keys(snapPctByGsis).length} players`);
+      } else {
+        console.error(`  ⚠️  snap_counts HTTP ${scRes.status} — snap% will use fallback`);
+      }
+    } catch(e2) { console.error('  ⚠️  snap_counts failed:', e2.message); }
+
+    const rbBenchRows = Object.entries(workloadByGsis)
+      .filter(([gsis, d]) => d.carries >= 50 && gsisToPos[gsis] === 'RB')
+      .map(([gsis, d]) => {
+        const games     = d.gameIds.size || 1;
+        const touchesPg = (d.carries + d.rec) / games;
+        return {
+          carries:        d.carries,
+          carryPct:       (d.carries / games) / NFL_AVG_RUSH_ATT_PG * 100,
+          touchesPg,
+          touchSharePct:  touchesPg / (NFL_AVG_RUSH_ATT_PG + AVG_TEAM_REC_PG) * 100,
+          targetSharePct: (d.tgts / games) / AVG_TEAM_TGT_PG * 100,
+          snapPct:        snapPctByGsis[gsis] ?? null,
+        };
+      })
+      .sort((a, b) => b.carries - a.carries)
+      .slice(0, 64);
+
+    if (rbBenchRows.length >= 10) {
+      const _ba = (field, fb) => {
+        const vals = rbBenchRows.map(r => r[field]).filter(v => v != null);
+        return vals.length >= 10
+          ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10
+          : fb;
+      };
+      avgRbCarryPct    = _ba('carryPct',       44.1);
+      avgRbTouchesPg   = _ba('touchesPg',      15.0);
+      avgRbTouchShare  = _ba('touchSharePct',  31.0);
+      avgRbTargetShare = _ba('targetSharePct',  9.0);
+      avgRbSnapPct     = _ba('snapPct',         62.0);
+      console.log(`  Benchmarks — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}%`);
+    } else {
+      console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
     }
   } catch(e) {
     console.warn('\n  ⚠️  advstats build failed:', e.message, '— advstatsdb.json will be empty');
