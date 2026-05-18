@@ -3722,7 +3722,7 @@ async function loadPlayerProfile(pid) {
            </div>
            <div class="pp-wl-card-val" style="color:${snapClass.color};">${snapPct}<span>%</span></div>
            ${mkBar(snapPct, 100, avgSnapPct, snapClass.color)}
-           <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench n=64 RBs</div>
+           <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench: top 64 RBs (min 50 carries)</div>
          </div>`
       : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
            <div class="pp-wl-card-header">
@@ -3813,7 +3813,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
                    ${mkBarVal(successPct, 60, 41, successClass.color, '%')}
-                   <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · n=65 RBs · nflverse PBP</div>
+                   <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · 65 RBs (min 50 att) · nflverse PBP</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Success Rate</span></div>
@@ -3828,7 +3828,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
                    ${mkBarVal(adsMtfPerAtt, 0.20, 0.063, mtfAdsClass.color, '')}
-                   <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}n=66 RBs · PFR</div>
+                   <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}66 RBs (min 50 carries) · PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Missed Tackles Forced</span></div>
@@ -3846,7 +3846,7 @@ async function loadPlayerProfile(pid) {
               </div>
               <div class="pp-wl-card-val" style="color:${carryClass.color};">${carryPct}<span>%</span></div>
               <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color)}</div>
-              <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att${usingActualTeam ? ` · team ${teamRushPg.toFixed(1)} att/g` : ' · vs league avg'} · bench n=64 RBs</div>
+              <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att${usingActualTeam ? ` · team ${teamRushPg.toFixed(1)} att/g` : ' · vs league avg'} · bench: top 64 RBs (min 50 carries)</div>
             </div>
             ${snapCard}
             <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
@@ -3856,7 +3856,7 @@ async function loadPlayerProfile(pid) {
               </div>
               <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
               ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '')}
-              <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · ${touches} total · bench n=64 RBs</div>
+              <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · ${touches} total · bench: top 64 RBs (min 50 carries)</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
               <div class="pp-wl-card-header">
@@ -3865,7 +3865,7 @@ async function loadPlayerProfile(pid) {
               </div>
               <div class="pp-wl-card-val" style="color:${touchShareClass.color};">${touchSharePct}<span>%</span></div>
               ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color)}
-              <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g of ~${avgTmTouchPg} team avg · bench n=64 RBs</div>
+              <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g of ~${avgTmTouchPg} team avg · bench: top 64 RBs (min 50 carries)</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
               <div class="pp-wl-card-header">
@@ -3874,7 +3874,7 @@ async function loadPlayerProfile(pid) {
               </div>
               <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
               ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color)}
-              <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench n=64 RBs</div>
+              <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench: top 64 RBs (min 50 carries)</div>
             </div>
           </div>
 
@@ -4103,7 +4103,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
                    ${mkBarVal(successPct, 60, 41, successClass.color, '%')}
-                   <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · n=65 RBs · nflverse PBP</div>
+                   <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · 65 RBs (min 50 att) · nflverse PBP</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Success Rate</span></div>
@@ -4118,7 +4118,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
                    ${mkBarVal(adsMtfPerAtt, 0.20, 0.063, mtfAdsClass.color, '')}
-                   <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}n=66 RBs · PFR</div>
+                   <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}66 RBs (min 50 carries) · PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Missed Tackles Forced</span></div>
@@ -4164,7 +4164,7 @@ async function loadPlayerProfile(pid) {
               </div>
               <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
               ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color)}
-              <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench n=64 RBs · 2025 stats</div>
+              <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench: top 64 RBs (min 50 carries) · 2025 stats</div>
             </div>
           </div>
 
@@ -4430,7 +4430,7 @@ async function loadPlayerProfile(pid) {
                  </div>
                  <div class="pp-wl-card-val" style="color:${snapClass.color};">${snapPct}<span>%</span></div>
                  ${mkBar(snapPct, 100, avgSnapPct, snapClass.color)}
-                 <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench n=64 RBs</div>
+                 <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench: top 64 RBs (min 50 carries)</div>
                </div>`
             : noDataCard('Snap %')}
           <div class="pp-wl-card" style="border-left-color:${tgtShareClass.color};">
@@ -4675,7 +4675,7 @@ async function loadPlayerProfile(pid) {
                  </div>
                  <div class="pp-wl-card-val" style="color:${snapClass.color};">${snapPct}<span>%</span></div>
                  ${mkBar(snapPct, 100, avgSnapPct, snapClass.color)}
-                 <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench n=64 RBs</div>
+                 <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench: top 64 RBs (min 50 carries)</div>
                </div>`
             : noDataCard('Snap %')}
           <div class="pp-wl-card" style="border-left-color:${tgtShareClass.color};">
