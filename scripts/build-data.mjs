@@ -832,10 +832,12 @@ async function main() {
       avgRbSnapPct      = _bm('snapPct',         62.0);
       avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
       avgRbRzCarries    = _bm('rzCarries',       22.0);
-      avgRbYpc          = _bm('ypc',              4.3);
-      avgRbYpcN         = rbBenchRows.filter(r => r.ypc != null).length;
+      // YPC is an efficiency metric with a roughly normal distribution — use mean
+      const _ypcVals    = rbBenchRows.map(r => r.ypc).filter(v => v != null);
+      avgRbYpc          = _ypcVals.length >= 5 ? Math.round(_ypcVals.reduce((s, v) => s + v, 0) / _ypcVals.length * 10) / 10 : 4.3;
+      avgRbYpcN         = _ypcVals.length;
       console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
-      console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (n=${avgRbYpcN})`)
+      console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (mean, n=${avgRbYpcN})`)
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
     }
