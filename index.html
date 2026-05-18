@@ -5880,17 +5880,21 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         const carryPct   = liveGamesPlayed > 0
           ? Math.round((rushAtt / liveGamesPlayed) / teamRushPg * 1000) / 10
           : 0;
-        const fillW  = Math.min(carryPct, 100).toFixed(1);
-        const avgPos = Math.min(avgRbCarryPct, 100).toFixed(1);
+        const fillW    = Math.min(carryPct, 100).toFixed(1);
+        const avgPos   = Math.min(avgRbCarryPct, 100).toFixed(1);
+        const carryClr = carryPct >= 65 ? 'var(--green)'
+                       : carryPct >= 50 ? 'var(--accent)'
+                       : carryPct >= 35 ? 'var(--orange)'
+                       :                  'var(--red)';
         placeholder.innerHTML = `
           <div class="pp-wl-track">
-            <div class="pp-wl-fill"     style="width:${fillW}%;background:var(--green);"></div>
+            <div class="pp-wl-fill"     style="width:${fillW}%;background:${carryClr};"></div>
             <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
-            <div class="pp-wl-dot"      style="left:${fillW}%;background:var(--green);box-shadow:0 0 6px var(--green);"></div>
+            <div class="pp-wl-dot"      style="left:${fillW}%;background:${carryClr};box-shadow:0 0 6px ${carryClr};"></div>
           </div>
           <div class="pp-wl-scale">
             <span>0%</span>
-            <span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgRbCarryPct}%</span>
+            <span class="pp-wl-avg-label" style="left:${avgPos}%;">MED ${avgRbCarryPct}%</span>
             <span>100%</span>
           </div>`;
       }
