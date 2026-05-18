@@ -3385,7 +3385,7 @@ async function loadPlayerProfile(pid) {
     // Points per touch (PPR pts / total touches)
     const pprTotal     = +(stats.pts_ppr ?? 0);
     const ptsPerTouch  = touches > 0 ? Math.round(pprTotal / touches * 100) / 100 : null;
-    const avgPpt       = getAvgRbPpt();  // league avg starting RB pts/touch (PPR), from careerDB
+    const avgPpt       = getAvgRbPpt();  // starting RB pts/touch, previous season, from benchmarks.json
 
     const pptClass = !ptsPerTouch          ? { label: 'No Data',      color: 'var(--text-dim)' }
                    : ptsPerTouch >= 1.25   ? { label: 'Elite',        color: 'var(--green)'   }
@@ -3398,7 +3398,7 @@ async function loadPlayerProfile(pid) {
     const rushYd    = +(stats.rush_yd ?? 0);
     const rushTd    = +(stats.rush_td ?? 0);
     const ypc       = rushAtt > 0 ? Math.round(rushYd / rushAtt * 10) / 10 : null;
-    const avgYpc    = 4.3;
+    const avgYpc    = avgRbYpc;
     const ypcClass  = !ypc           ? {label:'No Data',    color:'var(--text-dim)'}
                     : ypc >= 5.5    ? {label:'Explosive',  color:'var(--green)'  }
                     : ypc >= 4.5    ? {label:'Above Avg',  color:'var(--accent)'   }
@@ -3752,7 +3752,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
                    ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds')}
-                   <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att</div>
+                   <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · ${avgRbYpcN} RBs (min 50 carries) · nflverse PBP` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Yards / Carry</span></div>
@@ -3767,7 +3767,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
                    ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts')}
-                   <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · ${gp} gp</div>
+                   <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · ${gp} gp${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Points / Touch</span></div>
@@ -3775,21 +3775,6 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">Not in Sleeper data</div>
                  </div>`
             }
-            ${rushFDRate !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${fdRateClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">1st Down Rate</span>
-                     <span class="pp-wl-card-cls" style="color:${fdRateClass.color};">${fdRateClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${fdRateClass.color};">${rushFDRate}<span>%</span></div>
-                   ${mkBarVal(rushFDRate, 35, avgFDRate, fdRateClass.color, '%')}
-                   <div class="pp-wl-card-sub">${rushFD} first downs · ${rushAtt} carries · ${rushTd} rush TDs</div>
-                 </div>`
-              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">1st Down Rate</span></div>
-                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                   <div class="pp-wl-card-sub">Requires ESPN player ID</div>
-                 </div>`}
             ${ryoePerAtt !== null
               ? `<div class="pp-wl-card" style="border-left-color:${ryoeClass.color};">
                    <div class="pp-wl-card-header">
@@ -4043,7 +4028,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
                    ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds')}
-                   <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att · 2025 stats</div>
+                   <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · ${avgRbYpcN} RBs (min 50 carries) · nflverse PBP` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Yards / Carry</span></div>
@@ -4058,27 +4043,12 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
                    ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts')}
-                   <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · 2025 stats</div>
+                   <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Points / Touch</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Not in Sleeper data</div>
-                 </div>`}
-            ${rushFDRate !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${fdRateClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">1st Down Rate</span>
-                     <span class="pp-wl-card-cls" style="color:${fdRateClass.color};">${fdRateClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${fdRateClass.color};">${rushFDRate}<span>%</span></div>
-                   ${mkBarVal(rushFDRate, 35, avgFDRate, fdRateClass.color, '%')}
-                   <div class="pp-wl-card-sub">${rushFD} first downs · ${rushAtt} carries · 2025 stats</div>
-                 </div>`
-              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">1st Down Rate</span></div>
-                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                   <div class="pp-wl-card-sub">Requires ESPN player ID</div>
                  </div>`}
             ${ryoePerAtt !== null
               ? `<div class="pp-wl-card" style="border-left-color:${ryoeClass.color};">
@@ -5156,6 +5126,11 @@ let avgRbSnapPct     = 62.0;   // avg offensive snap share
 let avgRbTouchesPg   = 15.0;   // avg touches per game
 let avgRbTouchShare  = 31.0;   // avg touch share %
 let avgRbTargetShare =  9.0;   // avg target share %
+// RB efficiency benchmarks — seeded with estimates, overridden by benchmarks.json
+let avgRbYpc         =  4.3;   // avg yards/carry (top-64 RBs, recentYr PBP)
+let avgRbYpcN        =  0;     // sample count
+let avgRbPpt         =  0.90;  // avg PPR pts/touch (recentYr careerDB, min 50 touches + 8 gp)
+let avgRbPptN        =  0;     // sample count
 
 // Shared carry share math — all three callers (_computeAvgCarryPct, _computeAvgCarryShareFromStats,
 // buildDatabase) funnel through _avgCarryShare so the formula is defined exactly once.
@@ -5747,6 +5722,10 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbTouchesPg)   avgRbTouchesPg   = bench.avgRbTouchesPg;
     if (bench?.avgRbTouchShare)  avgRbTouchShare  = bench.avgRbTouchShare;
     if (bench?.avgRbTargetShare) avgRbTargetShare = bench.avgRbTargetShare;
+    if (bench?.avgRbYpc)         avgRbYpc         = bench.avgRbYpc;
+    if (bench?.avgRbYpcN)        avgRbYpcN        = bench.avgRbYpcN;
+    if (bench?.avgRbPpt)         avgRbPpt         = bench.avgRbPpt;
+    if (bench?.avgRbPptN)        avgRbPptN        = bench.avgRbPptN;
 
     // teamdb.json is optional — new cards show "—" if it hasn't been built yet
     if (teamResRaw?.ok) {
@@ -9100,9 +9079,10 @@ const _SIM_INJ = { QB: 0.02, RB: 0.06, WR: 0.04, TE: 0.03, K: 0.01 };
 const _SIM_CV = { QB: 0.20, RB: 0.27, WR: 0.28, TE: 0.30, K: 0.18 };
 
 // Lazy-computed league-average RB pts/touch from careerDB (fallback 0.90).
-let _avgRbPpt = null;
 function getAvgRbPpt() {
-  if (_avgRbPpt !== null) return _avgRbPpt;
+  // Prefer the pre-built benchmark (previous season only) from benchmarks.json.
+  // Fall back to multi-year careerDB aggregate if CI hasn't run yet.
+  if (avgRbPpt !== 0.90) return avgRbPpt;
   let pts = 0, touches = 0;
   for (const [pid, seasons] of Object.entries(careerDB ?? {})) {
     if ((sleeperPlayers[pid]?.position ?? '').toUpperCase() !== 'RB') continue;
@@ -9110,8 +9090,7 @@ function getAvgRbPpt() {
       if ((s.touches ?? 0) >= 50 && (s.games ?? 0) >= 8) { pts += s.ppr ?? 0; touches += s.touches; }
     }
   }
-  _avgRbPpt = touches > 100 ? +(pts / touches).toFixed(3) : 0.90;
-  return _avgRbPpt;
+  return touches > 100 ? +(pts / touches).toFixed(3) : 0.90;
 }
 
 // Calibrates _SIM_INJ per-week rates from careerDB historical games-played data.

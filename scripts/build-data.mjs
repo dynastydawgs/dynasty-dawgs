@@ -187,6 +187,11 @@ async function main() {
   let avgRbTouchShare  = 31.0;
   let avgRbTargetShare =  9.0;
   let avgRbSnapPct     = 62.0;
+  // RB efficiency benchmarks — seeded with estimates, updated below.
+  let avgRbYpc         =  4.3;   // avg yards/carry (from PBP, same top-64 pool)
+  let avgRbYpcN        =  0;
+  let avgRbPpt         =  0.90;  // avg PPR pts/touch (from careerDB, recentYr only)
+  let avgRbPptN        =  0;
 
   let psRows = [];
   try {
@@ -601,9 +606,9 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI] =
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
-           'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id']
+           'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id', 'rushing_yards']
           .map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
@@ -621,8 +626,9 @@ async function main() {
                 successByGsis[gsis].n++;
               }
               if (!isQb) {
-                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, tgts: 0, rec: 0, gameIds: new Set() };
+                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set() };
                 workloadByGsis[gsis].carries++;
+                workloadByGsis[gsis].rushYds += ryI >= 0 ? (parseFloat(v[ryI]) || 0) : 0;
                 if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
               }
             }
@@ -631,7 +637,7 @@ async function main() {
           if (paI >= 0 && v[paI] === '1') {
             const gsis = recvI >= 0 ? v[recvI]?.trim() : null;
             if (gsis) {
-              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, tgts: 0, rec: 0, gameIds: new Set() };
+              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set() };
               workloadByGsis[gsis].tgts++;
               if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
               if (cpI >= 0 && v[cpI] === '1') workloadByGsis[gsis].rec++;
@@ -705,6 +711,23 @@ async function main() {
       }
     } catch(e2) { console.error('  ⚠️  snap_counts failed:', e2.message); }
 
+    // Pts/touch benchmark — previous season (recentYr) only so it reflects the
+    // current scoring environment rather than blending 10 years of careerDB data.
+    {
+      let pts = 0, touches = 0, n = 0;
+      for (const [pid, seasons] of Object.entries(careerDB)) {
+        const pos = pidToPos[pid];
+        if (pos !== 'RB') continue;
+        const s = seasons.find(s => s.season === recentYr);
+        if (!s || (s.touches ?? 0) < 50 || (s.games ?? 0) < 8) continue;
+        pts += s.ppr ?? 0;
+        touches += s.touches;
+        n++;
+      }
+      if (touches > 100) { avgRbPpt = Math.round(pts / touches * 1000) / 1000; avgRbPptN = n; }
+      console.log(`  Pts/touch bench: ${avgRbPpt} pts/touch · ${avgRbPptN} RBs (${recentYr})`);
+    }
+
     const rbBenchRows = Object.entries(workloadByGsis)
       .filter(([gsis, d]) => d.carries >= 50 && gsisToPos[gsis] === 'RB')
       .map(([gsis, d]) => {
@@ -717,6 +740,7 @@ async function main() {
           touchSharePct:  touchesPg / (NFL_AVG_RUSH_ATT_PG + AVG_TEAM_REC_PG) * 100,
           targetSharePct: (d.tgts / games) / AVG_TEAM_TGT_PG * 100,
           snapPct:        snapPctByGsis[gsis] ?? null,
+          ypc:            d.carries > 0 ? d.rushYds / d.carries : null,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -741,7 +765,10 @@ async function main() {
       avgRbTouchShare  = _bm('touchSharePct',  31.0);
       avgRbTargetShare = _bm('targetSharePct',  9.0);
       avgRbSnapPct     = _bm('snapPct',         62.0);
-      console.log(`  Benchmarks — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}%`);
+      avgRbYpc         = _ba('ypc',              4.3);  // mean for normally-distributed efficiency metric
+      avgRbYpcN        = rbBenchRows.filter(r => r.ypc != null).length;
+      console.log(`  Workload bench — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}%`);
+      console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (n=${avgRbYpcN})`)
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
     }
@@ -755,7 +782,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct });
+  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
