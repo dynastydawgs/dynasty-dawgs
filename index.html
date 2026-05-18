@@ -1712,6 +1712,33 @@
   .mb-output-node .out-val { font-family: var(--display); font-size: 18px; color: var(--text); }
   .mb-output-node .out-sub { font-size: 10px; color: var(--text-muted); font-family: var(--mono); margin-top: 2px; }
 
+  /* Weights breakdown panel */
+  .mb-weights-panel { margin-top: 28px; background: var(--surface); border: 1px solid rgba(56,196,232,0.22); border-radius: var(--radius-lg); padding: 20px; }
+  .mb-weights-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .mb-weights-badge { font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em; padding: 3px 10px; border-radius: 99px; background: rgba(56,196,232,0.12); color: var(--blue); border: 1px solid rgba(56,196,232,0.3); text-transform: uppercase; }
+  .mb-weights-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .mb-weights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .mb-wt-block { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .mb-wt-block-title { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+  .mb-wt-row { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 11px; gap: 8px; }
+  .mb-wt-row:last-child { border-bottom: none; }
+  .mb-wt-label { color: var(--text-muted); font-family: var(--mono); flex: 1; }
+  .mb-wt-val { color: var(--text); font-family: var(--mono); font-size: 11px; text-align: right; white-space: nowrap; }
+  .mb-wt-val.hi  { color: var(--green); }
+  .mb-wt-val.mid { color: var(--blue); }
+  .mb-wt-val.lo  { color: var(--orange); }
+  .mb-wt-val.dim { color: var(--text-dim); }
+  .mb-wt-tier-table { width: 100%; border-collapse: collapse; font-size: 10px; font-family: var(--mono); margin-top: 4px; }
+  .mb-wt-tier-table th { color: var(--text-dim); font-size: 9px; letter-spacing: 0.1em; padding: 3px 6px; text-align: right; border-bottom: 1px solid var(--border); }
+  .mb-wt-tier-table th:first-child { text-align: left; }
+  .mb-wt-tier-table td { padding: 3px 6px; text-align: right; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .mb-wt-tier-table td:first-child { text-align: left; color: var(--text-dim); }
+  .mb-wt-tier-table tr:last-child td { border-bottom: none; }
+  .mb-wt-tier-table td.pos-hi { color: var(--green); }
+  .mb-wt-tier-table td.pos-mid { color: var(--blue); }
+  .mb-wt-tier-table td.pos-lo { color: var(--orange); }
+  .mb-wt-tier-table td.pos-dim { color: var(--text-dim); }
+
   /* Team factors testing panel */
   .mb-beta-panel { margin-top: 28px; background: var(--surface); border: 1px solid rgba(45,214,168,0.25); border-radius: var(--radius-lg); padding: 20px; }
   .mb-beta-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
@@ -9749,6 +9776,162 @@ function _mbPhaseHtml(phase) {
   </div>`;
 }
 
+function _mbWeightsHtml(pos) {
+  // ── Blend weights ──
+  const blendRows = [
+    ['Own production (yr 1–2)',  '65%',  'mid'],
+    ['Own production (yr 3–4)',  '77%',  'mid'],
+    ['Own production (yr 5+)',   '86%',  'hi'],
+    ['Draft tier comp pool (yr 1–2)', '35%', 'lo'],
+    ['Draft tier comp pool (yr 3–4)', '23%', 'lo'],
+    ['Draft tier comp pool (yr 5+)',  '14%', 'dim'],
+  ].map(([l,v,c]) => `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val ${c}">${v}</span></div>`).join('');
+
+  // ── Momentum ──
+  const momRows = [
+    ['Signal weight on excess YoY PPG', '28%', 'mid'],
+    ['Max upside cap (2+ prior seasons)', '13% of ownPpr', 'hi'],
+    ['Max upside cap (1 prior season)',   '6% of ownPpr',  'mid'],
+    ['Max downside cap',                 '40% of upside',  'lo'],
+    ['Declining/cliff positive signal',  '40% of value',   'lo'],
+    ['Ascending/soph negative signal',   '40% of value',   'lo'],
+  ].map(([l,v,c]) => `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val ${c}">${v}</span></div>`).join('');
+
+  // ── Spike regression ──
+  const isQb = pos === 'QB';
+  const spikeRows = [
+    ['Applies to',               'Prime / Ascending (3+ seasons)', 'dim'],
+    ['Spike threshold',          isQb ? '2.0 PPG above prior avg' : '3.5 PPG above prior avg', 'lo'],
+    ['Blend ramp',               isQb ? '÷5 per PPG over threshold' : '÷8 per PPG over threshold', 'mid'],
+    ['Max regression blend',     isQb ? '40% toward prior avg' : '50% toward prior avg', 'lo'],
+  ].map(([l,v,c]) => `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val ${c}">${v}</span></div>`).join('');
+
+  // ── Floor / Ceiling bands by career stage ──
+  const bandData = pos === 'QB'
+    ? { rookie:{flo:'70%',ceil:'114%'}, sophomore:{flo:'75%',ceil:'118%'}, ascending:{flo:'82%',ceil:'112%'}, prime:{flo:'87%',ceil:'110%'}, declining:{flo:'72%',ceil:'104%'}, cliff:{flo:'45%',ceil:'92%'} }
+    : { rookie:{flo:'52%',ceil:'155%'}, sophomore:{flo:'68%',ceil:'135%'}, ascending:{flo:'75%',ceil:'128%'}, prime:{flo:'82%',ceil:'110%'}, declining:{flo:'67%',ceil:'105%'}, cliff:{flo:'55%',ceil:'88%'} };
+  const bandRows = Object.entries(bandData).map(([stage, {flo, ceil}]) =>
+    `<div class="mb-wt-row"><span class="mb-wt-label">${stage.charAt(0).toUpperCase()+stage.slice(1)}</span><span class="mb-wt-val mid">${flo} floor</span><span class="mb-wt-val hi" style="margin-left:8px;">${ceil} ceil</span></div>`
+  ).join('');
+
+  // ── Draft tier multipliers ──
+  const tiers = [
+    ['R1 Top 10', 'r1_top10'], ['R1 Mid',    'r1_mid'],   ['R1 Late',   'r1_late'],
+    ['R2 Early',  'r2_early'], ['R2 Late',   'r2_late'],  ['R3 Early',  'r3_early'],
+    ['R3 Late',   'r3_late'],  ['R4/R5',     'r4r5'],     ['UDFA',      'udfa'],
+  ];
+  const boosts = {
+    r1_top10:{QB:1.30,RB:1.40,WR:1.25,TE:1.20}, r1_mid:{QB:1.18,RB:1.30,WR:1.15,TE:1.12},
+    r1_late:{QB:1.10,RB:1.22,WR:1.08,TE:1.06},  r2_early:{QB:1.02,RB:1.10,WR:1.00,TE:0.98},
+    r2_late:{QB:0.96,RB:1.02,WR:0.93,TE:0.92},  r3_early:{QB:0.85,RB:0.90,WR:0.83,TE:0.82},
+    r3_late:{QB:0.75,RB:0.80,WR:0.73,TE:0.72},  r4r5:{QB:0.65,RB:0.70,WR:0.62,TE:0.60},
+    udfa:{QB:0.52,RB:0.55,WR:0.48,TE:0.45},
+  };
+  const tierCls = v => v >= 1.20 ? 'pos-hi' : v >= 1.00 ? 'pos-mid' : v >= 0.80 ? 'pos-lo' : 'pos-dim';
+  const tierTableRows = tiers.map(([label, key]) => {
+    const b = boosts[key];
+    return `<tr><td>${label}</td>${['QB','RB','WR','TE'].map(p => `<td class="${tierCls(b[p])}">${b[p].toFixed(2)}×</td>`).join('')}</tr>`;
+  }).join('');
+  const tierTable = `<table class="mb-wt-tier-table">
+    <tr><th>Tier</th><th>QB</th><th>RB</th><th>WR</th><th>TE</th></tr>
+    ${tierTableRows}
+  </table>`;
+
+  // ── Aging curve peak / cliff ages ──
+  const agingRows = {
+    QB: [['Peak age','29–30'],['Sharp drop','35+ (−7%/yr)'],['Cliff','38+']],
+    RB: [['Peak age','25'],['Sharp drop','28+ (−12%/yr)'],['Cliff','30+']],
+    WR: [['Peak age','27–28'],['Decline starts','31 (−7%/yr)'],['Cliff','34+']],
+    TE: [['Peak age','28–29'],['Decline starts','32 (−10%/yr)'],['Cliff','35+']],
+  }[pos] ?? [];
+  const agingHtml = agingRows.map(([l,v]) =>
+    `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val mid">${v}</span></div>`).join('');
+
+  // ── Position-specific adjustments ──
+  let posSpecificHtml = '';
+  if (pos === 'QB') {
+    posSpecificHtml = `
+    <div class="mb-wt-block">
+      <div class="mb-wt-block-title">QB-Specific Adjustments</div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Rookie damp · R1 picks</span><span class="mb-wt-val lo">55× comp median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Rookie damp · R2 picks</span><span class="mb-wt-val lo">60× comp median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Rookie damp · R3+ picks</span><span class="mb-wt-val lo">67× comp median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Sophomore boost</span><span class="mb-wt-val dim">Not applied (own data anchors)</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Backup QB · bear case</span><span class="mb-wt-val lo">0 pts (stays on bench)</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Backup QB · base case</span><span class="mb-wt-val mid">4 starts of full-starter median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Backup QB · bull case</span><span class="mb-wt-val hi">12 starts of full-starter median</span></div>
+    </div>`;
+  } else if (pos === 'RB') {
+    posSpecificHtml = `
+    <div class="mb-wt-block">
+      <div class="mb-wt-block-title">RB-Specific Adjustments</div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Points-per-touch signal weight</span><span class="mb-wt-val mid">18% of ratio deviation</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Points-per-touch cap</span><span class="mb-wt-val dim">±4% median adjustment</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Minimum touches for PPT</span><span class="mb-wt-val dim">20 career touches</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Sophomore boost · upper tier (≥12 PPG)</span><span class="mb-wt-val hi">+5–13% median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Sophomore boost · lower tier (≥10 PPG)</span><span class="mb-wt-val mid">+2–4% median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">stableDecRb floor</span><span class="mb-wt-val mid">79% (vs 67% normal declining)</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">stableDecRb ceiling</span><span class="mb-wt-val hi">112% (vs 105% normal declining)</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Declining RB median cap</span><span class="mb-wt-val lo">97% of current ownPpr</span></div>
+    </div>`;
+  } else if (pos === 'WR') {
+    posSpecificHtml = `
+    <div class="mb-wt-block">
+      <div class="mb-wt-block-title">WR-Specific Adjustments</div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Sophomore boost · upper tier (≥12 PPG)</span><span class="mb-wt-val hi">+5–13% median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Sophomore boost · lower tier (≥10 PPG)</span><span class="mb-wt-val mid">+2–4% median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">stableDecWr threshold</span><span class="mb-wt-val dim">avgDelta ≥ −1.5 PPG/yr, last drop > −5</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">stableDecWr floor</span><span class="mb-wt-val mid">76% (vs 67% normal declining)</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">earlyDecWr (age ≤31) floor</span><span class="mb-wt-val hi">Higher — dampening extends to 8 PPG</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Bounce-back ceiling scale</span><span class="mb-wt-val hi">stableDecWr: 0.87 × peak (vs 0.72)</span></div>
+    </div>`;
+  } else if (pos === 'TE') {
+    posSpecificHtml = `
+    <div class="mb-wt-block">
+      <div class="mb-wt-block-title">TE-Specific Adjustments</div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Sophomore boost · upper tier (≥10 PPG)</span><span class="mb-wt-val hi">+5–13% median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Sophomore boost · lower tier (≥8 PPG)</span><span class="mb-wt-val mid">+2–4% median</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">TEP overlay</span><span class="mb-wt-val dim">Applied in league tabs / profiles only</span></div>
+      <div class="mb-wt-row"><span class="mb-wt-label">Prime stage</span><span class="mb-wt-val mid">Peaks later, sustains longer vs WR</span></div>
+    </div>`;
+  }
+
+  return `
+  <div class="mb-weights-panel">
+    <div class="mb-weights-header">
+      <span class="mb-weights-badge">⚖ Weights</span>
+      <span class="mb-weights-title">Projection Model Inputs &amp; Weightings — ${pos}</span>
+    </div>
+    <div class="mb-weights-grid">
+      <div class="mb-wt-block">
+        <div class="mb-wt-block-title">Base Projection Blend</div>
+        ${blendRows}
+      </div>
+      <div class="mb-wt-block">
+        <div class="mb-wt-block-title">Momentum Signal</div>
+        ${momRows}
+      </div>
+      <div class="mb-wt-block">
+        <div class="mb-wt-block-title">Spike-Year Regression</div>
+        ${spikeRows}
+      </div>
+      <div class="mb-wt-block">
+        <div class="mb-wt-block-title">Floor / Ceiling Bands by Stage — ${pos}</div>
+        ${bandRows}
+      </div>
+      <div class="mb-wt-block" style="flex:2 1 400px; min-width:300px;">
+        <div class="mb-wt-block-title">Draft Tier Multipliers (applied to comp pool p50)</div>
+        ${tierTable}
+      </div>
+      <div class="mb-wt-block">
+        <div class="mb-wt-block-title">Aging Curve — ${pos}</div>
+        ${agingHtml}
+      </div>
+      ${posSpecificHtml}
+    </div>
+  </div>`;
+}
+
 function _mbBuildFlow(pos) {
   const phases = [
     ..._MB_SHARED_START,
@@ -10173,7 +10356,8 @@ function renderModelBuilding() {
     <button class="mb-pos-tab${_mbPos === p ? ' active' : ''}" data-pos="${p}"
       onclick="_mbSetPos('${p}')">${p}</button>`).join('');
 
-  const flowHtml = _mbBuildFlow(_mbPos);
+  const flowHtml    = _mbBuildFlow(_mbPos);
+  const weightsHtml = _mbWeightsHtml(_mbPos);
 
   const nextProjYear = projSeasonYear();
   const availPanel = `
@@ -10229,6 +10413,7 @@ function renderModelBuilding() {
       </div>
     </div>
     ${flowHtml}
+    ${weightsHtml}
     ${betaPanel}
     ${availPanel}`;
 
