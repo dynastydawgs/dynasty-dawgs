@@ -187,22 +187,32 @@ async function main() {
 
   let psRows = [];
   try {
-    const psRes = await fetch(
-      `https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${recentYr}.csv`
+    psRows = await fetchGzipCSV(
+      `https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${recentYr}.csv.gz`
     );
-    if (psRes.ok) {
-      const lines = (await psRes.text()).split('\n').filter(l => l.trim());
-      const hdrs  = parseCSVLine(lines[0]);
-      psRows = lines.slice(1).map(line => {
-        const vals = parseCSVLine(line);
-        const row  = {};
-        hdrs.forEach((h, i) => { row[h] = vals[i] ?? ''; });
-        return row;
-      });
-      console.log(`\n  player_stats: ${psRows.length} rows`);
-    }
+    console.log(`\n  player_stats: ${psRows.length} rows`);
   } catch(e) {
-    console.warn('\n  ⚠️  player_stats fetch failed:', e.message);
+    console.error('\n  ⚠️  player_stats .gz fetch failed:', e.message, '— trying plain CSV…');
+    try {
+      const res = await fetch(
+        `https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${recentYr}.csv`
+      );
+      if (res.ok) {
+        const lines = (await res.text()).split('\n').filter(l => l.trim());
+        const hdrs  = parseCSVLine(lines[0]);
+        psRows = lines.slice(1).map(line => {
+          const vals = parseCSVLine(line);
+          const row  = {};
+          hdrs.forEach((h, i) => { row[h] = vals[i] ?? ''; });
+          return row;
+        });
+        console.log(`\n  player_stats (plain CSV): ${psRows.length} rows`);
+      } else {
+        console.error('\n  ⚠️  player_stats plain CSV failed: HTTP', res.status);
+      }
+    } catch(e2) {
+      console.error('\n  ⚠️  player_stats plain CSV also failed:', e2.message);
+    }
   }
 
   progress(87, 'Computing RB workload benchmarks…');
