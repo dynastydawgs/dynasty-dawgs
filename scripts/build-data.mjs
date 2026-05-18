@@ -329,8 +329,10 @@ async function main() {
 
   for (const { abbr, dcData, rosterData } of depthResults) {
     // Build ESPN player ID → { name, status } from roster (all inline, no $refs)
+    // ESPN roster endpoint returns position groups: athletes[i].items = [player, ...]
     const rosterMap = {};
-    for (const player of (rosterData?.athletes ?? [])) {
+    const _rosterPlayers = (rosterData?.athletes ?? []).flatMap(g => g.items ?? []);
+    for (const player of _rosterPlayers) {
       const injStatus    = player.injuries?.[0]?.status ?? null;
       const activeStatus = player.status?.name ?? 'Active';
       rosterMap[player.id] = {
