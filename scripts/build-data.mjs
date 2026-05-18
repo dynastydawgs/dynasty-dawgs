@@ -10,6 +10,7 @@
 //   data/teamdb.json      — teamAbbr → {rushAttPg, passAttPg, offPlaysPg, …, offRating}
 //   data/depthdb.json     — teamAbbr → {QB/RB/WR/TE: [{name, rank, status}]}
 //   data/ryoedb.json      — playerName → {ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected}
+//   data/advstatsdb.json  — playerName → {successPct, mtfPerAtt, brkTkl, att}
 
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -508,6 +509,113 @@ async function main() {
   progress(99, `Stat-team DB: ${statTeamCount} players`);
   console.log();
 
+  // ── Step 5f: Build advstatsDB (Success% + MTF/att) ───────────────────────
+  // Success%  — nflverse play-by-play, pre-computed `success` column.
+  //   Definition: ≥40% of needed yards on 1st down, ≥60% on 2nd, 100% on 3rd/4th.
+  // MTF/att   — PFR advanced rushing stats via nflverse (brk_tkl / att).
+  // Both keyed by player display name (matches ryoedb.json / Sleeper full_name).
+  progress(99, 'Building advanced RB stats (Success% + MTF/att)…');
+  const advstatsDB = {};
+  let advstatsCount = 0;
+  try {
+    // ── 1. PFR advanced rushing → MTF per attempt ───────────────────────────
+    const mtfMap = {};  // name → { mtfPerAtt, brkTkl, att }
+    try {
+      const pfrRes = await fetch(
+        'https://github.com/nflverse/nflverse-data/releases/download/pfr_advstats/advstats_season_rush.csv'
+      );
+      if (pfrRes.ok) {
+        const lines = (await pfrRes.text()).split('\n').filter(l => l.trim());
+        const hdrs  = parseCSVLine(lines[0]);
+        const [sI, nI, aI, bI] = ['season', 'player', 'att', 'brk_tkl'].map(h => hdrs.indexOf(h));
+        for (const line of lines.slice(1)) {
+          const v   = parseCSVLine(line);
+          if (v[sI] !== String(recentYr)) continue;
+          const att = parseFloat(v[aI]) || 0;
+          if (att < 50) continue;
+          const brkTkl = parseFloat(v[bI]) || 0;
+          const name   = v[nI]?.trim();
+          if (!name) continue;
+          mtfMap[name] = {
+            mtfPerAtt: Math.round(brkTkl / att * 1000) / 1000,
+            brkTkl:    Math.round(brkTkl),
+            att:       Math.round(att),
+          };
+        }
+        console.log(`\n  PFR advstats MTF: ${Object.keys(mtfMap).length} players`);
+      }
+    } catch(e) { console.warn('\n  ⚠️  PFR advstats fetch failed:', e.message); }
+
+    // ── 2. players.csv → GSIS ↔ display-name bridge ─────────────────────────
+    const gsisToName = {};
+    try {
+      const res = await fetch(
+        'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv'
+      );
+      if (res.ok) {
+        const lines = (await res.text()).split('\n').filter(l => l.trim());
+        const hdrs  = parseCSVLine(lines[0]);
+        const [gI, dI] = ['gsis_id', 'display_name'].map(h => hdrs.indexOf(h));
+        for (const line of lines.slice(1)) {
+          const v = parseCSVLine(line);
+          const g = v[gI]?.trim(), d = v[dI]?.trim();
+          if (g && d) gsisToName[g] = d;
+        }
+        console.log(`  GSIS→name bridge: ${Object.keys(gsisToName).length} entries`);
+      }
+    } catch(e) { console.warn('\n  ⚠️  players.csv bridge failed:', e.message); }
+
+    // ── 3. Play-by-play → success rate by GSIS ──────────────────────────────
+    // PBP is ~40 MB uncompressed — loaded once, parsed with index-based access
+    // to avoid full object allocation for 300+ columns per row.
+    const successByGsis = {};
+    try {
+      const pbpRes = await fetch(
+        `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
+      );
+      if (pbpRes.ok) {
+        const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
+        const hdrs  = parseCSVLine(lines[0]);
+        const [raI, stI, ridI, sucI] = ['rush_attempt', 'season_type', 'rusher_player_id', 'success']
+          .map(h => hdrs.indexOf(h));
+        for (const line of lines.slice(1)) {
+          const v    = parseCSVLine(line);
+          if (v[stI] !== 'REG' || v[raI] !== '1') continue;
+          const gsis = v[ridI]?.trim();
+          const succ = v[sucI];
+          if (!gsis || !succ || succ === 'NA') continue;
+          if (!successByGsis[gsis]) successByGsis[gsis] = { sum: 0, n: 0 };
+          successByGsis[gsis].sum += parseFloat(succ) || 0;
+          successByGsis[gsis].n++;
+        }
+        console.log(`  PBP success: ${Object.keys(successByGsis).length} players`);
+      }
+    } catch(e) { console.warn('\n  ⚠️  PBP fetch failed:', e.message); }
+
+    // ── 4. Build success rate by name (GSIS → display name) ─────────────────
+    const successMap = {};
+    for (const [gsis, { sum, n }] of Object.entries(successByGsis)) {
+      if (n < 50) continue;
+      const name = gsisToName[gsis];
+      if (!name) continue;
+      successMap[name] = Math.round((sum / n) * 1000) / 10;
+    }
+    console.log(`  Success rate: ${Object.keys(successMap).length} qualified players`);
+
+    // ── 5. Merge into advstatsDB keyed by display name ───────────────────────
+    const allNames = new Set([...Object.keys(mtfMap), ...Object.keys(successMap)]);
+    for (const name of allNames) {
+      const entry = {};
+      if (mtfMap[name])      Object.assign(entry, mtfMap[name]);
+      if (successMap[name])  entry.successPct = successMap[name];
+      if (Object.keys(entry).length) { advstatsDB[name] = entry; advstatsCount++; }
+    }
+  } catch(e) {
+    console.warn('\n  ⚠️  advstats build failed:', e.message, '— advstatsdb.json will be empty');
+  }
+  progress(99, `Adv Stats DB: ${advstatsCount} players`);
+  console.log();
+
   // ── Step 6: Write output files ────────────────────────────────────────────
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
@@ -517,6 +625,7 @@ async function main() {
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
   const statTeamJson  = JSON.stringify(statTeamDB);
+  const advstatsJson  = JSON.stringify(advstatsDB);
 
   writeFileSync(join(DATA_DIR, 'compdb.json'),      compJson);
   writeFileSync(join(DATA_DIR, 'careerdb.json'),    careerJson);
@@ -525,6 +634,7 @@ async function main() {
   writeFileSync(join(DATA_DIR, 'depthdb.json'),     depthJson);
   writeFileSync(join(DATA_DIR, 'ryoedb.json'),      ryoeJson);
   writeFileSync(join(DATA_DIR, 'statteamdb.json'),  statTeamJson);
+  writeFileSync(join(DATA_DIR, 'advstatsdb.json'),  advstatsJson);
   progress(100, 'Done!');
   console.log('\n');
 
@@ -536,6 +646,7 @@ async function main() {
   console.log('  ✅  data/depthdb.json    ', kb(depthJson));
   console.log('  ✅  data/ryoedb.json     ', kb(ryoeJson));
   console.log('  ✅  data/statteamdb.json ', kb(statTeamJson));
+  console.log('  ✅  data/advstatsdb.json ', kb(advstatsJson));
   console.log('\n  Next: git add data/ && git commit && git push\n');
 }
 

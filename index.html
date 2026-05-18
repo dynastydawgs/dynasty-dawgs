@@ -3487,6 +3487,27 @@ async function loadPlayerProfile(pid) {
       : ryoePerAtt >= -0.8 ? {label:'Below Avg',   color:'var(--orange)' }
       :                      {label:'Inefficient', color:'var(--red)'    };
 
+    // ── Advanced RB stats — Success% + MTF/att (PFR via nflverse, advstatsdb.json) ──
+    const _advEntry    = advstatsDB?.[sp?.name] ?? null;
+    const successPct   = _advEntry?.successPct  ?? null;
+    const adsMtfPerAtt = _advEntry?.mtfPerAtt   ?? null;
+    const adsBrkTkl    = _advEntry?.brkTkl      ?? null;
+    const adsAtt       = _advEntry?.att         ?? null;
+
+    const successClass = successPct === null ? {label:'No Data',  color:'var(--text-dim)'}
+      : successPct >= 50  ? {label:'Elite',      color:'var(--green)'  }
+      : successPct >= 46  ? {label:'Good',       color:'var(--blue)'   }
+      : successPct >= 42  ? {label:'Average',    color:'var(--accent)' }
+      : successPct >= 38  ? {label:'Below Avg',  color:'var(--orange)' }
+      :                     {label:'Poor',       color:'var(--red)'    };
+
+    const mtfAdsClass = adsMtfPerAtt === null ? {label:'No Data',  color:'var(--text-dim)'}
+      : adsMtfPerAtt >= 0.20 ? {label:'Elite',      color:'var(--green)'  }
+      : adsMtfPerAtt >= 0.14 ? {label:'Good',       color:'var(--blue)'   }
+      : adsMtfPerAtt >= 0.09 ? {label:'Average',    color:'var(--accent)' }
+      : adsMtfPerAtt >= 0.06 ? {label:'Below Avg',  color:'var(--orange)' }
+      :                        {label:'Poor',       color:'var(--red)'    };
+
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
     // Efficiency: YPC 40% · Pts/Touch 35% · First Down Rate 25%
     const _ypcS  = ypc !== null        ? Math.min(100, Math.max(0, (ypc - 1.5) / 5.5 * 100))       : null;
@@ -3779,6 +3800,36 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
                  </div>`}
+            ${successPct !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${successClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Success Rate</span>
+                     <span class="pp-wl-card-cls" style="color:${successClass.color};">${successClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
+                   ${mkBarVal(successPct, 60, 42, successClass.color, '%')}
+                   <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · PFR</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Success Rate</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Trigger CI to rebuild</div>
+                 </div>`}
+            ${adsMtfPerAtt !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${mtfAdsClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Missed Tackles Forced</span>
+                     <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
+                   ${mkBarVal(adsMtfPerAtt, 0.30, 0.10, mtfAdsClass.color, '')}
+                   <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}PFR</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Missed Tackles Forced</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Trigger CI to rebuild</div>
+                 </div>`}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Workload</div>
@@ -4038,6 +4089,36 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Rush Eff. vs. Team</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
+                 </div>`}
+            ${successPct !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${successClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Success Rate</span>
+                     <span class="pp-wl-card-cls" style="color:${successClass.color};">${successClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
+                   ${mkBarVal(successPct, 60, 42, successClass.color, '%')}
+                   <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · PFR</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Success Rate</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Trigger CI to rebuild</div>
+                 </div>`}
+            ${adsMtfPerAtt !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${mtfAdsClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Missed Tackles Forced</span>
+                     <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
+                   ${mkBarVal(adsMtfPerAtt, 0.30, 0.10, mtfAdsClass.color, '')}
+                   <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}PFR</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Missed Tackles Forced</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Trigger CI to rebuild</div>
                  </div>`}
           </div>
 
@@ -5042,6 +5123,7 @@ let depthDB     = {};   // teamAbbr → { QB:[{name,rank,status}], RB:[…], WR:
 // ESPN stores suffixes ("Jr.", "II") that Sleeper omits — strip before name-matching depthDB.
 const _dcNormName = n => (n ?? '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv|v)$/i, '').trim();
 let ryoeDB      = {};   // playerName → { ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected }
+let advstatsDB  = {};   // playerName → { successPct, mtfPerAtt, brkTkl, att }
 let statTeamDB  = {};   // sleeperPlayerId → NFL team abbr they played for in the most recent stat season
 
 // Bulk season stats cache — populated once before preWarmProjectionCache runs.
@@ -5621,7 +5703,7 @@ async function loadPrebuiltData(onProgress) {
   try {
     onProgress?.('Loading pre-built data files…', 5);
 
-    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw, statTeamResRaw] = await Promise.all([
+    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw, statTeamResRaw, advstatsResRaw] = await Promise.all([
       fetch(`${DATA_BASE_URL}/compdb.json`),
       fetch(`${DATA_BASE_URL}/careerdb.json`),
       fetch(`${DATA_BASE_URL}/benchmarks.json`),
@@ -5629,6 +5711,7 @@ async function loadPrebuiltData(onProgress) {
       fetch(`${DATA_BASE_URL}/depthdb.json`).catch(() => null),      // optional — graceful fallback
       fetch(`${DATA_BASE_URL}/ryoedb.json`).catch(() => null),       // optional — graceful fallback
       fetch(`${DATA_BASE_URL}/statteamdb.json`).catch(() => null),   // optional — player 2025 team lookup
+      fetch(`${DATA_BASE_URL}/advstatsdb.json`).catch(() => null),   // optional — success% + MTF/att
     ]);
 
     if (!compRes.ok || !careerRes.ok || !benchRes.ok) {
@@ -5664,6 +5747,10 @@ async function loadPrebuiltData(onProgress) {
     // statteamdb.json is optional — maps Sleeper pid → 2025 team for traded players
     if (statTeamResRaw?.ok) {
       try { statTeamDB = await statTeamResRaw.json(); } catch(e) {}
+    }
+    // advstatsdb.json is optional — RB success% and MTF/att from PFR/nflverse
+    if (advstatsResRaw?.ok) {
+      try { advstatsDB = await advstatsResRaw.json(); } catch(e) {}
     }
 
     // Cache to localStorage so repeat loads skip even the static fetch
