@@ -2842,7 +2842,6 @@ async function loadPlayerProfile(pid) {
   const _qbDcEntry26 = depthDB?.[nflTeam]?.QB?.find(e => e.name === sp?.name);
   const _qbDcOrder26 = _qbDcEntry26?.rank ?? sp?.depth_chart_order ?? 1;
   const isBackupQb   = pos === 'QB' && _qbDcOrder26 >= 2;
-  if (pos === 'QB') console.log('[QB DC]', sp?.name, 'team:', nflTeam, 'depthDB entry:', _qbDcEntry26, 'order:', _qbDcOrder26, 'isBackup:', isBackupQb, 'depthDB[team]:', depthDB?.[nflTeam]?.QB);
 
   // Sleeper's college_draft_round is unreliable (missing for most 2016-2025 players).
   // Use FC's espnId first (more reliable), fall back to Sleeper's espn_id.
