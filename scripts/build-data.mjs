@@ -410,7 +410,8 @@ async function main() {
   let statTeamCount = 0;
   try {
     // nflverse → Sleeper team abbreviation differences
-    const NV_ABBR = { LA: 'LAR' };
+    // nflverse → Sleeper team abbreviation differences
+    const NV_ABBR = { LA: 'LAR', JAC: 'JAX' };
 
     // ── Bridge: players.csv  →  gsis_id → sleeper_id ────────────────────────
     const gsisBridge = {};
