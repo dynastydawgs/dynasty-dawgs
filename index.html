@@ -3922,7 +3922,7 @@ async function loadPlayerProfile(pid) {
             ${teamYpc !== null
               ? `<div class="pp-wl-card" style="border-left-color:${olProxyClass.color};">
                    <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">OL Proxy</span>
+                     <span class="pp-wl-card-label">Run Blocking</span>
                      <span class="pp-wl-card-cls" style="color:${olProxyClass.color};">${olProxyClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${olProxyClass.color};">${teamYpc}<span> ypc</span></div>
@@ -3930,14 +3930,14 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">OL Proxy</span></div>
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Run Blocking</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
                  </div>`}
             ${offRank !== null
               ? `<div class="pp-wl-card" style="border-left-color:${offRatingClass.color};">
                    <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">Off. Rating</span>
+                     <span class="pp-wl-card-label">Offense Rank</span>
                      <span class="pp-wl-card-cls" style="color:${offRatingClass.color};">${offRatingClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${offRatingClass.color};">#${offRank}<span>/32</span></div>
@@ -3954,7 +3954,7 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">Composite: yards/play + pts/game (ESPN live)</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Rating</span></div>
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Offense Rank</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
                  </div>`}
@@ -4182,7 +4182,7 @@ async function loadPlayerProfile(pid) {
             ${_curTeamYpc !== null
               ? `<div class="pp-wl-card" style="border-left-color:${_curOffRatCls.color};">
                    <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">OL Proxy</span>
+                     <span class="pp-wl-card-label">Run Blocking</span>
                      <span class="pp-wl-card-cls" style="color:${_curOffRatCls.color};">${_curTeamYpc >= 5.0 ? 'Elite OL' : _curTeamYpc >= 4.5 ? 'Strong OL' : _curTeamYpc >= 4.0 ? 'Average OL' : 'Weak OL'}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${_curOffRatCls.color};">${_curTeamYpc}<span> ypc</span></div>
@@ -4190,14 +4190,14 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">OL Proxy</span></div>
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Run Blocking</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
                  </div>`}
             ${_curOffRank !== null
               ? `<div class="pp-wl-card" style="border-left-color:${_curOffRatCls.color};">
                    <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">Off. Rating</span>
+                     <span class="pp-wl-card-label">Offense Rank</span>
                      <span class="pp-wl-card-cls" style="color:${_curOffRatCls.color};">${_curOffRatCls.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${_curOffRatCls.color};">#${_curOffRank}<span>/32</span></div>
@@ -4214,7 +4214,7 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">Composite: yards/play + pts/game (ESPN live)</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Off. Rating</span></div>
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Offense Rank</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
                  </div>`}
@@ -10584,10 +10584,10 @@ function _mbRenderTeamTable() {
         ${th('team','Team')}
         ${th('teamRunRate','Run Rate<br><span style="font-weight:400;color:var(--text-dim)">rush att/gm</span>')}
         ${th('teamPace',`Off. Plays/Gm<br><span style="font-weight:400;color:var(--text-dim)">${paceSubhead}</span>`)}
-        ${th('teamYpc','OL Proxy<br><span style="font-weight:400;color:var(--text-dim)">rush yd/att</span>')}
+        ${th('teamYpc','Run Blocking<br><span style="font-weight:400;color:var(--text-dim)">rush yd/att</span>')}
         ${th('teamPassRate','Pass Rate<br><span style="font-weight:400;color:var(--text-dim)">pass att/gm</span>')}
         ${th('carryConcentration','Carry Conc.<br><span style="font-weight:400;color:var(--text-dim)">top RB share</span>')}
-        ${th('offEfficiency','Off. Rating<br><span style="font-weight:400;color:var(--text-dim)">ypp + td composite</span>')}
+        ${th('offEfficiency','Offense Rank<br><span style="font-weight:400;color:var(--text-dim)">ypp + td composite</span>')}
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
