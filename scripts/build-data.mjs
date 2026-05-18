@@ -114,6 +114,23 @@ async function main() {
   const seasonMaps    = {};
   HIST_SEASONS.forEach((yr, i) => { seasonMaps[yr] = seasonResults[i] || {}; });
   progress(40, `${HIST_SEASONS.length} seasons loaded`);
+
+  // ── DEBUG: inspect Sleeper API response shape ────────────────────────────
+  {
+    const sampleYr  = HIST_SEASONS.at(-2) ?? HIST_SEASONS.at(-1); // e.g. 2024
+    const sampleMap = seasonMaps[sampleYr] ?? {};
+    const entries   = Object.entries(sampleMap);
+    console.log(`  [DEBUG] Season ${sampleYr}: ${entries.length} entries`);
+    if (entries.length > 0) {
+      const [pid, stats] = entries[0];
+      console.log(`  [DEBUG] Sample pid="${pid}", keys: ${Object.keys(stats).slice(0, 15).join(', ')}`);
+      console.log(`  [DEBUG] pts_ppr=${stats.pts_ppr}, gms_active=${stats.gms_active}, gp=${stats.gp}, pos=${stats.pos}`);
+    } else {
+      // Response may be an array instead of a pid-keyed object
+      console.log(`  [DEBUG] Raw type: ${typeof sampleMap}, isArray: ${Array.isArray(sampleMap)}`);
+      console.log(`  [DEBUG] Raw (first 200 chars): ${JSON.stringify(sampleMap).slice(0, 200)}`);
+    }
+  }
   console.log();
 
   // ── Step 3: Build careerDB ────────────────────────────────────────────────
