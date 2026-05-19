@@ -3805,7 +3805,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts')}
+                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts', 'AVG')}
                    <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · ${gp} gp${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4114,7 +4114,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts')}
+                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts', 'AVG')}
                    <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
