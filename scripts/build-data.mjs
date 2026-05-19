@@ -645,32 +645,39 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, dnI, idI] =
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, dnI, pidI, napiI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
            'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id',
-           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown', 'down', 'id']
+           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown', 'down', 'play_id', 'nfl_api_id']
           .map(h => hdrs.indexOf(h));
-        // 'id' column = "{old_game_id}_{old_play_id}" (e.g. "202409050phi_40").
-        // Participation play_id uses the same old sequential-40 format so we join via
-        // the old play_id extracted from 'id', not PBP's new-format 'play_id' column.
-        let _idSampleLogged = false;
+        // Diagnostic: log play_id and nfl_api_id for the first 3rd-down play to identify
+        // which column matches participation's play_id format (old sequential: 40, 80, 120...).
+        let _diagLogged = false;
+        // Also collect all PBP play_ids for one sample game to compare with participation.
+        let _sampleGame = null;
+        const _pbpPids = [];
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
           if (v[stI] !== 'REG') continue;
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
 
-          // Track 3rd-down plays for participation join + per-game team totals for snap% denominator.
-          // Use old play_id from 'id' col (last _-separated segment) to match participation's format.
-          if (dnI >= 0 && v[dnI] === '3' && idI >= 0 && gameId) {
-            const idVal  = v[idI]?.trim() ?? '';
-            const oldPid = parseInt(idVal.split('_').pop(), 10);
-            if (!_idSampleLogged && idVal) {
-              console.log(`  PBP 'id' sample (3rd down): "${idVal}" → oldPid=${oldPid}`);
-              _idSampleLogged = true;
+          // Collect first 20 play_ids for first REG game (all plays, not just 3rd-down)
+          if (pidI >= 0 && gameId && _pbpPids.length < 20) {
+            if (!_sampleGame) _sampleGame = gameId;
+            if (gameId === _sampleGame) _pbpPids.push(parseInt(v[pidI], 10));
+          }
+
+          // Track 3rd-down plays using PBP play_id; also log nfl_api_id for comparison.
+          if (dnI >= 0 && v[dnI] === '3' && pidI >= 0 && gameId) {
+            const pid3 = parseInt(v[pidI], 10);
+            if (!_diagLogged && gameId) {
+              const napi = napiI >= 0 ? v[napiI]?.trim() : 'n/a';
+              console.log(`  PBP 3rd-down diag — play_id=${pid3}, nfl_api_id="${napi}"`);
+              _diagLogged = true;
             }
-            if (!isNaN(oldPid)) {
+            if (!isNaN(pid3)) {
               if (!thirdDownMap.has(gameId)) thirdDownMap.set(gameId, new Set());
-              thirdDownMap.get(gameId).add(oldPid);
+              thirdDownMap.get(gameId).add(pid3);
             }
             const pteam3 = pteamI >= 0 ? v[pteamI]?.trim() : null;
             if (pteam3) {
@@ -729,6 +736,7 @@ async function main() {
         }
         console.log(`  PBP success: ${Object.keys(successByGsis).length} players`);
         console.log(`  PBP workload: ${Object.keys(workloadByGsis).length} players tracked`);
+        console.log(`  PBP sample game ${_sampleGame}: first 20 play_ids = [${_pbpPids.join(', ')}]`);
       }
     } catch(e) { console.warn('\n  ⚠️  PBP fetch failed:', e.message); }
 
@@ -749,11 +757,13 @@ async function main() {
         const offI  = hdrs.indexOf('offense_players');
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
           let _firstMatchLogged = false;
+          const _partPids = [];  // first 20 play_ids from _sampleGame for comparison
           for (const line of lines.slice(1)) {
             const v      = parseCSVLine(line);
             const gameId = v[pgidI]?.trim();
             const pid    = parseInt(v[ppidI], 10);
             if (!gameId || isNaN(pid)) continue;
+            if (_partPids.length < 20 && gameId === _sampleGame) _partPids.push(pid);
             if (!thirdDownMap.has(gameId)) continue;
             if (!thirdDownMap.get(gameId).has(pid)) continue;
             const players = (v[offI] ?? '').trim().split(/\s+/).filter(Boolean);
@@ -767,6 +777,7 @@ async function main() {
               thirdDownSnapsByGsis[gsis] = (thirdDownSnapsByGsis[gsis] ?? 0) + 1;
             }
           }
+          console.log(`  Part sample game ${_sampleGame}: first 20 play_ids = [${_partPids.join(', ')}]`);
         } else {
           console.warn(`  ⚠️  Participation: missing required columns. Headers: ${hdrs.join(', ')}`);
         }
