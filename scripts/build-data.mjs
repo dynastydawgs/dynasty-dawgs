@@ -642,7 +642,9 @@ async function main() {
       const pbpRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
       );
-      if (pbpRes.ok) {
+      if (!pbpRes.ok) {
+        console.warn(`  ⚠️  PBP fetch returned HTTP ${pbpRes.status} for play_by_play_${recentYr}.csv`);
+      } else {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
         const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, dnI, pidI] =
