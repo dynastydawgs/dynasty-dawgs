@@ -729,8 +729,11 @@ async function main() {
       if (partRes.ok) {
         const lines = (await partRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [pgidI, ppidI, offI] = ['game_id', 'play_id', 'offense_players']
-          .map(h => hdrs.indexOf(h));
+        // nflverse participation uses 'nflverse_game_id' in some releases, 'game_id' in others
+        const pgidI = ['nflverse_game_id', 'game_id'].reduce((found, col) => found >= 0 ? found : hdrs.indexOf(col), -1);
+        const ppidI = hdrs.indexOf('play_id');
+        const offI  = hdrs.indexOf('offense_players');
+        console.log(`  Participation headers sample: ${hdrs.slice(0,8).join(', ')} | game_id col: ${pgidI} play_id col: ${ppidI} offense_players col: ${offI}`);
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
           for (const line of lines.slice(1)) {
             const v      = parseCSVLine(line);
@@ -744,8 +747,12 @@ async function main() {
               thirdDownSnapsByGsis[gsis] = (thirdDownSnapsByGsis[gsis] ?? 0) + 1;
             }
           }
+        } else {
+          console.warn(`  ⚠️  Participation: could not find required columns in headers: ${hdrs.join(', ')}`);
         }
         console.log(`  3rd-down snaps: ${Object.keys(thirdDownSnapsByGsis).length} RBs tracked (${thirdDownKeys.size} 3rd-down plays)`);
+      } else {
+        console.warn(`  ⚠️  Participation fetch returned ${partRes.status}`);
       }
     } catch(e) { console.warn('\n  ⚠️  Participation fetch failed:', e.message); }
 
