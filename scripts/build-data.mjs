@@ -636,7 +636,7 @@ async function main() {
     const workloadByGsis       = {}; // gsis_id → { carries, rzCarries, rushYds, tgts, rec, gameIds, team }
     const teamCarriesPerGame   = {}; // gameId → { posteam → total rush attempts (incl. QB) }
     const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
-    const teamThirdDownPlays   = {}; // posteam → total REG 3rd-down plays (denominator for snap%)
+    const teamThirdDownPlaysPerGame = {}; // gameId → { posteam → 3rd-down play count } (denominator for snap%)
     const thirdDownKeys        = new Set(); // `${game_id}_${play_id}` for REG 3rd-down plays
     try {
       const pbpRes = await fetch(
@@ -655,11 +655,14 @@ async function main() {
           if (v[stI] !== 'REG') continue;
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
 
-          // Track 3rd-down play keys for participation join + team totals for snap% denominator
+          // Track 3rd-down play keys for participation join + per-game team totals for snap% denominator
           if (dnI >= 0 && v[dnI] === '3' && pidI >= 0 && gameId) {
             thirdDownKeys.add(`${gameId}_${v[pidI]?.trim()}`);
             const pteam3 = pteamI >= 0 ? v[pteamI]?.trim() : null;
-            if (pteam3) teamThirdDownPlays[pteam3] = (teamThirdDownPlays[pteam3] ?? 0) + 1;
+            if (pteam3) {
+              if (!teamThirdDownPlaysPerGame[gameId]) teamThirdDownPlaysPerGame[gameId] = {};
+              teamThirdDownPlaysPerGame[gameId][pteam3] = (teamThirdDownPlaysPerGame[gameId][pteam3] ?? 0) + 1;
+            }
           }
 
           if (v[raI] === '1') {
@@ -801,16 +804,18 @@ async function main() {
     }
     console.log(`  RZ TD rate: ${Object.keys(rzTdRateMap).length} players`);
 
-    // Build thirdDownSnapPctMap: normKey → snap% (player 3rd-dn snaps / team total 3rd-dn plays)
+    // Build thirdDownSnapPctMap: normKey → snap% (player 3rd-dn snaps / team 3rd-dn plays
+    // in games the player actually appeared in — same denominator pattern as carry share).
     // Min 5 snaps to exclude garbage-time / injury-limited players.
     const thirdDownSnapPctMap = {};
     for (const [gsis, snaps] of Object.entries(thirdDownSnapsByGsis)) {
       if (snaps < 5) continue;
-      const nk   = gsisToNormName[gsis];
+      const nk = gsisToNormName[gsis];
       if (!nk) continue;
-      const team = workloadByGsis[gsis]?.team;
-      if (!team) continue;
-      const teamTotal = teamThirdDownPlays[team] ?? 0;
+      const d = workloadByGsis[gsis];
+      if (!d?.team) continue;
+      const teamTotal = [...d.gameIds].reduce((sum, gid) =>
+        sum + (teamThirdDownPlaysPerGame[gid]?.[d.team] ?? 0), 0);
       if (teamTotal < 1) continue;
       thirdDownSnapPctMap[nk] = Math.round(snaps / teamTotal * 1000) / 10;
     }
