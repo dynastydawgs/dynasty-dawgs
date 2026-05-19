@@ -638,6 +638,9 @@ async function main() {
     const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
     const teamThirdDownPlaysPerGame = {}; // gameId → { posteam → 3rd-down play count } (denominator for snap%)
     const thirdDownMap         = new Map(); // game_id → Set<play_id (int)> for REG 3rd-down plays
+    // Diagnostic variables shared between PBP and participation blocks
+    let _sampleGame = null;
+    const _pbpPids  = [];
     try {
       const pbpRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
@@ -653,9 +656,6 @@ async function main() {
         // Diagnostic: log play_id and nfl_api_id for the first 3rd-down play to identify
         // which column matches participation's play_id format (old sequential: 40, 80, 120...).
         let _diagLogged = false;
-        // Also collect all PBP play_ids for one sample game to compare with participation.
-        let _sampleGame = null;
-        const _pbpPids = [];
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
           if (v[stI] !== 'REG') continue;
