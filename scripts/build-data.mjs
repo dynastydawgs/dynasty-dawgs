@@ -638,9 +638,6 @@ async function main() {
     const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
     const teamThirdDownPlaysPerGame = {}; // gameId → { posteam → 3rd-down play count } (denominator for snap%)
     const thirdDownMap         = new Map(); // game_id → Set<play_id (int)> for REG 3rd-down plays
-    // Diagnostic variables shared between PBP and participation blocks
-    let _sampleGame = null;
-    const _pbpPids  = [];
     try {
       const pbpRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
@@ -648,33 +645,19 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, dnI, pidI, napiI] =
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, dnI, pidI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
            'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id',
-           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown', 'down', 'play_id', 'nfl_api_id']
+           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown', 'down', 'play_id']
           .map(h => hdrs.indexOf(h));
-        // Diagnostic: log play_id and nfl_api_id for the first 3rd-down play to identify
-        // which column matches participation's play_id format (old sequential: 40, 80, 120...).
-        let _diagLogged = false;
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
           if (v[stI] !== 'REG') continue;
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
 
-          // Collect first 20 play_ids for first REG game (all plays, not just 3rd-down)
-          if (pidI >= 0 && gameId && _pbpPids.length < 20) {
-            if (!_sampleGame) _sampleGame = gameId;
-            if (gameId === _sampleGame) _pbpPids.push(parseInt(v[pidI], 10));
-          }
-
-          // Track 3rd-down plays using PBP play_id; also log nfl_api_id for comparison.
+          // Track 3rd-down plays for participation join + per-game team totals for snap% denominator
           if (dnI >= 0 && v[dnI] === '3' && pidI >= 0 && gameId) {
             const pid3 = parseInt(v[pidI], 10);
-            if (!_diagLogged && gameId) {
-              const napi = napiI >= 0 ? v[napiI]?.trim() : 'n/a';
-              console.log(`  PBP 3rd-down diag — play_id=${pid3}, nfl_api_id="${napi}"`);
-              _diagLogged = true;
-            }
             if (!isNaN(pid3)) {
               if (!thirdDownMap.has(gameId)) thirdDownMap.set(gameId, new Set());
               thirdDownMap.get(gameId).add(pid3);
@@ -734,9 +717,7 @@ async function main() {
             }
           }
         }
-        console.log(`  PBP success: ${Object.keys(successByGsis).length} players`);
-        console.log(`  PBP workload: ${Object.keys(workloadByGsis).length} players tracked`);
-        console.log(`  PBP sample game ${_sampleGame}: first 20 play_ids = [${_pbpPids.join(', ')}]`);
+        console.log(`  PBP: ${Object.keys(successByGsis).length} players w/ success rate, ${Object.keys(workloadByGsis).length} w/ workload`);
       }
     } catch(e) { console.warn('\n  ⚠️  PBP fetch failed:', e.message); }
 
@@ -756,31 +737,19 @@ async function main() {
         const ppidI = hdrs.indexOf('play_id');
         const offI  = hdrs.indexOf('offense_players');
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
-          let _firstMatchLogged = false;
-          const _partPids = [];  // first 20 play_ids from _sampleGame for comparison
           for (const line of lines.slice(1)) {
             const v      = parseCSVLine(line);
             const gameId = v[pgidI]?.trim();
             const pid    = parseInt(v[ppidI], 10);
             if (!gameId || isNaN(pid)) continue;
-            if (_partPids.length < 20 && gameId === _sampleGame) _partPids.push(pid);
             if (!thirdDownMap.has(gameId)) continue;
             if (!thirdDownMap.get(gameId).has(pid)) continue;
             const players = (v[offI] ?? '').trim().split(';').filter(Boolean);
-            if (!_firstMatchLogged) {
-              const rbCount = players.filter(g => gsisToPos[g] === 'RB').length;
-              const raw = (v[offI] ?? '').slice(0, 120);
-              console.log(`  First participation match: game=${gameId}, pid=${pid}, players=${players.length}, rbs=${rbCount}`);
-              console.log(`  offense_players raw: "${raw}"`);
-              console.log(`  players[0]="${players[0]}" gsisToPos="${gsisToPos[players[0]]}"`);
-              _firstMatchLogged = true;
-            }
             for (const gsis of players) {
               if (gsisToPos[gsis] !== 'RB') continue;
               thirdDownSnapsByGsis[gsis] = (thirdDownSnapsByGsis[gsis] ?? 0) + 1;
             }
           }
-          console.log(`  Part sample game ${_sampleGame}: first 20 play_ids = [${_partPids.join(', ')}]`);
         } else {
           console.warn(`  ⚠️  Participation: missing required columns. Headers: ${hdrs.join(', ')}`);
         }
