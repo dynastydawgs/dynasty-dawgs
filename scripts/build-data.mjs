@@ -1,4 +1,4 @@
-// scripts/build-data.mjs
+// scripts/build-data.mjs  [v2-id-join]
 // Pre-builds static JSON files served from data/ on GitHub Pages.
 // Run locally:  node scripts/build-data.mjs
 // Also runs automatically every Tuesday via .github/workflows/build-data.yml
@@ -645,25 +645,32 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        // Log play_id-related columns to spot old_play_id or alternate fields
-        console.log(`  PBP play_id cols: ${hdrs.filter(h => h.includes('play') || h.includes('id')).join(', ')}`);
-        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, pidI, dnI] =
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, dnI, idI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
            'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id',
-           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown', 'play_id', 'down']
+           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown', 'down', 'id']
           .map(h => hdrs.indexOf(h));
+        // 'id' column = "{old_game_id}_{old_play_id}" (e.g. "202409050phi_40").
+        // Participation play_id uses the same old sequential-40 format so we join via
+        // the old play_id extracted from 'id', not PBP's new-format 'play_id' column.
+        let _idSampleLogged = false;
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
           if (v[stI] !== 'REG') continue;
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
 
-          // Track 3rd-down plays for participation join + per-game team totals for snap% denominator
-          // Nested Map avoids composite-key ambiguity; play_id normalized to int.
-          if (dnI >= 0 && v[dnI] === '3' && pidI >= 0 && gameId) {
-            const pid3 = parseInt(v[pidI], 10);
-            if (!isNaN(pid3)) {
+          // Track 3rd-down plays for participation join + per-game team totals for snap% denominator.
+          // Use old play_id from 'id' col (last _-separated segment) to match participation's format.
+          if (dnI >= 0 && v[dnI] === '3' && idI >= 0 && gameId) {
+            const idVal  = v[idI]?.trim() ?? '';
+            const oldPid = parseInt(idVal.split('_').pop(), 10);
+            if (!_idSampleLogged && idVal) {
+              console.log(`  PBP 'id' sample (3rd down): "${idVal}" → oldPid=${oldPid}`);
+              _idSampleLogged = true;
+            }
+            if (!isNaN(oldPid)) {
               if (!thirdDownMap.has(gameId)) thirdDownMap.set(gameId, new Set());
-              thirdDownMap.get(gameId).add(pid3);
+              thirdDownMap.get(gameId).add(oldPid);
             }
             const pteam3 = pteamI >= 0 ? v[pteamI]?.trim() : null;
             if (pteam3) {
@@ -713,7 +720,7 @@ async function main() {
           if (paI >= 0 && v[paI] === '1') {
             const gsis = recvI >= 0 ? v[recvI]?.trim() : null;
             if (gsis) {
-              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
+              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rzTDs: 0, rushYds: 0, tgts: 0, rec: 0, gameIds: new Set(), team: null };
               workloadByGsis[gsis].tgts++;
               if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
               if (cpI >= 0 && v[cpI] === '1') workloadByGsis[gsis].rec++;
@@ -740,30 +747,21 @@ async function main() {
         const pgidI = ['nflverse_game_id', 'game_id'].reduce((found, col) => found >= 0 ? found : hdrs.indexOf(col), -1);
         const ppidI = hdrs.indexOf('play_id');
         const offI  = hdrs.indexOf('offense_players');
-        console.log(`  Participation ALL cols: ${hdrs.join(', ')}`);
-        console.log(`  PBP 3rd-down games: ${thirdDownMap.size}, sample games: ${[...thirdDownMap.keys()].slice(0,3).join(' | ')}`);
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
-          let _sampleLogged = false;
-          let _playLogLogged = false;
+          let _firstMatchLogged = false;
           for (const line of lines.slice(1)) {
             const v      = parseCSVLine(line);
             const gameId = v[pgidI]?.trim();
             const pid    = parseInt(v[ppidI], 10);
             if (!gameId || isNaN(pid)) continue;
-            if (!_sampleLogged) {
-              const gameMatch = thirdDownMap.has(gameId);
-              console.log(`  Part sample — game: "${gameId}" (in PBP: ${gameMatch}) pid: ${pid}`);
-              _sampleLogged = true;
-            }
             if (!thirdDownMap.has(gameId)) continue;
-            // Log play ID comparison for the first matched game
-            if (!_playLogLogged) {
-              const pbpPids = [...thirdDownMap.get(gameId)].slice(0, 8).sort((a,b) => a-b);
-              console.log(`  Play ID compare — game: ${gameId} | Part pid: ${pid} | PBP 3rd-dn pids: [${pbpPids.join(', ')}]`);
-              _playLogLogged = true;
-            }
             if (!thirdDownMap.get(gameId).has(pid)) continue;
             const players = (v[offI] ?? '').trim().split(/\s+/).filter(Boolean);
+            if (!_firstMatchLogged) {
+              const rbCount = players.filter(g => gsisToPos[g] === 'RB').length;
+              console.log(`  First participation match: game=${gameId}, pid=${pid}, players=${players.length}, rbs=${rbCount}`);
+              _firstMatchLogged = true;
+            }
             for (const gsis of players) {
               if (gsisToPos[gsis] !== 'RB') continue;
               thirdDownSnapsByGsis[gsis] = (thirdDownSnapsByGsis[gsis] ?? 0) + 1;
@@ -982,7 +980,7 @@ async function main() {
       const _ypcVals    = rbBenchRows.map(r => r.ypc).filter(v => v != null);
       avgRbYpc          = _ypcVals.length >= 5 ? Math.round(_ypcVals.reduce((s, v) => s + v, 0) / _ypcVals.length * 10) / 10 : 4.3;
       avgRbYpcN         = _ypcVals.length;
-      const _rzTdVals   = rbBenchRows.map(r => r.rzTdRate).filter(v => v != null);
+      const _rzTdVals   = rbBenchRows.map(r => r.rzTdRate).filter(v => v != null && !isNaN(v));
       avgRbRzTdRate     = _rzTdVals.length >= 5 ? Math.round(_rzTdVals.reduce((s, v) => s + v, 0) / _rzTdVals.length * 10) / 10 : 17.0;
       console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
       console.log(`  Efficiency bench (mean) — ypc: ${avgRbYpc} · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt} · rz td rate: ${avgRbRzTdRate}% · 3rd-dn snaps: ${avgRbThirdDownSnaps}`);
