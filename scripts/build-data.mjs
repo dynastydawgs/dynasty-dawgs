@@ -205,7 +205,7 @@ async function main() {
   let avgRbRzTdRate       = 17.0; // mean RZ TD rate % (TDs / RZ carries) among top-32 RBs
   let avgRbSuccessPct     = 41.0; // mean success rate % among top-32 RBs
   let avgRbMtfPerAtt      = 0.063;// mean missed tackles forced per attempt among top-32 RBs
-  let avgRbThirdDownSnaps = 30.0; // mean 3rd-down snaps on field among top-32 RBs
+  let avgRbThirdDownSnaps = 30.0; // mean 3rd-down snap % (player snaps / team 3rd-dn plays) among top-32 RBs
   // RB efficiency benchmarks — seeded with estimates, updated below.
   let avgRbYpc         =  4.3;   // avg yards/carry (from PBP, same top-64 pool)
   let avgRbYpcN        =  0;
@@ -636,6 +636,7 @@ async function main() {
     const workloadByGsis       = {}; // gsis_id → { carries, rzCarries, rushYds, tgts, rec, gameIds, team }
     const teamCarriesPerGame   = {}; // gameId → { posteam → total rush attempts (incl. QB) }
     const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
+    const teamThirdDownPlays   = {}; // posteam → total REG 3rd-down plays (denominator for snap%)
     const thirdDownKeys        = new Set(); // `${game_id}_${play_id}` for REG 3rd-down plays
     try {
       const pbpRes = await fetch(
@@ -654,9 +655,11 @@ async function main() {
           if (v[stI] !== 'REG') continue;
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
 
-          // Track 3rd-down play keys for participation join
+          // Track 3rd-down play keys for participation join + team totals for snap% denominator
           if (dnI >= 0 && v[dnI] === '3' && pidI >= 0 && gameId) {
             thirdDownKeys.add(`${gameId}_${v[pidI]?.trim()}`);
+            const pteam3 = pteamI >= 0 ? v[pteamI]?.trim() : null;
+            if (pteam3) teamThirdDownPlays[pteam3] = (teamThirdDownPlays[pteam3] ?? 0) + 1;
           }
 
           if (v[raI] === '1') {
@@ -798,32 +801,37 @@ async function main() {
     }
     console.log(`  RZ TD rate: ${Object.keys(rzTdRateMap).length} players`);
 
-    // Build thirdDownSnapsMap: normKey → snap count (RBs with ≥5 snaps)
-    const thirdDownSnapsMap = {};
+    // Build thirdDownSnapPctMap: normKey → snap% (player 3rd-dn snaps / team total 3rd-dn plays)
+    // Min 5 snaps to exclude garbage-time / injury-limited players.
+    const thirdDownSnapPctMap = {};
     for (const [gsis, snaps] of Object.entries(thirdDownSnapsByGsis)) {
       if (snaps < 5) continue;
-      const nk = gsisToNormName[gsis];
+      const nk   = gsisToNormName[gsis];
       if (!nk) continue;
-      thirdDownSnapsMap[nk] = snaps;
+      const team = workloadByGsis[gsis]?.team;
+      if (!team) continue;
+      const teamTotal = teamThirdDownPlays[team] ?? 0;
+      if (teamTotal < 1) continue;
+      thirdDownSnapPctMap[nk] = Math.round(snaps / teamTotal * 1000) / 10;
     }
-    console.log(`  3rd-down snap map: ${Object.keys(thirdDownSnapsMap).length} qualified RBs`);
+    console.log(`  3rd-down snap%: ${Object.keys(thirdDownSnapPctMap).length} qualified RBs`);
 
     // ── 5b. Merge into advstatsDB keyed by canonical display name ─────────────
     const allNormKeys = new Set([
       ...Object.keys(mtfMap), ...Object.keys(successMap),
       ...Object.keys(carryShareMap), ...Object.keys(rzCarryShareMap),
-      ...Object.keys(rzTdRateMap), ...Object.keys(thirdDownSnapsMap),
+      ...Object.keys(rzTdRateMap), ...Object.keys(thirdDownSnapPctMap),
     ]);
     for (const nk of allNormKeys) {
       const entry = {};
-      if (mtfMap[nk])              Object.assign(entry, mtfMap[nk]);
-      if (successMap[nk])          entry.successPct      = successMap[nk];
-      if (carryShareMap[nk])       entry.carryShare      = carryShareMap[nk];
-      if (rzCarryShareMap[nk])     entry.rzCarryShare    = rzCarryShareMap[nk];
-      if (rzCarriesMap[nk])        entry.rzCarries       = rzCarriesMap[nk];
-      if (rzTdRateMap[nk])         entry.rzTdRate        = rzTdRateMap[nk];
-      if (rzTdMap[nk])             entry.rzTDs           = rzTdMap[nk];
-      if (thirdDownSnapsMap[nk])   entry.thirdDownSnaps  = thirdDownSnapsMap[nk];
+      if (mtfMap[nk])                Object.assign(entry, mtfMap[nk]);
+      if (successMap[nk])            entry.successPct        = successMap[nk];
+      if (carryShareMap[nk])         entry.carryShare        = carryShareMap[nk];
+      if (rzCarryShareMap[nk])       entry.rzCarryShare      = rzCarryShareMap[nk];
+      if (rzCarriesMap[nk])          entry.rzCarries         = rzCarriesMap[nk];
+      if (rzTdRateMap[nk])           entry.rzTdRate          = rzTdRateMap[nk];
+      if (rzTdMap[nk])               entry.rzTDs             = rzTdMap[nk];
+      if (thirdDownSnapPctMap[nk])   entry.thirdDownSnapPct  = thirdDownSnapPctMap[nk];
       if (!Object.keys(entry).length) continue;
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
@@ -908,7 +916,7 @@ async function main() {
           rzTdRate:       nk ? (rzTdRateMap[nk] ?? null) : null,
           successPct:        nk ? (successMap[nk] ?? null) : null,
           mtfPerAtt:         nk ? (mtfMap[nk]?.mtfPerAtt ?? null) : null,
-          thirdDownSnaps:    thirdDownSnapsMap[nk] ?? null,
+          thirdDownSnapPct:  nk ? (thirdDownSnapPctMap[nk] ?? null) : null,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -934,7 +942,7 @@ async function main() {
       avgRbSuccessPct   = _sucVals.length >= 5 ? Math.round(_sucVals.reduce((s, v) => s + v, 0) / _sucVals.length * 10) / 10 : 41.0;
       const _mtfVals    = rbBenchRows.map(r => r.mtfPerAtt).filter(v => v != null);
       avgRbMtfPerAtt    = _mtfVals.length >= 5 ? Math.round(_mtfVals.reduce((s, v) => s + v, 0) / _mtfVals.length * 1000) / 1000 : 0.063;
-      const _tdSnapVals = rbBenchRows.map(r => r.thirdDownSnaps).filter(v => v != null);
+      const _tdSnapVals = rbBenchRows.map(r => r.thirdDownSnapPct).filter(v => v != null);
       avgRbThirdDownSnaps = _tdSnapVals.length >= 5 ? Math.round(_tdSnapVals.reduce((s, v) => s + v, 0) / _tdSnapVals.length * 10) / 10 : 30.0;
       // YPC + RZ TD rate are efficiency metrics — use mean
       const _ypcVals    = rbBenchRows.map(r => r.ypc).filter(v => v != null);

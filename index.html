@@ -3552,13 +3552,13 @@ async function loadPlayerProfile(pid) {
       : rzTdRate >= 12 ? {label:'Average',         color:'var(--orange)' }
       :                  {label:'Below Avg',       color:'var(--red)'    };
 
-    // ── 3rd-down snaps (participation file, advstatsdb.json) ────────────────
-    const thirdDownSnaps = _advEntry?.thirdDownSnaps ?? null;
-    const tdSnapsClass   = thirdDownSnaps === null ? {label:'No Data',       color:'var(--text-dim)'}
-      : thirdDownSnaps >= 50 ? {label:'3rd-Down Specialist', color:'var(--green)'  }
-      : thirdDownSnaps >= 30 ? {label:'Featured',            color:'var(--accent)'   }
-      : thirdDownSnaps >= 15 ? {label:'Rotational',          color:'var(--orange)' }
-      :                        {label:'Limited',             color:'var(--red)'    };
+    // ── 3rd-down snap% (player 3rd-dn snaps / team total 3rd-dn plays, advstatsdb.json) ──
+    const thirdDownSnapPct = _advEntry?.thirdDownSnapPct ?? null;
+    const tdSnapsClass     = thirdDownSnapPct === null ? {label:'No Data',            color:'var(--text-dim)'}
+      : thirdDownSnapPct >= 55 ? {label:'3rd-Down Specialist', color:'var(--green)'  }
+      : thirdDownSnapPct >= 40 ? {label:'Featured',            color:'var(--accent)'   }
+      : thirdDownSnapPct >= 25 ? {label:'Rotational',          color:'var(--orange)' }
+      :                          {label:'Limited',             color:'var(--red)'    };
 
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
     // Efficiency: YPC 40% · Pts/Touch 35% · First Down Rate 25%
@@ -3913,15 +3913,15 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
                  </div>`
               : ''}
-            ${thirdDownSnaps !== null
+            ${thirdDownSnapPct !== null
               ? `<div class="pp-wl-card" style="border-left-color:${tdSnapsClass.color};">
                    <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">3rd Down Snaps</span>
+                     <span class="pp-wl-card-label">3rd Down Snap %</span>
                      <span class="pp-wl-card-cls" style="color:${tdSnapsClass.color};">${tdSnapsClass.label}</span>
                    </div>
-                   <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnaps}<span> snaps</span></div>
-                   ${mkBarVal(thirdDownSnaps, 80, avgRbThirdDownSnaps, tdSnapsClass.color, '', 'AVG')}
-                   <div class="pp-wl-card-sub">snaps on field on 3rd down · 2025 season · nflverse participation</div>
+                   <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnapPct}<span>%</span></div>
+                   ${mkBar(thirdDownSnapPct, 100, avgRbThirdDownSnaps, tdSnapsClass.color, 'AVG')}
+                   <div class="pp-wl-card-sub">% of team 3rd-down plays on field · normalizes for games + pace · nflverse participation</div>
                  </div>`
               : ''}
             ${snapCard}
@@ -4232,15 +4232,15 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
                  </div>`
               : ''}
-            ${thirdDownSnaps !== null
+            ${thirdDownSnapPct !== null
               ? `<div class="pp-wl-card" style="border-left-color:${tdSnapsClass.color};">
                    <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">3rd Down Snaps</span>
+                     <span class="pp-wl-card-label">3rd Down Snap %</span>
                      <span class="pp-wl-card-cls" style="color:${tdSnapsClass.color};">${tdSnapsClass.label}</span>
                    </div>
-                   <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnaps}<span> snaps</span></div>
-                   ${mkBarVal(thirdDownSnaps, 80, avgRbThirdDownSnaps, tdSnapsClass.color, '', 'AVG')}
-                   <div class="pp-wl-card-sub">snaps on field on 3rd down · 2025 season · nflverse participation</div>
+                   <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnapPct}<span>%</span></div>
+                   ${mkBar(thirdDownSnapPct, 100, avgRbThirdDownSnaps, tdSnapsClass.color, 'AVG')}
+                   <div class="pp-wl-card-sub">% of team 3rd-down plays on field · normalizes for games + pace · nflverse participation</div>
                  </div>`
               : ''}
             ${snapCard}
@@ -5272,7 +5272,7 @@ let avgTeamRunRate     = 41.0;   // avg team run rate %
 let avgTeamYpc         =  4.2;   // avg team rush yards/attempt
 let avgRbSuccessPct      = 41.0;   // mean success rate % (top-32 RBs by carries)
 let avgRbMtfPerAtt       =  0.063; // mean missed tackles forced per attempt (top-32 RBs)
-let avgRbThirdDownSnaps  = 30.0;   // mean 3rd-down snaps on field (top-32 RBs by carries)
+let avgRbThirdDownSnaps  = 30.0;   // mean 3rd-down snap % (player snaps / team 3rd-dn plays, top-32 RBs)
 // RB efficiency benchmarks — seeded with estimates, overridden by benchmarks.json
 let avgRbYpc         =  4.3;   // avg yards/carry (top-64 RBs, recentYr PBP)
 let avgRbYpcN        =  0;     // sample count
