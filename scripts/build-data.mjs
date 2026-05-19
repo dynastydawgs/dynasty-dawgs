@@ -656,8 +656,9 @@ async function main() {
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
 
           // Track 3rd-down play keys for participation join + per-game team totals for snap% denominator
+          // Normalize play_id to integer string to handle PBP "36" vs participation "36.0"
           if (dnI >= 0 && v[dnI] === '3' && pidI >= 0 && gameId) {
-            thirdDownKeys.add(`${gameId}_${v[pidI]?.trim()}`);
+            thirdDownKeys.add(`${gameId}_${String(parseInt(v[pidI], 10))}`);
             const pteam3 = pteamI >= 0 ? v[pteamI]?.trim() : null;
             if (pteam3) {
               if (!teamThirdDownPlaysPerGame[gameId]) teamThirdDownPlaysPerGame[gameId] = {};
@@ -735,11 +736,19 @@ async function main() {
         const offI  = hdrs.indexOf('offense_players');
         console.log(`  Participation headers sample: ${hdrs.slice(0,8).join(', ')} | game_id col: ${pgidI} play_id col: ${ppidI} offense_players col: ${offI}`);
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
+          let _sampleLogged = false;
           for (const line of lines.slice(1)) {
             const v      = parseCSVLine(line);
             const gameId = v[pgidI]?.trim();
-            const playId = v[ppidI]?.trim();
-            if (!gameId || !playId) continue;
+            const rawPid = v[ppidI]?.trim();
+            const playId = String(parseInt(rawPid, 10));
+            if (!gameId || !playId || playId === 'NaN') continue;
+            // Log one sample key from each side so we can diagnose future mismatches
+            if (!_sampleLogged && thirdDownKeys.size > 0) {
+              const samplePbp  = [...thirdDownKeys][0];
+              console.log(`  Join sample — PBP key: "${samplePbp}" | Part key: "${gameId}_${playId}"`);
+              _sampleLogged = true;
+            }
             if (!thirdDownKeys.has(`${gameId}_${playId}`)) continue;
             const players = (v[offI] ?? '').trim().split(/\s+/).filter(Boolean);
             for (const gsis of players) {
