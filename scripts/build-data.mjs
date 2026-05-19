@@ -637,7 +637,7 @@ async function main() {
     const teamCarriesPerGame   = {}; // gameId → { posteam → total rush attempts (incl. QB) }
     const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
     const teamThirdDownPlaysPerGame = {}; // gameId → { posteam → 3rd-down play count } (denominator for snap%)
-    const thirdDownKeys        = new Set(); // `${game_id}_${play_id}` for REG 3rd-down plays
+    const thirdDownMap         = new Map(); // game_id → Set<play_id (int)> for REG 3rd-down plays
     try {
       const pbpRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
@@ -655,10 +655,14 @@ async function main() {
           if (v[stI] !== 'REG') continue;
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
 
-          // Track 3rd-down play keys for participation join + per-game team totals for snap% denominator
-          // Normalize play_id to integer string to handle PBP "36" vs participation "36.0"
+          // Track 3rd-down plays for participation join + per-game team totals for snap% denominator
+          // Nested Map avoids composite-key ambiguity; play_id normalized to int.
           if (dnI >= 0 && v[dnI] === '3' && pidI >= 0 && gameId) {
-            thirdDownKeys.add(`${gameId}_${String(parseInt(v[pidI], 10))}`);
+            const pid3 = parseInt(v[pidI], 10);
+            if (!isNaN(pid3)) {
+              if (!thirdDownMap.has(gameId)) thirdDownMap.set(gameId, new Set());
+              thirdDownMap.get(gameId).add(pid3);
+            }
             const pteam3 = pteamI >= 0 ? v[pteamI]?.trim() : null;
             if (pteam3) {
               if (!teamThirdDownPlaysPerGame[gameId]) teamThirdDownPlaysPerGame[gameId] = {};
@@ -734,22 +738,22 @@ async function main() {
         const pgidI = ['nflverse_game_id', 'game_id'].reduce((found, col) => found >= 0 ? found : hdrs.indexOf(col), -1);
         const ppidI = hdrs.indexOf('play_id');
         const offI  = hdrs.indexOf('offense_players');
-        console.log(`  Participation headers sample: ${hdrs.slice(0,8).join(', ')} | game_id col: ${pgidI} play_id col: ${ppidI} offense_players col: ${offI}`);
+        console.log(`  Participation cols — game_id: ${pgidI} play_id: ${ppidI} offense_players: ${offI}`);
+        console.log(`  PBP 3rd-down games: ${thirdDownMap.size}, sample games: ${[...thirdDownMap.keys()].slice(0,3).join(' | ')}`);
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
           let _sampleLogged = false;
           for (const line of lines.slice(1)) {
             const v      = parseCSVLine(line);
             const gameId = v[pgidI]?.trim();
-            const rawPid = v[ppidI]?.trim();
-            const playId = String(parseInt(rawPid, 10));
-            if (!gameId || !playId || playId === 'NaN') continue;
-            // Log one sample key from each side so we can diagnose future mismatches
-            if (!_sampleLogged && thirdDownKeys.size > 0) {
-              const samplePbp  = [...thirdDownKeys][0];
-              console.log(`  Join sample — PBP key: "${samplePbp}" | Part key: "${gameId}_${playId}"`);
+            const pid    = parseInt(v[ppidI], 10);
+            if (!gameId || isNaN(pid)) continue;
+            if (!_sampleLogged) {
+              const gameMatch = thirdDownMap.has(gameId);
+              console.log(`  Part sample — game: "${gameId}" (in PBP: ${gameMatch}) pid: ${pid}`);
               _sampleLogged = true;
             }
-            if (!thirdDownKeys.has(`${gameId}_${playId}`)) continue;
+            if (!thirdDownMap.has(gameId)) continue;
+            if (!thirdDownMap.get(gameId).has(pid)) continue;
             const players = (v[offI] ?? '').trim().split(/\s+/).filter(Boolean);
             for (const gsis of players) {
               if (gsisToPos[gsis] !== 'RB') continue;
@@ -757,9 +761,9 @@ async function main() {
             }
           }
         } else {
-          console.warn(`  ⚠️  Participation: could not find required columns in headers: ${hdrs.join(', ')}`);
+          console.warn(`  ⚠️  Participation: missing required columns. Headers: ${hdrs.join(', ')}`);
         }
-        console.log(`  3rd-down snaps: ${Object.keys(thirdDownSnapsByGsis).length} RBs tracked (${thirdDownKeys.size} 3rd-down plays)`);
+        console.log(`  3rd-down snaps: ${Object.keys(thirdDownSnapsByGsis).length} RBs tracked (${thirdDownMap.size} games, ${[...thirdDownMap.values()].reduce((s,v)=>s+v.size,0)} plays)`);
       } else {
         console.warn(`  ⚠️  Participation fetch returned ${partRes.status}`);
       }
