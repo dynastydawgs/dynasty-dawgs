@@ -726,7 +726,8 @@ async function main() {
     // ── 3b. Participation → 3rd-down snaps on field per GSIS (RBs only) ────────
     // pbp_participation has one row per play with offense_players as space-separated GSIS IDs.
     // Join to PBP via game_id + play_id to filter REG 3rd-down plays only.
-    const thirdDownSnapsByGsis = {};  // gsis_id → count of REG 3rd-down snaps on field
+    const thirdDownSnapsByGsis  = {};  // gsis_id → count of REG 3rd-down snaps on field
+    const thirdDownGamesByGsis  = {};  // gsis_id → Set<gameId> games appeared in on 3rd down
     try {
       const partRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp_participation/pbp_participation_${recentYr}.csv`
@@ -750,6 +751,8 @@ async function main() {
             for (const gsis of players) {
               if (gsisToPos[gsis] !== 'RB') continue;
               thirdDownSnapsByGsis[gsis] = (thirdDownSnapsByGsis[gsis] ?? 0) + 1;
+              if (!thirdDownGamesByGsis[gsis]) thirdDownGamesByGsis[gsis] = new Set();
+              thirdDownGamesByGsis[gsis].add(gameId);
             }
           }
         } else {
@@ -826,7 +829,10 @@ async function main() {
       if (!nk) continue;
       const d = workloadByGsis[gsis];
       if (!d?.team) continue;
-      const teamTotal = [...d.gameIds].reduce((sum, gid) =>
+      // Use the games the player actually appeared in on 3rd down (from participation),
+      // not their PBP carry/target games — blocks without touches would inflate the %.
+      const snapGameIds = thirdDownGamesByGsis[gsis] ?? d.gameIds;
+      const teamTotal = [...snapGameIds].reduce((sum, gid) =>
         sum + (teamThirdDownPlaysPerGame[gid]?.[d.team] ?? 0), 0);
       if (teamTotal < 1) continue;
       thirdDownSnapPctMap[nk] = Math.round(snaps / teamTotal * 1000) / 10;
