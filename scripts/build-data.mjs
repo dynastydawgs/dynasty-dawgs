@@ -645,6 +645,8 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
+        // Log play_id-related columns to spot old_play_id or alternate fields
+        console.log(`  PBP play_id cols: ${hdrs.filter(h => h.includes('play') || h.includes('id')).join(', ')}`);
         const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, pidI, dnI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
            'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id',
@@ -738,7 +740,7 @@ async function main() {
         const pgidI = ['nflverse_game_id', 'game_id'].reduce((found, col) => found >= 0 ? found : hdrs.indexOf(col), -1);
         const ppidI = hdrs.indexOf('play_id');
         const offI  = hdrs.indexOf('offense_players');
-        console.log(`  Participation cols — game_id: ${pgidI} play_id: ${ppidI} offense_players: ${offI}`);
+        console.log(`  Participation ALL cols: ${hdrs.join(', ')}`);
         console.log(`  PBP 3rd-down games: ${thirdDownMap.size}, sample games: ${[...thirdDownMap.keys()].slice(0,3).join(' | ')}`);
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
           let _sampleLogged = false;
