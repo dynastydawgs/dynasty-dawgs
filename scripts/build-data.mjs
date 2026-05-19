@@ -742,6 +742,7 @@ async function main() {
         console.log(`  PBP 3rd-down games: ${thirdDownMap.size}, sample games: ${[...thirdDownMap.keys()].slice(0,3).join(' | ')}`);
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
           let _sampleLogged = false;
+          let _playLogLogged = false;
           for (const line of lines.slice(1)) {
             const v      = parseCSVLine(line);
             const gameId = v[pgidI]?.trim();
@@ -753,6 +754,12 @@ async function main() {
               _sampleLogged = true;
             }
             if (!thirdDownMap.has(gameId)) continue;
+            // Log play ID comparison for the first matched game
+            if (!_playLogLogged) {
+              const pbpPids = [...thirdDownMap.get(gameId)].slice(0, 8).sort((a,b) => a-b);
+              console.log(`  Play ID compare — game: ${gameId} | Part pid: ${pid} | PBP 3rd-dn pids: [${pbpPids.join(', ')}]`);
+              _playLogLogged = true;
+            }
             if (!thirdDownMap.get(gameId).has(pid)) continue;
             const players = (v[offI] ?? '').trim().split(/\s+/).filter(Boolean);
             for (const gsis of players) {
