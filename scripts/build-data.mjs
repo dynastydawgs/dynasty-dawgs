@@ -766,7 +766,7 @@ async function main() {
             if (_partPids.length < 20 && gameId === _sampleGame) _partPids.push(pid);
             if (!thirdDownMap.has(gameId)) continue;
             if (!thirdDownMap.get(gameId).has(pid)) continue;
-            const players = (v[offI] ?? '').trim().split(/\s+/).filter(Boolean);
+            const players = (v[offI] ?? '').trim().split(';').filter(Boolean);
             if (!_firstMatchLogged) {
               const rbCount = players.filter(g => gsisToPos[g] === 'RB').length;
               const raw = (v[offI] ?? '').slice(0, 120);
