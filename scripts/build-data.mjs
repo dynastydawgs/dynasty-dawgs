@@ -769,7 +769,10 @@ async function main() {
             const players = (v[offI] ?? '').trim().split(/\s+/).filter(Boolean);
             if (!_firstMatchLogged) {
               const rbCount = players.filter(g => gsisToPos[g] === 'RB').length;
+              const raw = (v[offI] ?? '').slice(0, 120);
               console.log(`  First participation match: game=${gameId}, pid=${pid}, players=${players.length}, rbs=${rbCount}`);
+              console.log(`  offense_players raw: "${raw}"`);
+              console.log(`  players[0]="${players[0]}" gsisToPos="${gsisToPos[players[0]]}"`);
               _firstMatchLogged = true;
             }
             for (const gsis of players) {
