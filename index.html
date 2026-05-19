@@ -3944,7 +3944,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${runRateClass.color};">${runRateClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${runRateClass.color};">${runRate}<span>%</span></div>
-                   ${mkBar(runRate, 60, 41, runRateClass.color)}
+                   ${mkBar(runRate, 60, avgTeamRunRate, runRateClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${runRate}% runs · ${passRate}% passes of ${offPlaysPg} plays/g</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -3958,7 +3958,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${teamVolClass.color};">${teamVolClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${teamVolClass.color};">${teamRushPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(teamRushPg, 38, 26, teamVolClass.color, '/g')}
+              ${mkBarVal(teamRushPg, 38, avgTeamRushPg, teamVolClass.color, '/g', 'AVG')}
               <div class="pp-wl-card-sub">${usingActualTeam ? `${statTeam ?? 'Team'} season rush att/game` : 'Using league avg (no team data)'}</div>
             </div>
             ${passAttPg !== null
@@ -3968,7 +3968,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${passVolClass.color};">${passVolClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${passVolClass.color};">${passAttPg}<span>/g</span></div>
-                   ${mkBarVal(passAttPg, 48, 33, passVolClass.color, '/g')}
+                   ${mkBarVal(passAttPg, 48, avgTeamPassPg, passVolClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${statTeam ?? 'Team'} season pass att/game</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -3983,7 +3983,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${offPlaysClass.color};">${offPlaysClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${offPlaysClass.color};">${offPlaysPg}<span>/g</span></div>
-                   ${mkBarVal(offPlaysPg, 80, 63, offPlaysClass.color, '/g')}
+                   ${mkBarVal(offPlaysPg, 80, avgTeamOffPlaysPg, offPlaysClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">Rush + pass att · excl. sacks</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -3998,7 +3998,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${olProxyClass.color};">${olProxyClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${olProxyClass.color};">${teamYpc}<span> ypc</span></div>
-                   ${mkBarVal(teamYpc, 6.0, 4.2, olProxyClass.color, ' ypc')}
+                   ${mkBarVal(teamYpc, 6.0, avgTeamYpc, olProxyClass.color, ' ypc', 'AVG')}
                    <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4252,7 +4252,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${_curVolClass.color};">${_curVolClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${_curVolClass.color};">${_curRunRate}<span>%</span></div>
-                   ${mkBar(_curRunRate, 60, 41, _curVolClass.color)}
+                   ${mkBar(_curRunRate, 60, avgTeamRunRate, _curVolClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${_curRunRate}% runs · ${_curPassRate ?? '—'}% passes of ${_curOffPlaysPg ?? '—'} plays/g</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4266,7 +4266,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${_curVolClass.color};">${_curVolClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${_curVolClass.color};">${_curTeamRushPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(_curTeamRushPg, 38, 26, _curVolClass.color, '/g')}
+              ${mkBarVal(_curTeamRushPg, 38, avgTeamRushPg, _curVolClass.color, '/g', 'AVG')}
               <div class="pp-wl-card-sub">${nflTeam} season rush att/game</div>
             </div>
             ${_curPassAttPg !== null
@@ -4276,7 +4276,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${_curVolClass.color};">${_curVolClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${_curVolClass.color};">${_curPassAttPg}<span>/g</span></div>
-                   ${mkBarVal(_curPassAttPg, 48, 33, _curVolClass.color, '/g')}
+                   ${mkBarVal(_curPassAttPg, 48, avgTeamPassPg, _curVolClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${nflTeam} season pass att/game</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4291,7 +4291,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${_curOffRatCls.color};">${_curTeamYpc >= 5.0 ? 'Elite OL' : _curTeamYpc >= 4.5 ? 'Strong OL' : _curTeamYpc >= 4.0 ? 'Average OL' : 'Weak OL'}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${_curOffRatCls.color};">${_curTeamYpc}<span> ypc</span></div>
-                   ${mkBarVal(_curTeamYpc, 6.0, 4.2, _curOffRatCls.color, ' ypc')}
+                   ${mkBarVal(_curTeamYpc, 6.0, avgTeamYpc, _curOffRatCls.color, ' ypc', 'AVG')}
                    <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -5234,6 +5234,12 @@ let avgRbTargetShare   =  9.0;   // avg target share %
 let avgRbRzCarryShare  = 38.0;   // median RZ carry share % (carries inside the 20 / team RZ carries)
 let avgRbRzCarries     = 22.0;   // median RZ carries (raw count, inside the 20)
 let avgRbRzTdRate      = 17.0;   // mean RZ TD rate % (TDs / RZ carries, top-32 RBs)
+// Team situation benchmarks — seeded with estimates, overridden by benchmarks.json
+let avgTeamRushPg      = 26.0;   // avg team rush att/game (all 32 teams)
+let avgTeamPassPg      = 33.0;   // avg team pass att/game
+let avgTeamOffPlaysPg  = 63.0;   // avg team off plays/game
+let avgTeamRunRate     = 41.0;   // avg team run rate %
+let avgTeamYpc         =  4.2;   // avg team rush yards/attempt
 let avgRbSuccessPct    = 41.0;   // mean success rate % (top-32 RBs by carries)
 let avgRbMtfPerAtt     =  0.063; // mean missed tackles forced per attempt (top-32 RBs)
 // RB efficiency benchmarks — seeded with estimates, overridden by benchmarks.json
@@ -5840,6 +5846,11 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbRzTdRate)      avgRbRzTdRate      = bench.avgRbRzTdRate;
     if (bench?.avgRbSuccessPct)    avgRbSuccessPct    = bench.avgRbSuccessPct;
     if (bench?.avgRbMtfPerAtt)     avgRbMtfPerAtt     = bench.avgRbMtfPerAtt;
+    if (bench?.avgTeamRushPg)      avgTeamRushPg      = bench.avgTeamRushPg;
+    if (bench?.avgTeamPassPg)      avgTeamPassPg      = bench.avgTeamPassPg;
+    if (bench?.avgTeamOffPlaysPg)  avgTeamOffPlaysPg  = bench.avgTeamOffPlaysPg;
+    if (bench?.avgTeamRunRate)     avgTeamRunRate     = bench.avgTeamRunRate;
+    if (bench?.avgTeamYpc)         avgTeamYpc         = bench.avgTeamYpc;
     if (bench?.avgRbYpc)         avgRbYpc         = bench.avgRbYpc;
     if (bench?.avgRbYpcN)        avgRbYpcN        = bench.avgRbYpcN;
     if (bench?.avgRbPpt)         avgRbPpt         = bench.avgRbPpt;
@@ -5918,6 +5929,11 @@ function _loadOptionalDataFiles() {
           if (bench?.avgRbRzTdRate)      avgRbRzTdRate      = bench.avgRbRzTdRate;
           if (bench?.avgRbSuccessPct)    avgRbSuccessPct    = bench.avgRbSuccessPct;
           if (bench?.avgRbMtfPerAtt)     avgRbMtfPerAtt     = bench.avgRbMtfPerAtt;
+          if (bench?.avgTeamRushPg)      avgTeamRushPg      = bench.avgTeamRushPg;
+          if (bench?.avgTeamPassPg)      avgTeamPassPg      = bench.avgTeamPassPg;
+          if (bench?.avgTeamOffPlaysPg)  avgTeamOffPlaysPg  = bench.avgTeamOffPlaysPg;
+          if (bench?.avgTeamRunRate)     avgTeamRunRate     = bench.avgTeamRunRate;
+          if (bench?.avgTeamYpc)         avgTeamYpc         = bench.avgTeamYpc;
           if (bench?.avgRbYpc)           avgRbYpc           = bench.avgRbYpc;
           if (bench?.avgRbYpcN)          avgRbYpcN          = bench.avgRbYpcN;
           if (bench?.avgRbPpt)           avgRbPpt           = bench.avgRbPpt;

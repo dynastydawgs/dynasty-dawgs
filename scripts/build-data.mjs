@@ -187,6 +187,13 @@ async function main() {
   const AVG_TEAM_TGT_PG = 33.5;  // stable league-avg pass targets/game
   const AVG_TEAM_REC_PG = 22.0;  // stable league-avg receptions/game
 
+  // Team situation benchmarks — seeded with estimates, updated from teamDB in Step 5a.
+  let avgTeamRushPg    = 26.0;  // avg team rush att/game across all 32 teams
+  let avgTeamPassPg    = 33.0;  // avg team pass att/game
+  let avgTeamOffPlaysPg= 63.0;  // avg team off plays/game (rush + pass att)
+  let avgTeamRunRate   = 41.0;  // avg team run rate %
+  let avgTeamYpc       =  4.2;  // avg team rush yards/attempt
+
   // RB workload benchmarks — seeded with estimates, updated from PBP in Step 5f.
   let avgRbCarryPct       = 44.1;
   let avgRbTouchesPg      = 15.0;
@@ -318,6 +325,21 @@ async function main() {
     teamDB[team] = { rushAttPg, passAttPg, offPlaysPg, runRate, passRate,
                      teamYpc: 4.3, ypp: 5.7, tdPg: 3.8, offRating: 50, estimated: true };
     fallbackTeams++;
+  }
+
+  // Compute league-average team situation benchmarks from real (non-estimated) teams only
+  const _liveTeamRows = Object.values(teamDB).filter(t => !t.estimated);
+  if (_liveTeamRows.length >= 20) {
+    const _tmMean = field => {
+      const vals = _liveTeamRows.map(t => t[field]).filter(v => v != null);
+      return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10 : null;
+    };
+    avgTeamRushPg     = _tmMean('rushAttPg')  ?? avgTeamRushPg;
+    avgTeamPassPg     = _tmMean('passAttPg')  ?? avgTeamPassPg;
+    avgTeamOffPlaysPg = _tmMean('offPlaysPg') ?? avgTeamOffPlaysPg;
+    avgTeamRunRate    = _tmMean('runRate')     ?? avgTeamRunRate;
+    avgTeamYpc        = _tmMean('teamYpc')    ?? avgTeamYpc;
+    console.log(`  Team bench (${_liveTeamRows.length} live teams, mean) — rush: ${avgTeamRushPg}/g · pass: ${avgTeamPassPg}/g · plays: ${avgTeamOffPlaysPg}/g · run%: ${avgTeamRunRate}% · ypc: ${avgTeamYpc}`);
   }
 
   progress(95, `Team DB: ${liveTeams} live (ESPN) + ${fallbackTeams} estimated teams`);
@@ -883,7 +905,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
+  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
