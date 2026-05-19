@@ -3836,7 +3836,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${successClass.color};">${successClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
-                   ${mkBarVal(successPct, 60, avgRbSuccessPct, successClass.color, '%', 'MED')}
+                   ${mkBarVal(successPct, 60, avgRbSuccessPct, successClass.color, '%', 'AVG')}
                    <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · 65 RBs (min 50 att) · nflverse PBP</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -3851,7 +3851,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
-                   ${mkBarVal(adsMtfPerAtt, 0.20, avgRbMtfPerAtt, mtfAdsClass.color, '', 'MED')}
+                   ${mkBarVal(adsMtfPerAtt, 0.20, avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}66 RBs (min 50 carries) · PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4144,7 +4144,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${successClass.color};">${successClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
-                   ${mkBarVal(successPct, 60, avgRbSuccessPct, successClass.color, '%', 'MED')}
+                   ${mkBarVal(successPct, 60, avgRbSuccessPct, successClass.color, '%', 'AVG')}
                    <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · 65 RBs (min 50 att) · nflverse PBP</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4159,7 +4159,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
-                   ${mkBarVal(adsMtfPerAtt, 0.20, avgRbMtfPerAtt, mtfAdsClass.color, '', 'MED')}
+                   ${mkBarVal(adsMtfPerAtt, 0.20, avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}66 RBs (min 50 carries) · PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -5234,8 +5234,8 @@ let avgRbTargetShare   =  9.0;   // avg target share %
 let avgRbRzCarryShare  = 38.0;   // median RZ carry share % (carries inside the 20 / team RZ carries)
 let avgRbRzCarries     = 22.0;   // median RZ carries (raw count, inside the 20)
 let avgRbRzTdRate      = 17.0;   // mean RZ TD rate % (TDs / RZ carries, top-32 RBs)
-let avgRbSuccessPct    = 41.0;   // median success rate % (top-32 RBs by carries)
-let avgRbMtfPerAtt     =  0.063; // median missed tackles forced per attempt (top-32 RBs)
+let avgRbSuccessPct    = 41.0;   // mean success rate % (top-32 RBs by carries)
+let avgRbMtfPerAtt     =  0.063; // mean missed tackles forced per attempt (top-32 RBs)
 // RB efficiency benchmarks — seeded with estimates, overridden by benchmarks.json
 let avgRbYpc         =  4.3;   // avg yards/carry (top-64 RBs, recentYr PBP)
 let avgRbYpcN        =  0;     // sample count

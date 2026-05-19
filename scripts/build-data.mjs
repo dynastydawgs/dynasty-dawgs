@@ -856,15 +856,19 @@ async function main() {
       avgRbSnapPct      = _bm('snapPct',         62.0);
       avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
       avgRbRzCarries    = _bm('rzCarries',       22.0);
-      avgRbSuccessPct   = _bm('successPct',      41.0);
-      avgRbMtfPerAtt    = _bm('mtfPerAtt',        0.063);
+      // Success rate + MTF are efficiency metrics — use mean
+      const _sucVals    = rbBenchRows.map(r => r.successPct).filter(v => v != null);
+      avgRbSuccessPct   = _sucVals.length >= 5 ? Math.round(_sucVals.reduce((s, v) => s + v, 0) / _sucVals.length * 10) / 10 : 41.0;
+      const _mtfVals    = rbBenchRows.map(r => r.mtfPerAtt).filter(v => v != null);
+      avgRbMtfPerAtt    = _mtfVals.length >= 5 ? Math.round(_mtfVals.reduce((s, v) => s + v, 0) / _mtfVals.length * 1000) / 1000 : 0.063;
       // YPC + RZ TD rate are efficiency metrics — use mean
       const _ypcVals    = rbBenchRows.map(r => r.ypc).filter(v => v != null);
       avgRbYpc          = _ypcVals.length >= 5 ? Math.round(_ypcVals.reduce((s, v) => s + v, 0) / _ypcVals.length * 10) / 10 : 4.3;
       avgRbYpcN         = _ypcVals.length;
       const _rzTdVals   = rbBenchRows.map(r => r.rzTdRate).filter(v => v != null);
       avgRbRzTdRate     = _rzTdVals.length >= 5 ? Math.round(_rzTdVals.reduce((s, v) => s + v, 0) / _rzTdVals.length * 10) / 10 : 17.0;
-      console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries} · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt}`);
+      console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
+      console.log(`  Efficiency bench (mean) — ypc: ${avgRbYpc} · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt} · rz td rate: ${avgRbRzTdRate}%`);
       console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (mean, n=${avgRbYpcN})`)
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
