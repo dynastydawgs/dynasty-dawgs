@@ -3552,6 +3552,14 @@ async function loadPlayerProfile(pid) {
       : rzTdRate >= 12 ? {label:'Average',         color:'var(--orange)' }
       :                  {label:'Below Avg',       color:'var(--red)'    };
 
+    // ── 3rd-down snaps (participation file, advstatsdb.json) ────────────────
+    const thirdDownSnaps = _advEntry?.thirdDownSnaps ?? null;
+    const tdSnapsClass   = thirdDownSnaps === null ? {label:'No Data',       color:'var(--text-dim)'}
+      : thirdDownSnaps >= 50 ? {label:'3rd-Down Specialist', color:'var(--green)'  }
+      : thirdDownSnaps >= 30 ? {label:'Featured',            color:'var(--accent)'   }
+      : thirdDownSnaps >= 15 ? {label:'Rotational',          color:'var(--orange)' }
+      :                        {label:'Limited',             color:'var(--red)'    };
+
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
     // Efficiency: YPC 40% · Pts/Touch 35% · First Down Rate 25%
     const _ypcS  = ypc !== null        ? Math.min(100, Math.max(0, (ypc - 1.5) / 5.5 * 100))       : null;
@@ -3905,6 +3913,17 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
                  </div>`
               : ''}
+            ${thirdDownSnaps !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${tdSnapsClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">3rd Down Snaps</span>
+                     <span class="pp-wl-card-cls" style="color:${tdSnapsClass.color};">${tdSnapsClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnaps}<span> snaps</span></div>
+                   ${mkBarVal(thirdDownSnaps, 80, avgRbThirdDownSnaps, tdSnapsClass.color, '', 'AVG')}
+                   <div class="pp-wl-card-sub">snaps on field on 3rd down · 2025 season · nflverse participation</div>
+                 </div>`
+              : ''}
             ${snapCard}
             <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
               <div class="pp-wl-card-header">
@@ -4211,6 +4230,17 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
                    ${mkBar(rzTdRate, 50, avgRbRzTdRate, rzTdClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
+                 </div>`
+              : ''}
+            ${thirdDownSnaps !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${tdSnapsClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">3rd Down Snaps</span>
+                     <span class="pp-wl-card-cls" style="color:${tdSnapsClass.color};">${tdSnapsClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnaps}<span> snaps</span></div>
+                   ${mkBarVal(thirdDownSnaps, 80, avgRbThirdDownSnaps, tdSnapsClass.color, '', 'AVG')}
+                   <div class="pp-wl-card-sub">snaps on field on 3rd down · 2025 season · nflverse participation</div>
                  </div>`
               : ''}
             ${snapCard}
@@ -5240,8 +5270,9 @@ let avgTeamPassPg      = 33.0;   // avg team pass att/game
 let avgTeamOffPlaysPg  = 63.0;   // avg team off plays/game
 let avgTeamRunRate     = 41.0;   // avg team run rate %
 let avgTeamYpc         =  4.2;   // avg team rush yards/attempt
-let avgRbSuccessPct    = 41.0;   // mean success rate % (top-32 RBs by carries)
-let avgRbMtfPerAtt     =  0.063; // mean missed tackles forced per attempt (top-32 RBs)
+let avgRbSuccessPct      = 41.0;   // mean success rate % (top-32 RBs by carries)
+let avgRbMtfPerAtt       =  0.063; // mean missed tackles forced per attempt (top-32 RBs)
+let avgRbThirdDownSnaps  = 30.0;   // mean 3rd-down snaps on field (top-32 RBs by carries)
 // RB efficiency benchmarks — seeded with estimates, overridden by benchmarks.json
 let avgRbYpc         =  4.3;   // avg yards/carry (top-64 RBs, recentYr PBP)
 let avgRbYpcN        =  0;     // sample count
@@ -5844,8 +5875,9 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbRzCarryShare)  avgRbRzCarryShare  = bench.avgRbRzCarryShare;
     if (bench?.avgRbRzCarries)     avgRbRzCarries     = bench.avgRbRzCarries;
     if (bench?.avgRbRzTdRate)      avgRbRzTdRate      = bench.avgRbRzTdRate;
-    if (bench?.avgRbSuccessPct)    avgRbSuccessPct    = bench.avgRbSuccessPct;
-    if (bench?.avgRbMtfPerAtt)     avgRbMtfPerAtt     = bench.avgRbMtfPerAtt;
+    if (bench?.avgRbSuccessPct)       avgRbSuccessPct       = bench.avgRbSuccessPct;
+    if (bench?.avgRbMtfPerAtt)        avgRbMtfPerAtt        = bench.avgRbMtfPerAtt;
+    if (bench?.avgRbThirdDownSnaps)   avgRbThirdDownSnaps   = bench.avgRbThirdDownSnaps;
     if (bench?.avgTeamRushPg)      avgTeamRushPg      = bench.avgTeamRushPg;
     if (bench?.avgTeamPassPg)      avgTeamPassPg      = bench.avgTeamPassPg;
     if (bench?.avgTeamOffPlaysPg)  avgTeamOffPlaysPg  = bench.avgTeamOffPlaysPg;
@@ -5927,8 +5959,9 @@ function _loadOptionalDataFiles() {
           if (bench?.avgRbRzCarryShare)  avgRbRzCarryShare  = bench.avgRbRzCarryShare;
           if (bench?.avgRbRzCarries)     avgRbRzCarries     = bench.avgRbRzCarries;
           if (bench?.avgRbRzTdRate)      avgRbRzTdRate      = bench.avgRbRzTdRate;
-          if (bench?.avgRbSuccessPct)    avgRbSuccessPct    = bench.avgRbSuccessPct;
-          if (bench?.avgRbMtfPerAtt)     avgRbMtfPerAtt     = bench.avgRbMtfPerAtt;
+          if (bench?.avgRbSuccessPct)       avgRbSuccessPct       = bench.avgRbSuccessPct;
+          if (bench?.avgRbMtfPerAtt)        avgRbMtfPerAtt        = bench.avgRbMtfPerAtt;
+          if (bench?.avgRbThirdDownSnaps)   avgRbThirdDownSnaps   = bench.avgRbThirdDownSnaps;
           if (bench?.avgTeamRushPg)      avgTeamRushPg      = bench.avgTeamRushPg;
           if (bench?.avgTeamPassPg)      avgTeamPassPg      = bench.avgTeamPassPg;
           if (bench?.avgTeamOffPlaysPg)  avgTeamOffPlaysPg  = bench.avgTeamOffPlaysPg;

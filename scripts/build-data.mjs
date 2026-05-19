@@ -203,8 +203,9 @@ async function main() {
   let avgRbRzCarryShare   = 38.0; // median RZ carry share among top-32 RBs
   let avgRbRzCarries      = 22.0; // median RZ carries among top-32 RBs
   let avgRbRzTdRate       = 17.0; // mean RZ TD rate % (TDs / RZ carries) among top-32 RBs
-  let avgRbSuccessPct     = 41.0; // median success rate % among top-32 RBs
-  let avgRbMtfPerAtt      = 0.063;// median missed tackles forced per attempt among top-32 RBs
+  let avgRbSuccessPct     = 41.0; // mean success rate % among top-32 RBs
+  let avgRbMtfPerAtt      = 0.063;// mean missed tackles forced per attempt among top-32 RBs
+  let avgRbThirdDownSnaps = 30.0; // mean 3rd-down snaps on field among top-32 RBs
   // RB efficiency benchmarks — seeded with estimates, updated below.
   let avgRbYpc         =  4.3;   // avg yards/carry (from PBP, same top-64 pool)
   let avgRbYpcN        =  0;
@@ -630,10 +631,12 @@ async function main() {
     // ── 3. Play-by-play → success rate + workload by GSIS ───────────────────
     // Single pass: rush plays → success rate + carries; pass plays → targets/rec.
     // workloadByGsis is used below (step 6) to compute RB workload benchmarks.
+    // thirdDownKeys is used in step 3b to filter participation rows.
     const successByGsis        = {};
     const workloadByGsis       = {}; // gsis_id → { carries, rzCarries, rushYds, tgts, rec, gameIds, team }
     const teamCarriesPerGame   = {}; // gameId → { posteam → total rush attempts (incl. QB) }
     const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
+    const thirdDownKeys        = new Set(); // `${game_id}_${play_id}` for REG 3rd-down plays
     try {
       const pbpRes = await fetch(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
@@ -641,15 +644,20 @@ async function main() {
       if (pbpRes.ok) {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI] =
+        const [raI, stI, ridI, sucI, paI, recvI, cpI, gidI, ryI, pteamI, ylI, rtdI, pidI, dnI] =
           ['rush_attempt', 'season_type', 'rusher_player_id', 'success',
            'pass_attempt', 'receiver_player_id', 'complete_pass', 'game_id',
-           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown']
+           'rushing_yards', 'posteam', 'yardline_100', 'rush_touchdown', 'play_id', 'down']
           .map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
           if (v[stI] !== 'REG') continue;
           const gameId = gidI >= 0 ? v[gidI]?.trim() : null;
+
+          // Track 3rd-down play keys for participation join
+          if (dnI >= 0 && v[dnI] === '3' && pidI >= 0 && gameId) {
+            thirdDownKeys.add(`${gameId}_${v[pidI]?.trim()}`);
+          }
 
           if (v[raI] === '1') {
             const gsis  = v[ridI]?.trim();
@@ -703,6 +711,37 @@ async function main() {
         console.log(`  PBP workload: ${Object.keys(workloadByGsis).length} players tracked`);
       }
     } catch(e) { console.warn('\n  ⚠️  PBP fetch failed:', e.message); }
+
+    // ── 3b. Participation → 3rd-down snaps on field per GSIS (RBs only) ────────
+    // pbp_participation has one row per play with offense_players as space-separated GSIS IDs.
+    // Join to PBP via game_id + play_id to filter REG 3rd-down plays only.
+    const thirdDownSnapsByGsis = {};  // gsis_id → count of REG 3rd-down snaps on field
+    try {
+      const partRes = await fetch(
+        `https://github.com/nflverse/nflverse-data/releases/download/pbp_participation/pbp_participation_${recentYr}.csv`
+      );
+      if (partRes.ok) {
+        const lines = (await partRes.text()).split('\n').filter(l => l.trim());
+        const hdrs  = parseCSVLine(lines[0]);
+        const [pgidI, ppidI, offI] = ['game_id', 'play_id', 'offense_players']
+          .map(h => hdrs.indexOf(h));
+        if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
+          for (const line of lines.slice(1)) {
+            const v      = parseCSVLine(line);
+            const gameId = v[pgidI]?.trim();
+            const playId = v[ppidI]?.trim();
+            if (!gameId || !playId) continue;
+            if (!thirdDownKeys.has(`${gameId}_${playId}`)) continue;
+            const players = (v[offI] ?? '').trim().split(/\s+/).filter(Boolean);
+            for (const gsis of players) {
+              if (gsisToPos[gsis] !== 'RB') continue;
+              thirdDownSnapsByGsis[gsis] = (thirdDownSnapsByGsis[gsis] ?? 0) + 1;
+            }
+          }
+        }
+        console.log(`  3rd-down snaps: ${Object.keys(thirdDownSnapsByGsis).length} RBs tracked (${thirdDownKeys.size} 3rd-down plays)`);
+      }
+    } catch(e) { console.warn('\n  ⚠️  Participation fetch failed:', e.message); }
 
     // ── 4. Build success rate by normKey ────────────────────────────────────
     const successMap = {};  // normKey → successPct
@@ -759,21 +798,32 @@ async function main() {
     }
     console.log(`  RZ TD rate: ${Object.keys(rzTdRateMap).length} players`);
 
+    // Build thirdDownSnapsMap: normKey → snap count (RBs with ≥5 snaps)
+    const thirdDownSnapsMap = {};
+    for (const [gsis, snaps] of Object.entries(thirdDownSnapsByGsis)) {
+      if (snaps < 5) continue;
+      const nk = gsisToNormName[gsis];
+      if (!nk) continue;
+      thirdDownSnapsMap[nk] = snaps;
+    }
+    console.log(`  3rd-down snap map: ${Object.keys(thirdDownSnapsMap).length} qualified RBs`);
+
     // ── 5b. Merge into advstatsDB keyed by canonical display name ─────────────
     const allNormKeys = new Set([
       ...Object.keys(mtfMap), ...Object.keys(successMap),
       ...Object.keys(carryShareMap), ...Object.keys(rzCarryShareMap),
-      ...Object.keys(rzTdRateMap),
+      ...Object.keys(rzTdRateMap), ...Object.keys(thirdDownSnapsMap),
     ]);
     for (const nk of allNormKeys) {
       const entry = {};
-      if (mtfMap[nk])          Object.assign(entry, mtfMap[nk]);
-      if (successMap[nk])      entry.successPct   = successMap[nk];
-      if (carryShareMap[nk])   entry.carryShare   = carryShareMap[nk];
-      if (rzCarryShareMap[nk]) entry.rzCarryShare = rzCarryShareMap[nk];
-      if (rzCarriesMap[nk])    entry.rzCarries    = rzCarriesMap[nk];
-      if (rzTdRateMap[nk])     entry.rzTdRate     = rzTdRateMap[nk];
-      if (rzTdMap[nk])         entry.rzTDs        = rzTdMap[nk];
+      if (mtfMap[nk])              Object.assign(entry, mtfMap[nk]);
+      if (successMap[nk])          entry.successPct      = successMap[nk];
+      if (carryShareMap[nk])       entry.carryShare      = carryShareMap[nk];
+      if (rzCarryShareMap[nk])     entry.rzCarryShare    = rzCarryShareMap[nk];
+      if (rzCarriesMap[nk])        entry.rzCarries       = rzCarriesMap[nk];
+      if (rzTdRateMap[nk])         entry.rzTdRate        = rzTdRateMap[nk];
+      if (rzTdMap[nk])             entry.rzTDs           = rzTdMap[nk];
+      if (thirdDownSnapsMap[nk])   entry.thirdDownSnaps  = thirdDownSnapsMap[nk];
       if (!Object.keys(entry).length) continue;
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
@@ -856,8 +906,9 @@ async function main() {
           rzCarryShare:   nk ? (rzCarryShareMap[nk] ?? null) : null,
           rzCarries:      d.rzCarries > 0 ? d.rzCarries : null,
           rzTdRate:       nk ? (rzTdRateMap[nk] ?? null) : null,
-          successPct:     nk ? (successMap[nk] ?? null) : null,
-          mtfPerAtt:      nk ? (mtfMap[nk]?.mtfPerAtt ?? null) : null,
+          successPct:        nk ? (successMap[nk] ?? null) : null,
+          mtfPerAtt:         nk ? (mtfMap[nk]?.mtfPerAtt ?? null) : null,
+          thirdDownSnaps:    thirdDownSnapsMap[nk] ?? null,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -883,6 +934,8 @@ async function main() {
       avgRbSuccessPct   = _sucVals.length >= 5 ? Math.round(_sucVals.reduce((s, v) => s + v, 0) / _sucVals.length * 10) / 10 : 41.0;
       const _mtfVals    = rbBenchRows.map(r => r.mtfPerAtt).filter(v => v != null);
       avgRbMtfPerAtt    = _mtfVals.length >= 5 ? Math.round(_mtfVals.reduce((s, v) => s + v, 0) / _mtfVals.length * 1000) / 1000 : 0.063;
+      const _tdSnapVals = rbBenchRows.map(r => r.thirdDownSnaps).filter(v => v != null);
+      avgRbThirdDownSnaps = _tdSnapVals.length >= 5 ? Math.round(_tdSnapVals.reduce((s, v) => s + v, 0) / _tdSnapVals.length * 10) / 10 : 30.0;
       // YPC + RZ TD rate are efficiency metrics — use mean
       const _ypcVals    = rbBenchRows.map(r => r.ypc).filter(v => v != null);
       avgRbYpc          = _ypcVals.length >= 5 ? Math.round(_ypcVals.reduce((s, v) => s + v, 0) / _ypcVals.length * 10) / 10 : 4.3;
@@ -890,7 +943,7 @@ async function main() {
       const _rzTdVals   = rbBenchRows.map(r => r.rzTdRate).filter(v => v != null);
       avgRbRzTdRate     = _rzTdVals.length >= 5 ? Math.round(_rzTdVals.reduce((s, v) => s + v, 0) / _rzTdVals.length * 10) / 10 : 17.0;
       console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
-      console.log(`  Efficiency bench (mean) — ypc: ${avgRbYpc} · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt} · rz td rate: ${avgRbRzTdRate}%`);
+      console.log(`  Efficiency bench (mean) — ypc: ${avgRbYpc} · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt} · rz td rate: ${avgRbRzTdRate}% · 3rd-dn snaps: ${avgRbThirdDownSnaps}`);
       console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (mean, n=${avgRbYpcN})`)
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
@@ -905,7 +958,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
+  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
