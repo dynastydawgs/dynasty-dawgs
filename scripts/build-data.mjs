@@ -819,7 +819,7 @@ async function main() {
     // Min 5 snaps to exclude garbage-time / injury-limited players.
     const thirdDownSnapPctMap = {};
     for (const [gsis, snaps] of Object.entries(thirdDownSnapsByGsis)) {
-      if (snaps < 5) continue;
+      if (snaps < 20) continue;
       const nk = gsisToNormName[gsis];
       if (!nk) continue;
       const d = workloadByGsis[gsis];
