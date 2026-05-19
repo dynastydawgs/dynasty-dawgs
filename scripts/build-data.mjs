@@ -196,6 +196,8 @@ async function main() {
   let avgRbRzCarryShare   = 38.0; // median RZ carry share among top-32 RBs
   let avgRbRzCarries      = 22.0; // median RZ carries among top-32 RBs
   let avgRbRzTdRate       = 17.0; // mean RZ TD rate % (TDs / RZ carries) among top-32 RBs
+  let avgRbSuccessPct     = 41.0; // median success rate % among top-32 RBs
+  let avgRbMtfPerAtt      = 0.063;// median missed tackles forced per attempt among top-32 RBs
   // RB efficiency benchmarks — seeded with estimates, updated below.
   let avgRbYpc         =  4.3;   // avg yards/carry (from PBP, same top-64 pool)
   let avgRbYpcN        =  0;
@@ -832,6 +834,8 @@ async function main() {
           rzCarryShare:   nk ? (rzCarryShareMap[nk] ?? null) : null,
           rzCarries:      d.rzCarries > 0 ? d.rzCarries : null,
           rzTdRate:       nk ? (rzTdRateMap[nk] ?? null) : null,
+          successPct:     nk ? (successMap[nk] ?? null) : null,
+          mtfPerAtt:      nk ? (mtfMap[nk]?.mtfPerAtt ?? null) : null,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -852,13 +856,15 @@ async function main() {
       avgRbSnapPct      = _bm('snapPct',         62.0);
       avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
       avgRbRzCarries    = _bm('rzCarries',       22.0);
+      avgRbSuccessPct   = _bm('successPct',      41.0);
+      avgRbMtfPerAtt    = _bm('mtfPerAtt',        0.063);
       // YPC + RZ TD rate are efficiency metrics — use mean
       const _ypcVals    = rbBenchRows.map(r => r.ypc).filter(v => v != null);
       avgRbYpc          = _ypcVals.length >= 5 ? Math.round(_ypcVals.reduce((s, v) => s + v, 0) / _ypcVals.length * 10) / 10 : 4.3;
       avgRbYpcN         = _ypcVals.length;
       const _rzTdVals   = rbBenchRows.map(r => r.rzTdRate).filter(v => v != null);
       avgRbRzTdRate     = _rzTdVals.length >= 5 ? Math.round(_rzTdVals.reduce((s, v) => s + v, 0) / _rzTdVals.length * 10) / 10 : 17.0;
-      console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
+      console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries} · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt}`);
       console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (mean, n=${avgRbYpcN})`)
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
@@ -873,7 +879,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
+  const benchJson     = JSON.stringify({ avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
