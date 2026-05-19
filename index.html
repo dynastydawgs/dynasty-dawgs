@@ -3554,7 +3554,10 @@ async function loadPlayerProfile(pid) {
       :                  {label:'Below Avg',       color:'var(--red)'    };
 
     // ── 3rd-down snap% (player 3rd-dn snaps / team total 3rd-dn plays, advstatsdb.json) ──
-    const thirdDownSnapPct = _advEntry?.thirdDownSnapPct ?? null;
+    const thirdDownSnapPct   = _advEntry?.thirdDownSnapPct ?? null;
+    const tdRawSnaps         = _advEntry?.snaps  ?? null;
+    const tdRawGames         = _advEntry?.games  ?? null;
+    const tdSnapsPerGame     = tdRawSnaps !== null && tdRawGames ? (tdRawSnaps / tdRawGames).toFixed(1) : null;
     const tdSnapsClass     = thirdDownSnapPct === null ? {label:'No Data',            color:'var(--text-dim)'}
       : thirdDownSnapPct >= 55 ? {label:'3rd-Down Specialist', color:'var(--green)'  }
       : thirdDownSnapPct >= 40 ? {label:'Featured',            color:'var(--accent)'   }
@@ -3916,7 +3919,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnapPct}<span>%</span></div>
                    ${mkBar(thirdDownSnapPct, 100, avgRbThirdDownSnaps, tdSnapsClass.color, 'AVG')}
-                   <div class="pp-wl-card-sub">% of team 3rd-down plays on field · normalizes for games + pace · nflverse participation</div>
+                   <div class="pp-wl-card-sub">${tdRawSnaps !== null ? `${tdRawSnaps} snaps / ${tdRawGames}g = ${tdSnapsPerGame}/g · ` : ''}% of team 3rd-down plays on field · nflverse participation</div>
                  </div>`
               : ''}
             ${snapCard}
@@ -4229,7 +4232,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnapPct}<span>%</span></div>
                    ${mkBar(thirdDownSnapPct, 100, avgRbThirdDownSnaps, tdSnapsClass.color, 'AVG')}
-                   <div class="pp-wl-card-sub">% of team 3rd-down plays on field · normalizes for games + pace · nflverse participation</div>
+                   <div class="pp-wl-card-sub">${tdRawSnaps !== null ? `${tdRawSnaps} snaps / ${tdRawGames}g = ${tdSnapsPerGame}/g · ` : ''}% of team 3rd-down plays on field · nflverse participation</div>
                  </div>`
               : ''}
             ${snapCard}

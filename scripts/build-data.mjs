@@ -822,7 +822,8 @@ async function main() {
     // Build thirdDownSnapPctMap: normKey → snap% (player 3rd-dn snaps / team 3rd-dn plays
     // in games the player actually appeared in — same denominator pattern as carry share).
     // Min 5 snaps to exclude garbage-time / injury-limited players.
-    const thirdDownSnapPctMap = {};
+    const thirdDownSnapPctMap  = {};  // normKey → snap%
+    const thirdDownSnapRawMap  = {};  // normKey → { snaps, games }
     for (const [gsis, snaps] of Object.entries(thirdDownSnapsByGsis)) {
       if (snaps < 20) continue;
       const nk = gsisToNormName[gsis];
@@ -836,6 +837,7 @@ async function main() {
         sum + (teamThirdDownPlaysPerGame[gid]?.[d.team] ?? 0), 0);
       if (teamTotal < 1) continue;
       thirdDownSnapPctMap[nk] = Math.round(snaps / teamTotal * 1000) / 10;
+      thirdDownSnapRawMap[nk] = { snaps, games: snapGameIds.size };
     }
     console.log(`  3rd-down snap%: ${Object.keys(thirdDownSnapPctMap).length} qualified RBs`);
 
@@ -855,6 +857,7 @@ async function main() {
       if (rzTdRateMap[nk])           entry.rzTdRate          = rzTdRateMap[nk];
       if (rzTdMap[nk])               entry.rzTDs             = rzTdMap[nk];
       if (thirdDownSnapPctMap[nk])   entry.thirdDownSnapPct  = thirdDownSnapPctMap[nk];
+      if (thirdDownSnapRawMap[nk])   Object.assign(entry, thirdDownSnapRawMap[nk]);  // snaps, games
       if (!Object.keys(entry).length) continue;
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
