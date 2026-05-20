@@ -3454,6 +3454,12 @@ async function loadPlayerProfile(pid) {
                     : ypc >= 3.8    ? {label:'Average',    color:'var(--orange)' }
                     : ypc >= 3.0    ? {label:'Below Avg',  color:'var(--red)' }
                     :                 {label:'Inefficient',color:'var(--red)'    };
+    const rushYdPgClass = rushYdPg === null  ? {label:'No Data',    color:'var(--text-dim)'}
+                        : rushYdPg >= 90     ? {label:'Elite',       color:'var(--green)'  }
+                        : rushYdPg >= 72     ? {label:'Above Avg',   color:'var(--accent)'   }
+                        : rushYdPg >= 55     ? {label:'Average',     color:'var(--orange)' }
+                        : rushYdPg >= 35     ? {label:'Below Avg',   color:'var(--red)' }
+                        :                      {label:'Minimal',     color:'var(--red)'    };
     // First Down Rate — from ESPN player stats (rushingFirstDowns / rushingAttempts)
     // Replaces the broken RZ Carries card (Sleeper doesn't expose red zone rush attempts)
     const rushFD      = espnPlayerStats['rushingFirstDowns'] ?? null;
@@ -3984,13 +3990,13 @@ async function loadPlayerProfile(pid) {
               <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att · ${adsCarryShare !== null ? 'player÷team carries · nflverse PBP' : (usingActualTeam ? `team ${teamRushPg.toFixed(1)} att/g` : 'vs league avg')} · bench: top 32 RBs by carries</div>
             </div>
             ${rushYdPg !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${ypcClass.color};">
+              ? `<div class="pp-wl-card" style="border-left-color:${rushYdPgClass.color};">
                    <div class="pp-wl-card-header">
                      <span class="pp-wl-card-label">Rush Yds / Game</span>
-                     <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${rushAtt >= 10 ? ypcClass.label : 'Low Sample'}</span>
+                     <span class="pp-wl-card-cls" style="color:${rushYdPgClass.color};">${rushAtt >= 10 ? rushYdPgClass.label : 'Low Sample'}</span>
                    </div>
-                   <div class="pp-wl-card-val" style="color:${ypcClass.color};">${rushYdPg}<span>/g</span></div>
-                   ${mkBarVal(rushYdPg, maxRbRushYdPg, avgRbRushYdPg, ypcClass.color, '/g', 'AVG')}
+                   <div class="pp-wl-card-val" style="color:${rushYdPgClass.color};">${rushYdPg}<span>/g</span></div>
+                   ${mkBarVal(rushYdPg, maxRbRushYdPg, avgRbRushYdPg, rushYdPgClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} total rush yds · ${rushAtt} att · ${gp} games</div>
                  </div>`
               : ''}
