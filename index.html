@@ -3500,7 +3500,7 @@ async function loadPlayerProfile(pid) {
                         : avgTtLos <= 3.0            ? { label:'Hesitant',     color:'var(--red)'  }
                         :                              { label:'Slow Start',   color:'var(--red)'     };
 
-    // Physical — height/weight from Sleeper, forty + size score from advstatsDB + combine
+    // Physical — height/weight from Sleeper, forty + speed score from advstatsDB + combine
     const forty         = _advEntry?.forty ?? null;
     const playerHt      = sp?.height ? parseFloat(sp.height) : null;  // inches
     const playerWt      = sp?.weight ? parseFloat(sp.weight) : null;  // lbs
@@ -3508,7 +3508,9 @@ async function loadPlayerProfile(pid) {
     const heightPct     = _rbPct(_rbHts, playerHt);
     const weightPct     = _rbPct(_rbWts, playerWt);
     const bmi           = (playerWt && playerHt) ? Math.round(playerWt / (playerHt * playerHt) * 703 * 10) / 10 : null;
-    const sizeScore     = (playerWt && forty)    ? Math.round(playerWt * 200 / Math.pow(forty, 4) * 10) / 10    : null;
+    // Speed Score — Kent Lee Platte: (weight × 200) / forty⁴
+    // Rewards heavy players who run fast. NFL RBs: ~85 (slow/light) → 130+ (elite).
+    const speedScore    = (playerWt && forty)    ? Math.round(playerWt * 200 / Math.pow(forty, 4) * 10) / 10    : null;
 
     const fortyClass    = forty === null  ? { label:'No Combine Data', color:'var(--text-dim)' }
                         : forty <= 4.33   ? { label:'Elite Speed',     color:'var(--green)'   }
@@ -3536,14 +3538,47 @@ async function loadPlayerProfile(pid) {
                         : bmi >= 25    ? { label:'Lean',          color:'var(--red)'  }
                         :                { label:'Very Lean',     color:'var(--red)'     };
 
-    // Size Score = (weight × 200) / forty⁴  — Kent Lee Platte's metric.
-    // Rewards heavy players who run fast. NFL RBs: ~90 (slow/light) → 130+ (elite).
-    const sizeClass     = sizeScore === null ? { label:'No Data',  color:'var(--text-dim)' }
-                        : sizeScore >= 120   ? { label:'Elite',    color:'var(--green)'   }
-                        : sizeScore >= 110   ? { label:'Good',     color:'var(--accent)'    }
-                        : sizeScore >= 97    ? { label:'Average',  color:'var(--orange)'  }
-                        : sizeScore >= 85    ? { label:'Below Avg',color:'var(--red)'  }
-                        :                      { label:'Poor',     color:'var(--red)'     };
+    const ssClass       = speedScore === null ? { label:'N/A — No Combine', color:'var(--text-dim)' }
+                        : speedScore >= 120   ? { label:'Elite',             color:'var(--green)'   }
+                        : speedScore >= 110   ? { label:'Good',              color:'var(--accent)'    }
+                        : speedScore >= 97    ? { label:'Average',           color:'var(--orange)'  }
+                        : speedScore >= 85    ? { label:'Below Avg',         color:'var(--red)'  }
+                        :                       { label:'Poor',              color:'var(--red)'     };
+
+    // Composite Speed Score — proprietary blend of in-game and pre-draft athleticism.
+    // Each component normalized to 0–1 within realistic NFL RB ranges, then weighted.
+    // Weights shift when a source is unavailable; needs at least two sources to render.
+    //   Top Speed    [17–24 mph]  → 40% (live GPS, most direct)
+    //   Time to LOS  [1.8–3.8s]  → 35% (quickness/decisiveness, inverted)
+    //   Speed Score  [70–140]    → 25% (combine athleticism, size-adjusted)
+    const _nrm = (val, lo, hi, inv = false) => {
+      if (val == null) return null;
+      const n = Math.min(Math.max((val - lo) / (hi - lo), 0), 1);
+      return inv ? 1 - n : n;
+    };
+    const _spdN  = _nrm(maxSpeed,  17,  24);
+    const _losN  = _nrm(avgTtLos,  1.8, 3.8, true);
+    const _ssN   = _nrm(speedScore, 70, 140);
+    let compSpeed = null, compSpeedNote = '';
+    if (_spdN !== null && _losN !== null && _ssN !== null) {
+      compSpeed = Math.round((_spdN * 0.40 + _losN * 0.35 + _ssN * 0.25) * 100);
+      compSpeedNote = '40% top speed · 35% time to LOS · 25% speed score';
+    } else if (_spdN !== null && _losN !== null) {
+      compSpeed = Math.round((_spdN * 0.53 + _losN * 0.47) * 100);
+      compSpeedNote = '53% top speed · 47% time to LOS · no combine 40';
+    } else if (_spdN !== null && _ssN !== null) {
+      compSpeed = Math.round((_spdN * 0.62 + _ssN * 0.38) * 100);
+      compSpeedNote = '62% top speed · 38% speed score · no time to LOS';
+    } else if (_losN !== null && _ssN !== null) {
+      compSpeed = Math.round((_losN * 0.58 + _ssN * 0.42) * 100);
+      compSpeedNote = '58% time to LOS · 42% speed score · no NGS top speed';
+    }
+    const compSpeedClass = compSpeed === null ? { label:'Insufficient Data',    color:'var(--text-dim)' }
+                         : compSpeed >= 82     ? { label:'Elite Athlete',        color:'var(--green)'   }
+                         : compSpeed >= 68     ? { label:'Above Average',        color:'var(--accent)'    }
+                         : compSpeed >= 52     ? { label:'Average',              color:'var(--orange)'  }
+                         : compSpeed >= 38     ? { label:'Below Average',        color:'var(--red)'  }
+                         :                       { label:'Limited Athleticism',  color:'var(--red)'     };
 
     // Classifiers for new Situation and Efficiency cards
     // Use === null (not !value) so that legitimate low values (e.g. run rate near 0) don't
@@ -4129,7 +4164,11 @@ async function loadPlayerProfile(pid) {
                    })()}
                    <div class="pp-wl-card-sub">NFL combine · lower = faster · nflverse combine.csv</div>
                  </div>`
-              : noDataCard('40-Yard Dash')}
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.55;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">40-Yard Dash</span><span class="pp-wl-card-cls" style="color:var(--text-dim);">N/A</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Did not run at NFL Combine · no combine data</div>
+                 </div>`}
             ${heightPct !== null
               ? `<div class="pp-wl-card" style="border-left-color:${htPctClass.color};">
                    <div class="pp-wl-card-header">
@@ -4163,17 +4202,32 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">${playerWt} lbs · ${playerHt} in · higher = more mass per frame</div>
                  </div>`
               : noDataCard('BMI')}
-            ${sizeScore !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${sizeClass.color};">
+            ${speedScore !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${ssClass.color};">
                    <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">Size Score</span>
-                     <span class="pp-wl-card-cls" style="color:${sizeClass.color};">${sizeClass.label}</span>
+                     <span class="pp-wl-card-label">Speed Score</span>
+                     <span class="pp-wl-card-cls" style="color:${ssClass.color};">${ssClass.label}</span>
                    </div>
-                   <div class="pp-wl-card-val" style="color:${sizeClass.color};">${sizeScore}</div>
-                   ${mkBarVal(sizeScore, 140, 103, sizeClass.color, '', 'AVG')}
+                   <div class="pp-wl-card-val" style="color:${ssClass.color};">${speedScore}</div>
+                   ${mkBarVal(speedScore, 140, 103, ssClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">(weight × 200) ÷ forty⁴ · Kent Lee Platte · ${playerWt} lbs · ${forty}s 40</div>
                  </div>`
-              : noDataCard('Size Score')}
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.55;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Speed Score</span><span class="pp-wl-card-cls" style="color:var(--text-dim);">N/A</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Requires combine 40-yard dash · not available</div>
+                 </div>`}
+            ${compSpeed !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${compSpeedClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Composite Speed</span>
+                     <span class="pp-wl-card-cls" style="color:${compSpeedClass.color};">${compSpeedClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${compSpeedClass.color};">${compSpeed}<span>/100</span></div>
+                   ${mkBarVal(compSpeed, 100, 62, compSpeedClass.color, '', 'AVG')}
+                   <div class="pp-wl-card-sub">${compSpeedNote} · proprietary blend</div>
+                 </div>`
+              : noDataCard('Composite Speed')}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Red Zone</div>
