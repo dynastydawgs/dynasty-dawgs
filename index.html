@@ -3500,12 +3500,50 @@ async function loadPlayerProfile(pid) {
                         : avgTtLos <= 3.0            ? { label:'Hesitant',     color:'var(--red)'  }
                         :                              { label:'Slow Start',   color:'var(--red)'     };
 
-    const ngsEffClass   = ngsEff === null            ? { label:'No Data',      color:'var(--text-dim)' }
-                        : ngsEff >= 80               ? { label:'Elite',        color:'var(--green)'   }
-                        : ngsEff >= 70               ? { label:'Good',         color:'var(--accent)'    }
-                        : ngsEff >= 55               ? { label:'Average',      color:'var(--orange)'  }
-                        : ngsEff >= 40               ? { label:'Below Avg',    color:'var(--red)'  }
-                        :                              { label:'Poor',         color:'var(--red)'     };
+    // Physical — height/weight from Sleeper, forty + size score from advstatsDB + combine
+    const forty         = _advEntry?.forty ?? null;
+    const playerHt      = sp?.height ? parseFloat(sp.height) : null;  // inches
+    const playerWt      = sp?.weight ? parseFloat(sp.weight) : null;  // lbs
+    const { heights: _rbHts, weights: _rbWts } = _getRbHWDist();
+    const heightPct     = _rbPct(_rbHts, playerHt);
+    const weightPct     = _rbPct(_rbWts, playerWt);
+    const bmi           = (playerWt && playerHt) ? Math.round(playerWt / (playerHt * playerHt) * 703 * 10) / 10 : null;
+    const sizeScore     = (playerWt && forty)    ? Math.round(playerWt * 200 / Math.pow(forty, 4) * 10) / 10    : null;
+
+    const fortyClass    = forty === null  ? { label:'No Combine Data', color:'var(--text-dim)' }
+                        : forty <= 4.33   ? { label:'Elite Speed',     color:'var(--green)'   }
+                        : forty <= 4.44   ? { label:'Fast',            color:'var(--accent)'    }
+                        : forty <= 4.55   ? { label:'Average',         color:'var(--orange)'  }
+                        : forty <= 4.65   ? { label:'Below Avg',       color:'var(--red)'  }
+                        :                   { label:'Slow',            color:'var(--red)'     };
+
+    const htPctClass    = heightPct === null ? { label:'No Data',     color:'var(--text-dim)' }
+                        : heightPct >= 75    ? { label:'Tall',         color:'var(--green)'   }
+                        : heightPct >= 50    ? { label:'Average',      color:'var(--accent)'    }
+                        : heightPct >= 25    ? { label:'Short',        color:'var(--orange)'  }
+                        :                      { label:'Very Short',   color:'var(--red)'     };
+
+    const wtPctClass    = weightPct === null ? { label:'No Data',     color:'var(--text-dim)' }
+                        : weightPct >= 75    ? { label:'Heavy',        color:'var(--green)'   }
+                        : weightPct >= 50    ? { label:'Average',      color:'var(--accent)'    }
+                        : weightPct >= 25    ? { label:'Light',        color:'var(--orange)'  }
+                        :                      { label:'Very Light',   color:'var(--red)'     };
+
+    const bmiClass      = bmi === null ? { label:'No Data',       color:'var(--text-dim)' }
+                        : bmi >= 31    ? { label:'Power Build',   color:'var(--green)'   }
+                        : bmi >= 29    ? { label:'3-Down Build',  color:'var(--accent)'    }
+                        : bmi >= 27    ? { label:'Standard',      color:'var(--orange)'  }
+                        : bmi >= 25    ? { label:'Lean',          color:'var(--red)'  }
+                        :                { label:'Very Lean',     color:'var(--red)'     };
+
+    // Size Score = (weight × 200) / forty⁴  — Kent Lee Platte's metric.
+    // Rewards heavy players who run fast. NFL RBs: ~90 (slow/light) → 130+ (elite).
+    const sizeClass     = sizeScore === null ? { label:'No Data',  color:'var(--text-dim)' }
+                        : sizeScore >= 120   ? { label:'Elite',    color:'var(--green)'   }
+                        : sizeScore >= 110   ? { label:'Good',     color:'var(--accent)'    }
+                        : sizeScore >= 97    ? { label:'Average',  color:'var(--orange)'  }
+                        : sizeScore >= 85    ? { label:'Below Avg',color:'var(--red)'  }
+                        :                      { label:'Poor',     color:'var(--red)'     };
 
     // Classifiers for new Situation and Efficiency cards
     // Use === null (not !value) so that legitimate low values (e.g. run rate near 0) don't
@@ -4037,7 +4075,7 @@ async function loadPlayerProfile(pid) {
               : ''}
           </div>
 
-          <div class="pp-wl-row-label" style="margin-top:14px;">Speed</div>
+          <div class="pp-wl-row-label" style="margin-top:14px;">Physical</div>
           <div class="pp-wl-cards">
             ${maxSpeed !== null
               ? `<div class="pp-wl-card" style="border-left-color:${maxSpeedClass.color};">
@@ -4071,17 +4109,71 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">Avg sec from snap to line of scrimmage · lower = quicker · NFL NGS</div>
                  </div>`
               : noDataCard('Time to LOS')}
-            ${ngsEff !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${ngsEffClass.color};">
+            ${forty !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${fortyClass.color};">
                    <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">NGS Efficiency</span>
-                     <span class="pp-wl-card-cls" style="color:${ngsEffClass.color};">${ngsEffClass.label}</span>
+                     <span class="pp-wl-card-label">40-Yard Dash</span>
+                     <span class="pp-wl-card-cls" style="color:${fortyClass.color};">${fortyClass.label}</span>
                    </div>
-                   <div class="pp-wl-card-val" style="color:${ngsEffClass.color};">${ngsEff}<span>%</span></div>
-                   ${mkBarVal(ngsEff, 100, avgRbEfficiency, ngsEffClass.color, '%', 'AVG')}
-                   <div class="pp-wl-card-sub">% of carries gaining yards over expected · NFL Next Gen Stats</div>
+                   <div class="pp-wl-card-val" style="color:${fortyClass.color};">${forty}<span>s</span></div>
+                   ${(() => {
+                     const lo = 4.1, hi = 5.0;
+                     const fillW  = Math.min(Math.max((hi - forty)  / (hi - lo) * 100, 0), 100).toFixed(1);
+                     const avgPos = Math.min(Math.max((hi - avgRbForty) / (hi - lo) * 100, 0), 100).toFixed(1);
+                     return `<div class="pp-wl-track">
+                       <div class="pp-wl-fill"     style="width:${fillW}%;background:${fortyClass.color};"></div>
+                       <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
+                       <div class="pp-wl-dot"      style="left:${fillW}%;background:${fortyClass.color};box-shadow:0 0 6px ${fortyClass.color};"></div>
+                     </div>
+                     <div class="pp-wl-scale"><span>slow</span><span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgRbForty}s</span><span>fast</span></div>`;
+                   })()}
+                   <div class="pp-wl-card-sub">NFL combine · lower = faster · nflverse combine.csv</div>
                  </div>`
-              : noDataCard('NGS Efficiency')}
+              : noDataCard('40-Yard Dash')}
+            ${heightPct !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${htPctClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Height</span>
+                     <span class="pp-wl-card-cls" style="color:${htPctClass.color};">${htPctClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${htPctClass.color};">${Math.floor(playerHt/12)}'${Math.round(playerHt%12)}"<span style="font-size:14px;margin-left:4px;">(${heightPct}th %ile)</span></div>
+                   ${mkBar(heightPct, 100, 50, htPctClass.color, 'MED')}
+                   <div class="pp-wl-card-sub">Percentile vs all NFL RBs in Sleeper · ${playerHt} inches</div>
+                 </div>`
+              : noDataCard('Height')}
+            ${weightPct !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${wtPctClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Weight</span>
+                     <span class="pp-wl-card-cls" style="color:${wtPctClass.color};">${wtPctClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${wtPctClass.color};">${playerWt}<span> lbs<span style="font-size:14px;margin-left:4px;">(${weightPct}th %ile)</span></span></div>
+                   ${mkBar(weightPct, 100, 50, wtPctClass.color, 'MED')}
+                   <div class="pp-wl-card-sub">Percentile vs all NFL RBs in Sleeper</div>
+                 </div>`
+              : noDataCard('Weight')}
+            ${bmi !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${bmiClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">BMI</span>
+                     <span class="pp-wl-card-cls" style="color:${bmiClass.color};">${bmiClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${bmiClass.color};">${bmi}</div>
+                   ${mkBarVal(bmi, 38, 28.5, bmiClass.color, '', 'AVG')}
+                   <div class="pp-wl-card-sub">${playerWt} lbs · ${playerHt} in · higher = more mass per frame</div>
+                 </div>`
+              : noDataCard('BMI')}
+            ${sizeScore !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${sizeClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Size Score</span>
+                     <span class="pp-wl-card-cls" style="color:${sizeClass.color};">${sizeClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${sizeClass.color};">${sizeScore}</div>
+                   ${mkBarVal(sizeScore, 140, 103, sizeClass.color, '', 'AVG')}
+                   <div class="pp-wl-card-sub">(weight × 200) ÷ forty⁴ · Kent Lee Platte · ${playerWt} lbs · ${forty}s 40</div>
+                 </div>`
+              : noDataCard('Size Score')}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Red Zone</div>
@@ -5461,10 +5553,35 @@ let avgRbTgtPg         =  3.5;   // median tgt/g (top-32 RBs by carries)
 let avgRbRecPg         =  2.5;   // median rec/g (top-32 RBs by carries)
 let avgRbRecYdPg       = 22.0;   // median rec yds/g (top-32 RBs by carries)
 let avgRbRushYdPg      = 60.0;   // median rush yds/g (top-32 RBs by carries)
-// Speed benchmarks — seeded, overridden by benchmarks.json after CI
+// Physical / speed benchmarks — seeded, overridden by benchmarks.json after CI
 let avgRbMaxSpeed      = 20.5;   // median top speed (mph) — NGS tracking, top-32 RBs
 let avgRbAvgTimeToLos  =  2.5;   // median avg time to LOS (sec) — NGS, top-32 RBs
-let avgRbEfficiency    = 65.0;   // median NGS efficiency score — top-32 RBs
+let avgRbEfficiency    = 65.0;   // median NGS efficiency score — top-32 RBs (unused card, kept for bench)
+let avgRbForty         =  4.49;  // median 40-yard dash (sec) — combine data, all RBs last 15 yrs
+
+// Height / weight percentile distribution — built once from Sleeper player directory.
+// Sorted arrays let us do a binary-search-style percentile in O(log n).
+let _rbHWDist = null;
+function _getRbHWDist() {
+  if (_rbHWDist) return _rbHWDist;
+  const heights = [], weights = [];
+  for (const p of Object.values(sleeperPlayers ?? {})) {
+    if (p.position !== 'RB') continue;
+    const h = parseFloat(p.height); if (h >= 60 && h <= 82)  heights.push(h);
+    const w = parseFloat(p.weight); if (w >= 150 && w <= 280) weights.push(w);
+  }
+  heights.sort((a, b) => a - b);
+  weights.sort((a, b) => a - b);
+  _rbHWDist = { heights, weights };
+  return _rbHWDist;
+}
+// Returns 0-100 percentile: % of NFL RBs strictly below this value.
+function _rbPct(sortedArr, val) {
+  if (!sortedArr.length || val == null) return null;
+  let lo = 0, hi = sortedArr.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (sortedArr[mid] < val) lo = mid + 1; else hi = mid; }
+  return Math.round(lo / sortedArr.length * 100);
+}
 // Team situation benchmarks — seeded with estimates, overridden by benchmarks.json
 let avgTeamRushPg      = 26.0;   // avg team rush att/game (all 32 teams)
 let avgTeamPassPg      = 33.0;   // avg team pass att/game
@@ -6092,9 +6209,10 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbRecPg)       avgRbRecPg       = bench.avgRbRecPg;
     if (bench?.avgRbRecYdPg)     avgRbRecYdPg     = bench.avgRbRecYdPg;
     if (bench?.avgRbRushYdPg)    avgRbRushYdPg    = bench.avgRbRushYdPg;
-    if (bench?.avgRbMaxSpeed)    avgRbMaxSpeed    = bench.avgRbMaxSpeed;
+    if (bench?.avgRbMaxSpeed)     avgRbMaxSpeed     = bench.avgRbMaxSpeed;
     if (bench?.avgRbAvgTimeToLos) avgRbAvgTimeToLos = bench.avgRbAvgTimeToLos;
-    if (bench?.avgRbEfficiency)  avgRbEfficiency  = bench.avgRbEfficiency;
+    if (bench?.avgRbEfficiency)   avgRbEfficiency   = bench.avgRbEfficiency;
+    if (bench?.avgRbForty)        avgRbForty        = bench.avgRbForty;
 
     // teamdb.json is optional — new cards show "—" if it hasn't been built yet
     if (teamResRaw?.ok) {

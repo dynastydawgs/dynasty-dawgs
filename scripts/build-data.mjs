@@ -206,6 +206,7 @@ async function main() {
   let avgRbSuccessPct     = 41.0; // mean success rate % among top-32 RBs
   let avgRbMtfPerAtt      = 0.063;// mean missed tackles forced per attempt among top-32 RBs
   let avgRbThirdDownSnaps = 30.0; // mean 3rd-down snap % (player snaps / team 3rd-dn plays) among top-32 RBs
+  let avgRbForty          =  4.49; // median 40-yard dash (sec) among RBs with combine data
   let avgRbTgtPg          =  3.5; // median tgt/g among top-32 RBs by carries
   let avgRbRecPg          =  2.5; // median rec/g among top-32 RBs by carries
   let avgRbRecYdPg        = 22.0; // median rec yds/g among top-32 RBs by carries
@@ -859,11 +860,57 @@ async function main() {
     }
     console.log(`  3rd-down snap%: ${Object.keys(thirdDownSnapPctMap).length} qualified RBs`);
 
+    // ── 5a-iii. Combine 40-yard dash → normKey map ──────────────────────────────
+    // nflverse combine.csv has one row per draft invitee. Height is "feet-inches"
+    // (e.g. "6-1"). We only pull forty_yards for RBs; ht/wt come from Sleeper at
+    // render-time. Also compute avgRbForty from the last 15 years of combine data.
+    const combineMap = {};  // normKey → { forty }
+    const parseHtIn  = s => { const m = (s ?? '').match(/^(\d+)-(\d+)$/); return m ? +m[1]*12 + +m[2] : NaN; };
+    try {
+      const combRes = await fetch(
+        'https://github.com/nflverse/nflverse-data/releases/download/combine/combine.csv'
+      );
+      if (combRes.ok) {
+        const lines = (await combRes.text()).split('\n').filter(l => l.trim());
+        const hdrs  = parseCSVLine(lines[0]);
+        const [snI, nmI, posI, fortyI, wtI, htI] =
+          ['season', 'player_name', 'pos', 'forty', 'wt', 'ht'].map(h => hdrs.indexOf(h));
+        const fortyVals = [];
+        const cutoffYr  = currentYear - 15;
+        for (const line of lines.slice(1)) {
+          const v   = parseCSVLine(line);
+          if (posI >= 0 && v[posI]?.trim() !== 'RB') continue;
+          const name  = nmI  >= 0 ? v[nmI]?.trim()           : null;
+          const forty = fortyI >= 0 ? parseFloat(v[fortyI])  : NaN;
+          if (!name || isNaN(forty) || forty < 4.0 || forty > 5.5) continue;
+          const nk = normKey(name);
+          // Keep most recent entry per player (file is sorted oldest-first, so overwrite)
+          combineMap[nk] = { forty: Math.round(forty * 100) / 100 };
+          if (!normToDisplay[nk]) normToDisplay[nk] = name;
+          // Collect for avgRbForty (recent drafts only, avoids watering down with old data)
+          const yr = snI >= 0 ? parseInt(v[snI]) : 0;
+          if (yr >= cutoffYr) fortyVals.push(forty);
+        }
+        // Median forty from recent RB combine data
+        if (fortyVals.length >= 10) {
+          fortyVals.sort((a, b) => a - b);
+          const mid = Math.floor(fortyVals.length / 2);
+          avgRbForty = Math.round(
+            (fortyVals.length % 2 === 1 ? fortyVals[mid] : (fortyVals[mid-1] + fortyVals[mid]) / 2) * 100
+          ) / 100;
+        }
+        console.log(`  Combine: ${Object.keys(combineMap).length} RBs with 40-yd dash · avg: ${avgRbForty}s`);
+      } else {
+        console.warn(`  ⚠️  Combine fetch returned HTTP ${combRes.status}`);
+      }
+    } catch(e) { console.warn('\n  ⚠️  Combine fetch failed:', e.message); }
+
     // ── 5b. Merge into advstatsDB keyed by canonical display name ─────────────
     const allNormKeys = new Set([
       ...Object.keys(mtfMap), ...Object.keys(successMap),
       ...Object.keys(carryShareMap), ...Object.keys(rzCarryShareMap),
       ...Object.keys(rzTdRateMap), ...Object.keys(thirdDownSnapPctMap),
+      ...Object.keys(combineMap),
     ]);
     for (const nk of allNormKeys) {
       const entry = {};
@@ -876,6 +923,7 @@ async function main() {
       if (rzTdMap[nk])               entry.rzTDs             = rzTdMap[nk];
       if (thirdDownSnapPctMap[nk])   entry.thirdDownSnapPct  = thirdDownSnapPctMap[nk];
       if (thirdDownSnapRawMap[nk])   Object.assign(entry, thirdDownSnapRawMap[nk]);  // snaps, games
+      if (combineMap[nk])            entry.forty             = combineMap[nk].forty;
       if (!Object.keys(entry).length) continue;
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
@@ -1024,7 +1072,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbMaxSpeed, avgRbAvgTimeToLos, avgRbEfficiency });
+  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbMaxSpeed, avgRbAvgTimeToLos, avgRbEfficiency, avgRbForty });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
