@@ -3480,10 +3480,11 @@ async function loadPlayerProfile(pid) {
     const ryoeExpYards = _ryoeEntry?.expectedYards ?? null;
     const ryoeIsNGS    = _ryoeEntry !== null;
 
-    // Speed — NGS tracking data (from ryoedb.json, same file as RYOE)
-    const maxSpeed    = _ryoeEntry?.maxSpeed    ?? null;  // mph, GPS-tracked top speed this season
-    const avgTtLos    = _ryoeEntry?.avgTimeToLos ?? null; // sec from snap to line of scrimmage
-    const ngsEff      = _ryoeEntry?.efficiency   ?? null; // NGS efficiency score (yards over expected %)
+    // Speed / scheme — NGS tracking data (from ryoedb.json, same file as RYOE)
+    const maxSpeed       = _ryoeEntry?.maxSpeed      ?? null;  // mph, GPS-tracked top speed (column absent in nflverse)
+    const avgTtLos       = _ryoeEntry?.avgTimeToLos  ?? null;  // sec from snap to line of scrimmage
+    const ngsEff         = _ryoeEntry?.efficiency    ?? null;  // NGS efficiency score
+    const stackedBoxPct  = _ryoeEntry?.stackedBoxPct ?? null;  // % carries vs ≥8 defenders in box
 
     const maxSpeedClass = maxSpeed === null         ? { label:'No Data',      color:'var(--text-dim)' }
                         : maxSpeed >= 22.0          ? { label:'Elite Speed',   color:'var(--green)'   }
@@ -3491,6 +3492,13 @@ async function loadPlayerProfile(pid) {
                         : maxSpeed >= 20.0          ? { label:'Average',       color:'var(--orange)'  }
                         : maxSpeed >= 19.0          ? { label:'Below Avg',     color:'var(--red)'  }
                         :                             { label:'Slow',          color:'var(--red)'     };
+
+    const stackedBoxClass = stackedBoxPct === null  ? { label:'No Data',         color:'var(--text-dim)' }
+                          : stackedBoxPct >= 35     ? { label:'Must-Stop',        color:'var(--green)'   }
+                          : stackedBoxPct >= 28     ? { label:'Run Threat',       color:'var(--accent)'    }
+                          : stackedBoxPct >= 20     ? { label:'Average',          color:'var(--orange)'  }
+                          : stackedBoxPct >= 14     ? { label:'Scheme Relief',    color:'var(--red)'  }
+                          :                           { label:'Light Box',        color:'var(--red)'     };
 
     // Lower time to LOS = better (quicker through hole). Invert colors.
     const ttLosClass    = avgTtLos === null          ? { label:'No Data',      color:'var(--text-dim)' }
@@ -4363,6 +4371,17 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Requires teamdb.json (trigger CI)</div>
                  </div>`}
+            ${stackedBoxPct !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${stackedBoxClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Stacked Box Rate</span>
+                     <span class="pp-wl-card-cls" style="color:${stackedBoxClass.color};">${stackedBoxClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${stackedBoxClass.color};">${stackedBoxPct}<span>%</span></div>
+                   ${mkBar(stackedBoxPct, 50, avgRbStackedBoxPct, stackedBoxClass.color, 'AVG')}
+                   <div class="pp-wl-card-sub">% of carries vs ≥8 defenders in box · higher = more defensive attention · NFL NGS</div>
+                 </div>`
+              : ''}
           </div>
           ${injCardHTML}
         </div>
@@ -5612,6 +5631,7 @@ let avgRbRushYdPg      = 60.0;   // median rush yds/g (top-32 RBs by carries)
 let avgRbMaxSpeed      = 20.5;   // median top speed (mph) — NGS tracking, top-32 RBs
 let avgRbAvgTimeToLos  =  2.5;   // median avg time to LOS (sec) — NGS, top-32 RBs
 let avgRbEfficiency    = 65.0;   // median NGS efficiency score — top-32 RBs (unused card, kept for bench)
+let avgRbStackedBoxPct = 25.4;   // mean stacked box rate (≥8 defenders) — NGS, top-32 RBs
 let avgRbForty         =  4.49;  // median 40-yard dash (sec) — combine data, all RBs last 15 yrs
 // Physical averages — seeded, overridden by benchmarks.json after CI
 let avgRbSpeedScore    = 103.0;  // median Speed Score (wt*200/forty^4) — top-32 RBs
@@ -6281,9 +6301,10 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbRecYdPg)     avgRbRecYdPg     = bench.avgRbRecYdPg;
     if (bench?.avgRbRushYdPg)    avgRbRushYdPg    = bench.avgRbRushYdPg;
     if (bench?.avgRbMaxSpeed)     avgRbMaxSpeed     = bench.avgRbMaxSpeed;
-    if (bench?.avgRbAvgTimeToLos) avgRbAvgTimeToLos = bench.avgRbAvgTimeToLos;
-    if (bench?.avgRbEfficiency)   avgRbEfficiency   = bench.avgRbEfficiency;
-    if (bench?.avgRbForty)        avgRbForty        = bench.avgRbForty;
+    if (bench?.avgRbAvgTimeToLos)  avgRbAvgTimeToLos  = bench.avgRbAvgTimeToLos;
+    if (bench?.avgRbEfficiency)    avgRbEfficiency    = bench.avgRbEfficiency;
+    if (bench?.avgRbStackedBoxPct) avgRbStackedBoxPct = bench.avgRbStackedBoxPct;
+    if (bench?.avgRbForty)         avgRbForty         = bench.avgRbForty;
     if (bench?.avgRbSpeedScore)   avgRbSpeedScore   = bench.avgRbSpeedScore;
     if (bench?.avgRbBmi)          avgRbBmi          = bench.avgRbBmi;
     if (bench?.avgRbCompSpeed)    avgRbCompSpeed    = bench.avgRbCompSpeed;
@@ -6389,6 +6410,7 @@ function _loadOptionalDataFiles() {
           if (bench?.avgRbMaxSpeed)      avgRbMaxSpeed      = bench.avgRbMaxSpeed;
           if (bench?.avgRbAvgTimeToLos)  avgRbAvgTimeToLos  = bench.avgRbAvgTimeToLos;
           if (bench?.avgRbEfficiency)    avgRbEfficiency    = bench.avgRbEfficiency;
+          if (bench?.avgRbStackedBoxPct) avgRbStackedBoxPct = bench.avgRbStackedBoxPct;
           if (bench?.avgRbForty)         avgRbForty         = bench.avgRbForty;
           if (bench?.avgRbSpeedScore)    avgRbSpeedScore    = bench.avgRbSpeedScore;
           if (bench?.avgRbBmi)           avgRbBmi           = bench.avgRbBmi;
