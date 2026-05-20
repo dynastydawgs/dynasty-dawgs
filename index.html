@@ -1169,7 +1169,7 @@
   .pp-wl-card-val {
     font-family: var(--display); font-size: 26px; line-height: 1; margin-bottom: 9px;
   }
-  .pp-wl-card-val span { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-left: 1px; }
+  .pp-wl-card-val span { font-family: var(--mono); font-size: 11px; color: inherit; margin-left: 1px; }
   /* Timeline bar */
   .pp-wl-track {
     position: relative; height: 5px; background: var(--surface2);
@@ -4119,7 +4119,7 @@ async function loadPlayerProfile(pid) {
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.55;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">40-Yard Dash</span><span class="pp-wl-card-cls" style="color:var(--text-dim);">N/A</span></div>
-                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-val">N/A</div>
                    <div class="pp-wl-card-sub">Did not run at NFL Combine · no combine data</div>
                  </div>`}
             ${heightPct !== null
@@ -4167,7 +4167,7 @@ async function loadPlayerProfile(pid) {
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.55;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Speed Score</span><span class="pp-wl-card-cls" style="color:var(--text-dim);">N/A</span></div>
-                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-val">N/A</div>
                    <div class="pp-wl-card-sub">Requires combine 40-yard dash · not available</div>
                  </div>`}
           </div>
