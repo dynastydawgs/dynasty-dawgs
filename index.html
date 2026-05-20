@@ -3862,9 +3862,24 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Not enough carries (min 50)</div>
                  </div>`}
+            ${ptsPerTouch
+              ? `<div class="pp-wl-card" style="border-left-color:${pptClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">PPR Pts / Touch</span>
+                     <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
+                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts', 'AVG')}
+                   <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} PPR pts · ${touches} touches · ${gp} gp${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''}</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">PPR Pts / Touch</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Not in Sleeper data</div>
+                 </div>`}
           </div>
 
-          <div class="pp-wl-row-label" style="margin-top:14px;">Workload</div>
+          <div class="pp-wl-row-label" style="margin-top:14px;">Volume</div>
           <div class="pp-wl-cards">
             <div class="pp-wl-card" style="border-left-color:${carryClass.color};">
               <div class="pp-wl-card-header">
@@ -3875,18 +3890,6 @@ async function loadPlayerProfile(pid) {
               <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color, 'MED')}</div>
               <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att · ${adsCarryShare !== null ? 'player÷team carries · nflverse PBP' : (usingActualTeam ? `team ${teamRushPg.toFixed(1)} att/g` : 'vs league avg')} · bench: top 32 RBs by carries</div>
             </div>
-            ${snapCard}
-            ${thirdDownSnapPct !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${tdSnapsClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">3rd Down Snap %</span>
-                     <span class="pp-wl-card-cls" style="color:${tdSnapsClass.color};">${tdSnapsClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnapPct}<span>%</span></div>
-                   ${mkBar(thirdDownSnapPct, 100, avgRbThirdDownSnaps, tdSnapsClass.color, 'AVG')}
-                   <div class="pp-wl-card-sub">${tdRawSnaps !== null ? `${tdRawSnaps} snaps / ${tdRawGames}g = ${tdSnapsPerGame}/g · ` : ''}% of team 3rd-down plays on field · nflverse participation</div>
-                 </div>`
-              : ''}
             <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
               <div class="pp-wl-card-header">
                 <span class="pp-wl-card-label">Touches / Game</span>
@@ -3905,6 +3908,22 @@ async function loadPlayerProfile(pid) {
               ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color, 'MED')}
               <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g of ~${avgTmTouchPg} team avg · bench: top 32 RBs by carries</div>
             </div>
+          </div>
+
+          <div class="pp-wl-row-label" style="margin-top:14px;">Usage</div>
+          <div class="pp-wl-cards">
+            ${snapCard}
+            ${thirdDownSnapPct !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${tdSnapsClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">3rd Down Snap %</span>
+                     <span class="pp-wl-card-cls" style="color:${tdSnapsClass.color};">${tdSnapsClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnapPct}<span>%</span></div>
+                   ${mkBar(thirdDownSnapPct, 100, avgRbThirdDownSnaps, tdSnapsClass.color, 'AVG')}
+                   <div class="pp-wl-card-sub">${tdRawSnaps !== null ? `${tdRawSnaps} snaps / ${tdRawGames}g = ${tdSnapsPerGame}/g · ` : ''}% of team 3rd-down plays on field · nflverse participation</div>
+                 </div>`
+              : ''}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Receiving</div>
@@ -3955,25 +3974,6 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
                  </div>`
               : ''}
-          </div>
-
-          <div class="pp-wl-row-label" style="margin-top:14px;">Fantasy</div>
-          <div class="pp-wl-cards">
-            ${ptsPerTouch
-              ? `<div class="pp-wl-card" style="border-left-color:${pptClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">Points / Touch</span>
-                     <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts', 'AVG')}
-                   <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches · ${gp} gp${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''}</div>
-                 </div>`
-              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
-                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Points / Touch</span></div>
-                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                   <div class="pp-wl-card-sub">Not in Sleeper data</div>
-                 </div>`}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Situation</div>
