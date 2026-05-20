@@ -3491,12 +3491,12 @@ async function loadPlayerProfile(pid) {
     const avgTtLos       = _ryoeEntry?.avgTimeToLos  ?? null;  // sec from snap to line of scrimmage
     const stackedBoxPct  = _ryoeEntry?.stackedBoxPct ?? null;  // % carries vs ≥8 defenders in box
 
-    const stackedBoxClass = stackedBoxPct === null  ? { label:'No Data',         color:'var(--text-dim)' }
-                          : stackedBoxPct >= 35     ? { label:'Must-Stop',        color:'var(--green)'   }
-                          : stackedBoxPct >= 28     ? { label:'Run Threat',       color:'var(--accent)'    }
-                          : stackedBoxPct >= 20     ? { label:'Average',          color:'var(--orange)'  }
-                          : stackedBoxPct >= 14     ? { label:'Scheme Relief',    color:'var(--red)'  }
-                          :                           { label:'Light Box',        color:'var(--red)'     };
+    const stackedBoxClass = stackedBoxPct === null  ? { label:'No Data',      color:'var(--text-dim)' }
+                          : stackedBoxPct >= 35     ? { label:'Stacked Box',  color:'var(--red)'     }
+                          : stackedBoxPct >= 28     ? { label:'Heavy Box',    color:'var(--red)'     }
+                          : stackedBoxPct >= 20     ? { label:'Average',      color:'var(--orange)'  }
+                          : stackedBoxPct >= 14     ? { label:'Light Box',    color:'var(--accent)'  }
+                          :                           { label:'Open Lanes',   color:'var(--green)'   };
 
     // Lower time to LOS = better (quicker through hole). Invert colors.
     const ttLosClass    = avgTtLos === null          ? { label:'No Data',      color:'var(--text-dim)' }
@@ -4315,7 +4315,7 @@ async function loadPlayerProfile(pid) {
                    </div>
                    <div class="pp-wl-card-val" style="color:${stackedBoxClass.color};">${stackedBoxPct}<span>%</span></div>
                    ${mkBar(stackedBoxPct, 50, avgRbStackedBoxPct, stackedBoxClass.color, 'AVG')}
-                   <div class="pp-wl-card-sub">% of carries vs ≥8 defenders in box · higher = more defensive attention · NFL NGS</div>
+                   <div class="pp-wl-card-sub">% of carries vs ≥8 defenders in box · lower = more favorable running lanes · NFL NGS</div>
                  </div>`
               : ''}
           </div>
