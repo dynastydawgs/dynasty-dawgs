@@ -1201,10 +1201,16 @@
     font-family: var(--mono); font-size: 9px; color: var(--text-dim);
   }
   .pp-wl-row-label {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em;
     text-transform: uppercase; color: var(--blue);
-    text-shadow: 0 0 10px rgba(96,165,250,0.45);
-    margin-bottom: 6px; padding-left: 2px;
+    text-shadow: 0 0 8px rgba(96,165,250,0.4);
+    margin-bottom: 10px; white-space: nowrap;
+  }
+  .pp-wl-row-label::after {
+    content: ''; flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, rgba(96,165,250,0.3), transparent);
   }
 
   /* ── PLAYER SCORECARD ── */
@@ -3785,8 +3791,6 @@ async function loadPlayerProfile(pid) {
           <span class="pp-wl-role-tag" style="color:var(--text-muted);border-color:var(--border);background:rgba(255,255,255,0.04);">${statTeam}</span>
         </div>
         <div>
-          ${_scorecardHTML}
-
           <div class="pp-wl-row-label">Efficiency</div>
           <div class="pp-wl-cards">
             ${ypc !== null
@@ -4099,8 +4103,6 @@ async function loadPlayerProfile(pid) {
           <span class="pp-wl-role-tag" style="color:var(--text-muted);border-color:var(--border);background:rgba(255,255,255,0.04);">${nflTeam}</span>
         </div>
         <div>
-          ${_olScorecardHTML}
-
           <div class="pp-wl-row-label">Efficiency</div>
           <div class="pp-wl-cards">
             ${ypc !== null
@@ -5110,6 +5112,7 @@ async function loadPlayerProfile(pid) {
             <button class="pp-tab t-comps"   onclick="switchPpTab('comps',this)">Comps</button>
             <button class="pp-tab t-adv"     onclick="switchPpTab('adv',this)">Advanced</button>
             <button class="pp-tab t-outlook" onclick="switchPpTab('outlook',this)">Outlook</button>
+            <button class="pp-tab t-overview" onclick="switchPpTab('overview',this)">Overview</button>
           </div>
         </div>
         <div class="pp-tab-divider"></div>
@@ -5159,6 +5162,16 @@ async function loadPlayerProfile(pid) {
           ${outlookHTML || (injCardHTML
             ? `<div class="pp-workload-section">${injCardHTML}</div>`
             : `<div style="padding:48px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">// 2026 OUTLOOK — COMING SOON</div>`)}
+        </div>
+
+        <!-- TAB: Overview -->
+        <div class="pp-tab-panel" id="pp-tab-overview" style="display:none; padding:0;">
+          <div class="pp-workload-section">
+            <div style="margin-bottom:6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2025 Season</div>
+            ${_scorecardHTML}
+            <div style="margin:18px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2026 Outlook</div>
+            ${_scorecardHTML2026}
+          </div>
         </div>
 
       </div>
@@ -7876,8 +7889,9 @@ function switchPpTab(tab, btn) {
     const labels = {
       proj:    `${projSeasonYear()} Season Outlook — PPR`,
       comps:   `${projSeasonYear()} Similarity Scores`,
-      adv:     'Advanced Stats — 2025',
-      outlook: `${projSeasonYear()} Outlook — Current Team`
+      adv:      'Advanced Stats — 2025',
+      outlook:  `${projSeasonYear()} Outlook — Current Team`,
+      overview: 'Overview — 2025 vs 2026'
     };
     labelText.textContent = labels[tab] ?? labels.proj;
   }
