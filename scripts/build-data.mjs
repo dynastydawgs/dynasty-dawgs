@@ -1059,6 +1059,13 @@ async function main() {
       .slice(0, 32);
 
     if (rbBenchRows.length >= 8) {
+      // Mean — accurate "what does the average top-32 RB produce?" for most metrics
+      const _mn = (field, fb, precision = 10) => {
+        const vals = rbBenchRows.map(r => r[field]).filter(v => v != null);
+        if (vals.length < 5) return fb;
+        return Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * precision) / precision;
+      };
+      // Median — only for RZ carries / RZ carry share where Henry is a genuine outlier
       const _bm = (field, fb) => {
         const vals = rbBenchRows.map(r => r[field]).filter(v => v != null).sort((a, b) => a - b);
         if (vals.length < 5) return fb;
@@ -1066,45 +1073,40 @@ async function main() {
         const median = vals.length % 2 === 1 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
         return Math.round(median * 10) / 10;
       };
-      avgRbCarryPct     = _bm('carryPct',       44.1);
-      avgRbTouchesPg    = _bm('touchesPg',      15.0);
-      avgRbTouchShare   = _bm('touchSharePct',  31.0);
-      avgRbTargetShare  = _bm('targetSharePct',  9.0);
-      avgRbTgtPg        = _bm('tgtPg',           3.5);
-      avgRbRecPg        = _bm('recPg',           2.5);
-      avgRbRecYdPg      = _bm('recYdPg',        22.0);
-      avgRbRushYdPg     = _bm('rushYdPg',       60.0);
-      avgRbMaxSpeed     = _bm('maxSpeed',        20.5);
-      avgRbAvgTimeToLos = _bm('avgTimeToLos',    2.5);
-      avgRbEfficiency   = _bm('efficiency',      65.0);
-      avgRbSnapPct      = _bm('snapPct',         62.0);
+      avgRbCarryPct     = _mn('carryPct',       44.1);
+      avgRbTouchesPg    = _mn('touchesPg',      15.0);
+      avgRbTouchShare   = _mn('touchSharePct',  31.0);
+      avgRbTargetShare  = _mn('targetSharePct',  9.0);
+      avgRbTgtPg        = _mn('tgtPg',           3.5);
+      avgRbRecPg        = _mn('recPg',           2.5);
+      avgRbRecYdPg      = _mn('recYdPg',        22.0);
+      avgRbRushYdPg     = _mn('rushYdPg',       60.0);
+      avgRbMaxSpeed     = _mn('maxSpeed',        20.5);
+      avgRbAvgTimeToLos = _mn('avgTimeToLos',    2.5);
+      avgRbEfficiency   = _mn('efficiency',      65.0);
+      avgRbSnapPct      = _mn('snapPct',         62.0);
+      avgRbSuccessPct   = _mn('successPct',      41.0);
+      avgRbMtfPerAtt    = _mn('mtfPerAtt',       0.063, 1000);
+      avgRbThirdDownSnaps = _mn('thirdDownSnapPct', 30.0);
+      avgRbRzTdRate     = _mn('rzTdRate',        17.0);
+      // RZ carries + RZ carry share: median to avoid Henry skew
       avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
       avgRbRzCarries    = _bm('rzCarries',       22.0);
-      // Success rate + MTF are efficiency metrics — use mean
-      const _sucVals    = rbBenchRows.map(r => r.successPct).filter(v => v != null);
-      avgRbSuccessPct   = _sucVals.length >= 5 ? Math.round(_sucVals.reduce((s, v) => s + v, 0) / _sucVals.length * 10) / 10 : 41.0;
-      const _mtfVals    = rbBenchRows.map(r => r.mtfPerAtt).filter(v => v != null);
-      avgRbMtfPerAtt    = _mtfVals.length >= 5 ? Math.round(_mtfVals.reduce((s, v) => s + v, 0) / _mtfVals.length * 1000) / 1000 : 0.063;
-      const _tdSnapVals = rbBenchRows.map(r => r.thirdDownSnapPct).filter(v => v != null);
-      avgRbThirdDownSnaps = _tdSnapVals.length >= 5 ? Math.round(_tdSnapVals.reduce((s, v) => s + v, 0) / _tdSnapVals.length * 10) / 10 : 30.0;
-      // YPC + RZ TD rate are efficiency metrics — use mean
       const _ypcVals    = rbBenchRows.map(r => r.ypc).filter(v => v != null);
       avgRbYpc          = _ypcVals.length >= 5 ? Math.round(_ypcVals.reduce((s, v) => s + v, 0) / _ypcVals.length * 10) / 10 : 4.3;
       avgRbYpcN         = _ypcVals.length;
-      const _rzTdVals   = rbBenchRows.map(r => r.rzTdRate).filter(v => v != null && !isNaN(v));
-      avgRbRzTdRate     = _rzTdVals.length >= 5 ? Math.round(_rzTdVals.reduce((s, v) => s + v, 0) / _rzTdVals.length * 10) / 10 : 17.0;
-      console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · tgt/g: ${avgRbTgtPg} · rec/g: ${avgRbRecPg} · recYd/g: ${avgRbRecYdPg} · rushYd/g: ${avgRbRushYdPg} · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
-      console.log(`  Efficiency bench (mean) — ypc: ${avgRbYpc} · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt} · rz td rate: ${avgRbRzTdRate}% · 3rd-dn snaps: ${avgRbThirdDownSnaps}`);
-      console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (mean, n=${avgRbYpcN})`);
-      // Physical benchmarks (median of top-32 pool)
+      console.log(`  Workload bench (mean) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · tgt/g: ${avgRbTgtPg} · rec/g: ${avgRbRecPg} · recYd/g: ${avgRbRecYdPg} · rushYd/g: ${avgRbRushYdPg}`);
+      console.log(`  Workload bench (median) — rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
+      console.log(`  Efficiency bench (mean) — ypc: ${avgRbYpc} (n=${avgRbYpcN}) · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt} · rz td rate: ${avgRbRzTdRate}% · 3rd-dn snaps: ${avgRbThirdDownSnaps}`);
+      // Physical benchmarks (mean of top-32 pool)
       const _p95 = (field, fb) => {
         const vals = rbBenchRows.map(r => r[field]).filter(v => v != null).sort((a, b) => a - b);
         if (vals.length < 5) return fb;
         return Math.round(pct(vals, 95) * 100) / 100;
       };
-      avgRbSpeedScore = _bm('speedScore', 103.0);
-      avgRbBmi        = _bm('bmi',         28.5);
-      avgRbCompSpeed  = _bm('compSpeed',    62.0);
+      avgRbSpeedScore = _mn('speedScore', 103.0);
+      avgRbBmi        = _mn('bmi',         28.5);
+      avgRbCompSpeed  = _mn('compSpeed',    62.0);
       // Bar scale maxima (p95 of top-32 pool — outlier-resistant ceiling for bars)
       maxRbRushYdPg   = _p95('rushYdPg',  150.0);
       maxRbTouchesPg  = _p95('touchesPg',  25.0);
