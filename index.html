@@ -3476,7 +3476,8 @@ async function loadPlayerProfile(pid) {
     // RYOE — prefer official NFL NGS data (nflverse); proxy as fallback when ryoedb.json absent.
     // NGS model accounts for game situation, field position, and defense — far more accurate
     // than simple (playerYPC - teamYPC) × carries.
-    const _ryoeEntry  = ryoeDB?.[sp?.name] ?? null;
+    const _ryoeKey    = Object.keys(ryoeDB ?? {}).find(k => _advNorm(k) === _advSpNorm) ?? sp?.name;
+    const _ryoeEntry  = ryoeDB?.[_ryoeKey] ?? null;
     const ryoePerAtt  = _ryoeEntry !== null
       ? _ryoeEntry.ryoePerAtt
       : (ypc !== null && teamYpc !== null ? Math.round((ypc - teamYpc) * 100) / 100 : null);
