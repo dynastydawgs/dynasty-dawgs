@@ -6,7 +6,7 @@
 // Output files:
 //   data/compdb.json      — comp buckets: "POS_tier_carYr" → [p15, p50, p85]
 //   data/careerdb.json    — pid → [{season, ppr, ppg, games, touches}]
-//   data/benchmarks.json  — { avgRbCarryPct, avgRbSnapPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare }
+//   data/benchmarks.json  — { avgRb*, avgTeam* } — workload, receiving, speed, efficiency medians for top-32 RBs
 //   data/teamdb.json      — teamAbbr → {rushAttPg, passAttPg, offPlaysPg, …, offRating}
 //   data/depthdb.json     — teamAbbr → {QB/RB/WR/TE: [{name, rank, status}]}
 //   data/ryoedb.json      — playerName → {ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected}
@@ -210,6 +210,10 @@ async function main() {
   let avgRbRecPg          =  2.5; // median rec/g among top-32 RBs by carries
   let avgRbRecYdPg        = 22.0; // median rec yds/g among top-32 RBs by carries
   let avgRbRushYdPg       = 60.0; // median rush yds/g among top-32 RBs by carries
+  // Speed benchmarks — seeded with 2025 NGS estimates, updated from top-32 pool below
+  let avgRbMaxSpeed       = 20.5; // median top speed (mph) among top-32 RBs by carries
+  let avgRbAvgTimeToLos   =  2.5; // median avg time to LOS (sec) among top-32 RBs
+  let avgRbEfficiency     = 65.0; // median NGS efficiency score among top-32 RBs
   // RB efficiency benchmarks — seeded with estimates, updated below.
   let avgRbYpc         =  4.3;   // avg yards/carry (from PBP, same top-64 pool)
   let avgRbYpcN        =  0;
@@ -431,10 +435,13 @@ async function main() {
       const name     = row.player_display_name?.trim();
       const attempts = parseFloat(row.rush_attempts ?? 0);
       if (!name || attempts < 10) continue;
-      const ryoeTotal  = parseFloat(row.rush_yards_over_expected        ?? 'NaN');
-      const ryoePerAtt = parseFloat(row.rush_yards_over_expected_per_att ?? 'NaN');
-      const expYards   = parseFloat(row.expected_rush_yards              ?? 'NaN');
-      const pctOver    = parseFloat(row.rush_pct_over_expected           ?? 'NaN');
+      const ryoeTotal   = parseFloat(row.rush_yards_over_expected         ?? 'NaN');
+      const ryoePerAtt  = parseFloat(row.rush_yards_over_expected_per_att ?? 'NaN');
+      const expYards    = parseFloat(row.expected_rush_yards              ?? 'NaN');
+      const pctOver     = parseFloat(row.rush_pct_over_expected           ?? 'NaN');
+      const maxSpeed    = parseFloat(row.max_speed                        ?? 'NaN');
+      const avgTimeToLos= parseFloat(row.avg_time_to_los                  ?? 'NaN');
+      const efficiency  = parseFloat(row.efficiency                       ?? 'NaN');
       if (isNaN(ryoeTotal) || isNaN(ryoePerAtt)) continue;
       // team_abbr is the team the player was on during this stat season —
       // used client-side to detect when a player switched teams in the offseason.
@@ -444,7 +451,10 @@ async function main() {
         ryoeTotal:       Math.round(ryoeTotal  * 10) / 10,
         ryoePerAtt:      Math.round(ryoePerAtt * 1000) / 1000,
         expectedYards:   Math.round(expYards),
-        pctOverExpected: isNaN(pctOver) ? null : Math.round(pctOver * 1000) / 10,
+        pctOverExpected: isNaN(pctOver)      ? null : Math.round(pctOver      * 1000) / 10,
+        maxSpeed:        isNaN(maxSpeed)     ? null : Math.round(maxSpeed     * 10)   / 10,
+        avgTimeToLos:    isNaN(avgTimeToLos) ? null : Math.round(avgTimeToLos * 100)  / 100,
+        efficiency:      isNaN(efficiency)   ? null : Math.round(efficiency   * 10)   / 10,
         attempts:        Math.round(attempts),
         team:            ngsTeam || null,
       };
@@ -955,6 +965,9 @@ async function main() {
           successPct:        nk ? (successMap[nk] ?? null) : null,
           mtfPerAtt:         nk ? (mtfMap[nk]?.mtfPerAtt ?? null) : null,
           thirdDownSnapPct:  nk ? (thirdDownSnapPctMap[nk] ?? null) : null,
+          maxSpeed:          nk ? (ryoeDB[normToDisplay[nk]]?.maxSpeed      ?? null) : null,
+          avgTimeToLos:      nk ? (ryoeDB[normToDisplay[nk]]?.avgTimeToLos  ?? null) : null,
+          efficiency:        nk ? (ryoeDB[normToDisplay[nk]]?.efficiency    ?? null) : null,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -976,6 +989,9 @@ async function main() {
       avgRbRecPg        = _bm('recPg',           2.5);
       avgRbRecYdPg      = _bm('recYdPg',        22.0);
       avgRbRushYdPg     = _bm('rushYdPg',       60.0);
+      avgRbMaxSpeed     = _bm('maxSpeed',        20.5);
+      avgRbAvgTimeToLos = _bm('avgTimeToLos',    2.5);
+      avgRbEfficiency   = _bm('efficiency',      65.0);
       avgRbSnapPct      = _bm('snapPct',         62.0);
       avgRbRzCarryShare = _bm('rzCarryShare',    38.0);
       avgRbRzCarries    = _bm('rzCarries',       22.0);
@@ -1008,7 +1024,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN });
+  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbMaxSpeed, avgRbAvgTimeToLos, avgRbEfficiency });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);

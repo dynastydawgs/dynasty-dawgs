@@ -3320,18 +3320,6 @@ async function loadPlayerProfile(pid) {
                         : tgtPg >= 1.5 ? { label:'Limited',        color:'var(--red)' }
                         :                { label:'Minimal',        color:'var(--red)'    };
 
-    const rbRecPgClass  = recPg >= 4   ? { label:'Elite',          color:'var(--green)'  }
-                        : recPg >= 3   ? { label:'Good',           color:'var(--accent)'   }
-                        : recPg >= 2   ? { label:'Average',        color:'var(--orange)' }
-                        : recPg >= 1   ? { label:'Limited',        color:'var(--red)' }
-                        :                { label:'Minimal',        color:'var(--red)'    };
-
-    const rbRecYdPgClass = recYdPg >= 35 ? { label:'Elite',        color:'var(--green)'  }
-                         : recYdPg >= 25 ? { label:'Good',         color:'var(--accent)'   }
-                         : recYdPg >= 15 ? { label:'Average',      color:'var(--orange)' }
-                         : recYdPg >= 8  ? { label:'Limited',      color:'var(--red)' }
-                         :                 { label:'Minimal',      color:'var(--red)'    };
-
     const roleTag     = carryPct >= 65 && tgtPg >= 4.5 ? { label:'Workhorse + Receiver',   color:'var(--green)'  }
                       : carryPct >= 65                  ? { label:'Workhorse',              color:'var(--green)'  }
                       : carryPct >= 50 && tgtPg >= 5   ? { label:'Three-Down Back',        color:'var(--accent)'   }
@@ -3412,6 +3400,17 @@ async function loadPlayerProfile(pid) {
     const rushYdPg      = gp > 0 ? Math.round(rushYd / gp * 10) / 10 : null;
     const recPg         = gp > 0 ? Math.round(rec    / gp * 10) / 10 : null;
     const recYdPg       = gp > 0 ? Math.round(recYd  / gp * 10) / 10 : null;
+
+    const rbRecPgClass   = recPg   >= 4  ? { label:'Elite',   color:'var(--green)'  }
+                         : recPg   >= 3  ? { label:'Good',    color:'var(--accent)'   }
+                         : recPg   >= 2  ? { label:'Average', color:'var(--orange)' }
+                         : recPg   >= 1  ? { label:'Limited', color:'var(--red)' }
+                         :                 { label:'Minimal', color:'var(--red)'    };
+    const rbRecYdPgClass = recYdPg >= 35 ? { label:'Elite',   color:'var(--green)'  }
+                         : recYdPg >= 25 ? { label:'Good',    color:'var(--accent)'   }
+                         : recYdPg >= 15 ? { label:'Average', color:'var(--orange)' }
+                         : recYdPg >= 8  ? { label:'Limited', color:'var(--red)' }
+                         :                 { label:'Minimal', color:'var(--red)'    };
     const avgTeamRecPg  = 22.0;                           // avg team receptions/game (~33 tgt × 66% catch rate)
     // Touch share denominator: actual team rush att/g + league-avg rec/g.
     // We don't have tm_rec from Sleeper so receiving side stays at league avg.
@@ -3480,6 +3479,33 @@ async function loadPlayerProfile(pid) {
       : (ryoePerAtt !== null && rushAtt >= 20 ? Math.round(ryoePerAtt * rushAtt) : null);
     const ryoeExpYards = _ryoeEntry?.expectedYards ?? null;
     const ryoeIsNGS    = _ryoeEntry !== null;
+
+    // Speed — NGS tracking data (from ryoedb.json, same file as RYOE)
+    const maxSpeed    = _ryoeEntry?.maxSpeed    ?? null;  // mph, GPS-tracked top speed this season
+    const avgTtLos    = _ryoeEntry?.avgTimeToLos ?? null; // sec from snap to line of scrimmage
+    const ngsEff      = _ryoeEntry?.efficiency   ?? null; // NGS efficiency score (yards over expected %)
+
+    const maxSpeedClass = maxSpeed === null         ? { label:'No Data',      color:'var(--text-dim)' }
+                        : maxSpeed >= 22.0          ? { label:'Elite Speed',   color:'var(--green)'   }
+                        : maxSpeed >= 21.0          ? { label:'Fast',          color:'var(--accent)'    }
+                        : maxSpeed >= 20.0          ? { label:'Average',       color:'var(--orange)'  }
+                        : maxSpeed >= 19.0          ? { label:'Below Avg',     color:'var(--red)'  }
+                        :                             { label:'Slow',          color:'var(--red)'     };
+
+    // Lower time to LOS = better (quicker through hole). Invert colors.
+    const ttLosClass    = avgTtLos === null          ? { label:'No Data',      color:'var(--text-dim)' }
+                        : avgTtLos <= 2.1            ? { label:'Decisive',     color:'var(--green)'   }
+                        : avgTtLos <= 2.4            ? { label:'Quick',        color:'var(--accent)'    }
+                        : avgTtLos <= 2.7            ? { label:'Average',      color:'var(--orange)'  }
+                        : avgTtLos <= 3.0            ? { label:'Hesitant',     color:'var(--red)'  }
+                        :                              { label:'Slow Start',   color:'var(--red)'     };
+
+    const ngsEffClass   = ngsEff === null            ? { label:'No Data',      color:'var(--text-dim)' }
+                        : ngsEff >= 80               ? { label:'Elite',        color:'var(--green)'   }
+                        : ngsEff >= 70               ? { label:'Good',         color:'var(--accent)'    }
+                        : ngsEff >= 55               ? { label:'Average',      color:'var(--orange)'  }
+                        : ngsEff >= 40               ? { label:'Below Avg',    color:'var(--red)'  }
+                        :                              { label:'Poor',         color:'var(--red)'     };
 
     // Classifiers for new Situation and Efficiency cards
     // Use === null (not !value) so that legitimate low values (e.g. run rate near 0) don't
@@ -3798,6 +3824,13 @@ async function loadPlayerProfile(pid) {
         ${_scorecardHTML2026}
       </div>`;
 
+    const noDataCard = label => `
+      <div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+        <div class="pp-wl-card-header"><span class="pp-wl-card-label">${label}</span></div>
+        <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+        <div class="pp-wl-card-sub">No NGS data · may appear mid-season</div>
+      </div>`;
+
     const snapCard = hasSnap
       ? `<div class="pp-wl-card" style="border-left-color:${snapClass.color};">
            <div class="pp-wl-card-header">
@@ -4002,6 +4035,53 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">${recYd} total rec yds · ${rec} rec · ${gp} games</div>
                  </div>`
               : ''}
+          </div>
+
+          <div class="pp-wl-row-label" style="margin-top:14px;">Speed</div>
+          <div class="pp-wl-cards">
+            ${maxSpeed !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${maxSpeedClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Top Speed</span>
+                     <span class="pp-wl-card-cls" style="color:${maxSpeedClass.color};">${maxSpeedClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${maxSpeedClass.color};">${maxSpeed}<span> mph</span></div>
+                   ${mkBarVal(maxSpeed, 24, avgRbMaxSpeed, maxSpeedClass.color, ' mph', 'AVG')}
+                   <div class="pp-wl-card-sub">Max GPS-tracked speed · 2025 season · NFL Next Gen Stats</div>
+                 </div>`
+              : noDataCard('Top Speed')}
+            ${avgTtLos !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${ttLosClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Time to LOS</span>
+                     <span class="pp-wl-card-cls" style="color:${ttLosClass.color};">${ttLosClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${ttLosClass.color};">${avgTtLos}<span>s</span></div>
+                   ${(() => {
+                     const maxT   = 4;
+                     const fillW  = Math.min((maxT - avgTtLos) / maxT * 100, 100).toFixed(1);
+                     const avgPos = Math.min((maxT - avgRbAvgTimeToLos) / maxT * 100, 100).toFixed(1);
+                     return `<div class="pp-wl-track">
+                       <div class="pp-wl-fill"     style="width:${fillW}%;background:${ttLosClass.color};"></div>
+                       <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
+                       <div class="pp-wl-dot"      style="left:${fillW}%;background:${ttLosClass.color};box-shadow:0 0 6px ${ttLosClass.color};"></div>
+                     </div>
+                     <div class="pp-wl-scale"><span>slow</span><span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgRbAvgTimeToLos}s</span><span>fast</span></div>`;
+                   })()}
+                   <div class="pp-wl-card-sub">Avg sec from snap to line of scrimmage · lower = quicker · NFL NGS</div>
+                 </div>`
+              : noDataCard('Time to LOS')}
+            ${ngsEff !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${ngsEffClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">NGS Efficiency</span>
+                     <span class="pp-wl-card-cls" style="color:${ngsEffClass.color};">${ngsEffClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${ngsEffClass.color};">${ngsEff}<span>%</span></div>
+                   ${mkBarVal(ngsEff, 100, avgRbEfficiency, ngsEffClass.color, '%', 'AVG')}
+                   <div class="pp-wl-card-sub">% of carries gaining yards over expected · NFL Next Gen Stats</div>
+                 </div>`
+              : noDataCard('NGS Efficiency')}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Red Zone</div>
@@ -5381,6 +5461,10 @@ let avgRbTgtPg         =  3.5;   // median tgt/g (top-32 RBs by carries)
 let avgRbRecPg         =  2.5;   // median rec/g (top-32 RBs by carries)
 let avgRbRecYdPg       = 22.0;   // median rec yds/g (top-32 RBs by carries)
 let avgRbRushYdPg      = 60.0;   // median rush yds/g (top-32 RBs by carries)
+// Speed benchmarks — seeded, overridden by benchmarks.json after CI
+let avgRbMaxSpeed      = 20.5;   // median top speed (mph) — NGS tracking, top-32 RBs
+let avgRbAvgTimeToLos  =  2.5;   // median avg time to LOS (sec) — NGS, top-32 RBs
+let avgRbEfficiency    = 65.0;   // median NGS efficiency score — top-32 RBs
 // Team situation benchmarks — seeded with estimates, overridden by benchmarks.json
 let avgTeamRushPg      = 26.0;   // avg team rush att/game (all 32 teams)
 let avgTeamPassPg      = 33.0;   // avg team pass att/game
@@ -6008,6 +6092,9 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbRecPg)       avgRbRecPg       = bench.avgRbRecPg;
     if (bench?.avgRbRecYdPg)     avgRbRecYdPg     = bench.avgRbRecYdPg;
     if (bench?.avgRbRushYdPg)    avgRbRushYdPg    = bench.avgRbRushYdPg;
+    if (bench?.avgRbMaxSpeed)    avgRbMaxSpeed    = bench.avgRbMaxSpeed;
+    if (bench?.avgRbAvgTimeToLos) avgRbAvgTimeToLos = bench.avgRbAvgTimeToLos;
+    if (bench?.avgRbEfficiency)  avgRbEfficiency  = bench.avgRbEfficiency;
 
     // teamdb.json is optional — new cards show "—" if it hasn't been built yet
     if (teamResRaw?.ok) {
