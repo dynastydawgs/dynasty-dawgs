@@ -207,7 +207,23 @@ async function main() {
   let avgRbMtfPerAtt      = 0.063;// mean missed tackles forced per attempt among top-32 RBs
   let avgRbThirdDownSnaps = 30.0; // mean 3rd-down snap % (player snaps / team 3rd-dn plays) among top-32 RBs
   let avgRbForty          =  4.49; // median 40-yard dash (sec) among RBs with combine data
-  let avgRbTgtPg          =  3.5; // median tgt/g among top-32 RBs by carries
+  // Physical averages — seeded, updated from top-32 pool
+  let avgRbSpeedScore     = 103.0; // median Speed Score (wt×200/forty⁴) among top-32 RBs
+  let avgRbBmi            =  28.5; // median BMI among top-32 RBs
+  let avgRbCompSpeed      =  62.0; // median Composite Speed (0–100) among top-32 RBs
+  // Bar scale maxima — p95 of top-32 pool so extreme outliers don't compress the scale
+  let maxRbRushYdPg       = 150.0;
+  let maxRbTouchesPg      =  25.0;
+  let maxRbYpc            =   8.0;
+  let maxRbMtfPerAtt      =   0.20;
+  let maxRbTgtPg          =  10.0;
+  let maxRbRecPg          =   8.0;
+  let maxRbRecYdPg        =  70.0;
+  let maxRbMaxSpeed       =  24.0;
+  let maxRbSpeedScore     = 140.0;
+  let maxRbBmi            =  38.0;
+  let maxRbRzCarries      =  55.0;
+  let avgRbTgtPg          =   3.5; // median tgt/g among top-32 RBs by carries
   let avgRbRecPg          =  2.5; // median rec/g among top-32 RBs by carries
   let avgRbRecYdPg        = 22.0; // median rec yds/g among top-32 RBs by carries
   let avgRbRushYdPg       = 60.0; // median rush yds/g among top-32 RBs by carries
@@ -584,10 +600,11 @@ async function main() {
 
     // ── 1. players.csv → GSIS ↔ normalised-name + position ──────────────────
     // Built first so both MTF and success lookups can use it.
-    const gsisToNormName = {};  // gsis_id → normKey(display_name)
-    const normToDisplay  = {};  // normKey  → canonical display_name (for final key)
-    const gsisToPos      = {};  // gsis_id  → position (to filter QBs)
-    const pfrToGsis      = {};  // pfr_id   → gsis_id (for snap_counts bridge)
+    const gsisToNormName  = {};  // gsis_id → normKey(display_name)
+    const normToDisplay   = {};  // normKey  → canonical display_name (for final key)
+    const gsisToPos       = {};  // gsis_id  → position (to filter QBs)
+    const pfrToGsis       = {};  // pfr_id   → gsis_id (for snap_counts bridge)
+    const gsisToSleeperId = {};  // gsis_id  → sleeper_id (for Sleeper wt/ht lookup)
     try {
       const res = await fetch(
         'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv'
@@ -595,10 +612,12 @@ async function main() {
       if (res.ok) {
         const lines = (await res.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
-        const [gI, dI, pI, pfrI] = ['gsis_id', 'display_name', 'position', 'pfr_id'].map(h => hdrs.indexOf(h));
+        const [gI, dI, pI, pfrI, sidI] = ['gsis_id', 'display_name', 'position', 'pfr_id', 'sleeper_id'].map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
           const g = v[gI]?.trim(), d = v[dI]?.trim(), p = v[pI]?.trim();
+          const sid = sidI >= 0 ? v[sidI]?.trim() : null;
+          if (g && sid) gsisToSleeperId[g] = sid;
           if (!g || !d) continue;
           const nk = normKey(d);
           gsisToNormName[g] = nk;
@@ -994,7 +1013,20 @@ async function main() {
       .map(([gsis, d]) => {
         const games     = d.gameIds.size || 1;
         const touchesPg = (d.carries + d.rec) / games;
-        const nk        = gsisToNormName[gsis];
+        const nk         = gsisToNormName[gsis];
+        const sid        = gsisToSleeperId[gsis] ?? null;
+        const slPl       = sid ? sleeperPlayers[sid] : null;
+        const wt         = slPl?.weight ? parseFloat(slPl.weight) : null;
+        const ht         = slPl?.height ? parseFloat(slPl.height) : null;
+        const playerFrty = nk ? (combineMap[nk]?.forty ?? null) : null;
+        const speedScoreV = (wt && playerFrty) ? wt * 200 / Math.pow(playerFrty, 4) : null;
+        const bmiV        = (wt && ht) ? wt / (ht * ht) * 703 : null;
+        const ryoeEnt    = nk && normToDisplay[nk] ? ryoeDB[normToDisplay[nk]] : null;
+        const _msN2  = ryoeEnt?.maxSpeed     != null ? Math.min(Math.max((ryoeEnt.maxSpeed - 17) / 7, 0), 1) : null;
+        const _lN2   = ryoeEnt?.avgTimeToLos != null ? Math.min(Math.max((3.8 - ryoeEnt.avgTimeToLos) / 2, 0), 1) : null;
+        const _ssN2  = speedScoreV != null ? Math.min(Math.max((speedScoreV - 70) / 70, 0), 1) : null;
+        const compSpeedV = (_msN2 !== null && _lN2 !== null && _ssN2 !== null)
+          ? Math.round((_msN2 * 0.40 + _lN2 * 0.35 + _ssN2 * 0.25) * 100) : null;
         return {
           carries:        d.carries,
           carryPct:       (d.carries / games) / NFL_AVG_RUSH_ATT_PG * 100,
@@ -1016,6 +1048,11 @@ async function main() {
           maxSpeed:          nk ? (ryoeDB[normToDisplay[nk]]?.maxSpeed      ?? null) : null,
           avgTimeToLos:      nk ? (ryoeDB[normToDisplay[nk]]?.avgTimeToLos  ?? null) : null,
           efficiency:        nk ? (ryoeDB[normToDisplay[nk]]?.efficiency    ?? null) : null,
+          wt,
+          ht,
+          speedScore: speedScoreV != null ? Math.round(speedScoreV * 10) / 10 : null,
+          bmi:        bmiV        != null ? Math.round(bmiV        * 10) / 10 : null,
+          compSpeed:  compSpeedV,
         };
       })
       .sort((a, b) => b.carries - a.carries)
@@ -1058,7 +1095,30 @@ async function main() {
       avgRbRzTdRate     = _rzTdVals.length >= 5 ? Math.round(_rzTdVals.reduce((s, v) => s + v, 0) / _rzTdVals.length * 10) / 10 : 17.0;
       console.log(`  Workload bench (top 32, median) — carry: ${avgRbCarryPct}% · snap: ${avgRbSnapPct}% · tch/g: ${avgRbTouchesPg} · tch%: ${avgRbTouchShare}% · tgt%: ${avgRbTargetShare}% · tgt/g: ${avgRbTgtPg} · rec/g: ${avgRbRecPg} · recYd/g: ${avgRbRecYdPg} · rushYd/g: ${avgRbRushYdPg} · rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
       console.log(`  Efficiency bench (mean) — ypc: ${avgRbYpc} · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt} · rz td rate: ${avgRbRzTdRate}% · 3rd-dn snaps: ${avgRbThirdDownSnaps}`);
-      console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (mean, n=${avgRbYpcN})`)
+      console.log(`  Efficiency bench — ypc: ${avgRbYpc} yds (mean, n=${avgRbYpcN})`);
+      // Physical benchmarks (median of top-32 pool)
+      const _p95 = (field, fb) => {
+        const vals = rbBenchRows.map(r => r[field]).filter(v => v != null).sort((a, b) => a - b);
+        if (vals.length < 5) return fb;
+        return Math.round(pct(vals, 95) * 100) / 100;
+      };
+      avgRbSpeedScore = _bm('speedScore', 103.0);
+      avgRbBmi        = _bm('bmi',         28.5);
+      avgRbCompSpeed  = _bm('compSpeed',    62.0);
+      // Bar scale maxima (p95 of top-32 pool — outlier-resistant ceiling for bars)
+      maxRbRushYdPg   = _p95('rushYdPg',  150.0);
+      maxRbTouchesPg  = _p95('touchesPg',  25.0);
+      maxRbYpc        = _p95('ypc',          8.0);
+      maxRbMtfPerAtt  = _p95('mtfPerAtt',   0.20);
+      maxRbTgtPg      = _p95('tgtPg',       10.0);
+      maxRbRecPg      = _p95('recPg',        8.0);
+      maxRbRecYdPg    = _p95('recYdPg',     70.0);
+      maxRbMaxSpeed   = _p95('maxSpeed',    24.0);
+      maxRbSpeedScore = _p95('speedScore', 140.0);
+      maxRbBmi        = _p95('bmi',         38.0);
+      maxRbRzCarries  = _p95('rzCarries',   55.0);
+      console.log(`  Physical bench (top 32, median) — speedScore: ${avgRbSpeedScore} · bmi: ${avgRbBmi} · compSpeed: ${avgRbCompSpeed}`);
+      console.log(`  Bar scale maxima (p95) — rushYdPg: ${maxRbRushYdPg} · touchesPg: ${maxRbTouchesPg} · ypc: ${maxRbYpc} · maxSpeed: ${maxRbMaxSpeed} · ss: ${maxRbSpeedScore} · bmi: ${maxRbBmi} · rzCarries: ${maxRbRzCarries}`);
     } else {
       console.error(`  ⚠️  Only ${rbBenchRows.length} qualifying RBs found in PBP — using fallback benchmarks`);
     }
@@ -1072,7 +1132,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbMaxSpeed, avgRbAvgTimeToLos, avgRbEfficiency, avgRbForty });
+  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbMaxSpeed, avgRbAvgTimeToLos, avgRbEfficiency, avgRbForty, avgRbSpeedScore, avgRbBmi, avgRbCompSpeed, maxRbRushYdPg, maxRbTouchesPg, maxRbYpc, maxRbMtfPerAtt, maxRbTgtPg, maxRbRecPg, maxRbRecYdPg, maxRbMaxSpeed, maxRbSpeedScore, maxRbBmi, maxRbRzCarries });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);

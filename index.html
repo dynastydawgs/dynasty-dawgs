@@ -3563,15 +3563,12 @@ async function loadPlayerProfile(pid) {
     if (_spdN !== null && _losN !== null && _ssN !== null) {
       compSpeed = Math.round((_spdN * 0.40 + _losN * 0.35 + _ssN * 0.25) * 100);
       compSpeedNote = '40% top speed · 35% time to LOS · 25% speed score';
-    } else if (_spdN !== null && _losN !== null) {
-      compSpeed = Math.round((_spdN * 0.53 + _losN * 0.47) * 100);
-      compSpeedNote = '53% top speed · 47% time to LOS · no combine 40';
-    } else if (_spdN !== null && _ssN !== null) {
-      compSpeed = Math.round((_spdN * 0.62 + _ssN * 0.38) * 100);
-      compSpeedNote = '62% top speed · 38% speed score · no time to LOS';
-    } else if (_losN !== null && _ssN !== null) {
-      compSpeed = Math.round((_losN * 0.58 + _ssN * 0.42) * 100);
-      compSpeedNote = '58% time to LOS · 42% speed score · no NGS top speed';
+    } else {
+      const _missing = [];
+      if (_spdN === null) _missing.push('NGS top speed');
+      if (_losN === null) _missing.push('NGS time to LOS');
+      if (_ssN  === null) _missing.push('combine 40-yard dash');
+      compSpeedNote = `Missing: ${_missing.join(', ')}`;
     }
     const compSpeedClass = compSpeed === null ? { label:'Insufficient Data',    color:'var(--text-dim)' }
                          : compSpeed >= 82     ? { label:'Elite Athlete',        color:'var(--green)'   }
@@ -3938,7 +3935,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds', 'AVG')}
+                   ${mkBarVal(ypc, maxRbYpc, avgYpc, ypcClass.color, ' yds', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4026,7 +4023,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${rushAtt >= 10 ? ypcClass.label : 'Low Sample'}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${rushYdPg}<span>/g</span></div>
-                   ${mkBarVal(rushYdPg, 150, avgRbRushYdPg, ypcClass.color, '/g', 'AVG')}
+                   ${mkBarVal(rushYdPg, maxRbRushYdPg, avgRbRushYdPg, ypcClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} total rush yds · ${rushAtt} att · ${gp} games</div>
                  </div>`
               : ''}
@@ -4036,7 +4033,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${touchPgClass.color};">${touchPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '', 'MED')}
+              ${mkBarVal(touchesPg, maxRbTouchesPg, avgTouchPg, touchPgClass.color, '', 'MED')}
               <div class="pp-wl-card-sub">${rushAtt} carries + ${rec} rec · ${touches} total · bench: top 32 RBs by carries</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
@@ -4083,7 +4080,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${rbTgtPgClass.color};">${rbTgtPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${rbTgtPgClass.color};">${tgtPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(tgtPg, 10, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG')}
+              ${mkBarVal(tgtPg, maxRbTgtPg, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG')}
               <div class="pp-wl-card-sub">${tgts} total tgt · ${gp} games · bench: top 32 RBs by carries</div>
             </div>
             ${recPg !== null
@@ -4093,7 +4090,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rbRecPgClass.color};">${rbRecPgClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rbRecPgClass.color};">${recPg}<span>/g</span></div>
-                   ${mkBarVal(recPg, 8, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(recPg, maxRbRecPg, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${rec} total rec · ${gp} games · bench: top 32 RBs by carries</div>
                  </div>`
               : ''}
@@ -4104,7 +4101,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rbRecYdPgClass.color};">${rbRecYdPgClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rbRecYdPgClass.color};">${recYdPg}<span>/g</span></div>
-                   ${mkBarVal(recYdPg, 70, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(recYdPg, maxRbRecYdPg, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${recYd} total rec yds · ${rec} rec · ${gp} games</div>
                  </div>`
               : ''}
@@ -4119,7 +4116,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${maxSpeedClass.color};">${maxSpeedClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${maxSpeedClass.color};">${maxSpeed}<span> mph</span></div>
-                   ${mkBarVal(maxSpeed, 24, avgRbMaxSpeed, maxSpeedClass.color, ' mph', 'AVG')}
+                   ${mkBarVal(maxSpeed, maxRbMaxSpeed, avgRbMaxSpeed, maxSpeedClass.color, ' mph', 'AVG')}
                    <div class="pp-wl-card-sub">Max GPS-tracked speed · 2025 season · NFL Next Gen Stats</div>
                  </div>`
               : noDataCard('Top Speed')}
@@ -4198,7 +4195,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${bmiClass.color};">${bmiClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${bmiClass.color};">${bmi}</div>
-                   ${mkBarVal(bmi, 38, 28.5, bmiClass.color, '', 'AVG')}
+                   ${mkBarVal(bmi, maxRbBmi, avgRbBmi, bmiClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${playerWt} lbs · ${playerHt} in · higher = more mass per frame</div>
                  </div>`
               : noDataCard('BMI')}
@@ -4209,7 +4206,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ssClass.color};">${ssClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ssClass.color};">${speedScore}</div>
-                   ${mkBarVal(speedScore, 140, 103, ssClass.color, '', 'AVG')}
+                   ${mkBarVal(speedScore, maxRbSpeedScore, avgRbSpeedScore, ssClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">(weight × 200) ÷ forty⁴ · Kent Lee Platte · ${playerWt} lbs · ${forty}s 40</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.55;">
@@ -4224,10 +4221,14 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${compSpeedClass.color};">${compSpeedClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${compSpeedClass.color};">${compSpeed}<span>/100</span></div>
-                   ${mkBarVal(compSpeed, 100, 62, compSpeedClass.color, '', 'AVG')}
+                   ${mkBarVal(compSpeed, 100, avgRbCompSpeed, compSpeedClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${compSpeedNote} · proprietary blend</div>
                  </div>`
-              : noDataCard('Composite Speed')}
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.55;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Composite Speed</span><span class="pp-wl-card-cls" style="color:var(--text-dim);">N/A</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">${compSpeedNote}</div>
+                 </div>`}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Red Zone</div>
@@ -4250,7 +4251,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rzCarriesClass.color};">${rzCarriesClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rzCarriesClass.color};">${rzCarries}<span> att</span></div>
-                   ${mkBarVal(rzCarries, Math.max(55, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
+                   ${mkBarVal(rzCarries, Math.max(maxRbRzCarries, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
                    <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
                  </div>`
               : ''}
@@ -4423,7 +4424,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, 8, avgYpc, ypcClass.color, ' yds', 'AVG')}
+                   ${mkBarVal(ypc, maxRbYpc, avgYpc, ypcClass.color, ' yds', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4522,7 +4523,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rzCarriesClass.color};">${rzCarriesClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rzCarriesClass.color};">${rzCarries}<span> att</span></div>
-                   ${mkBarVal(rzCarries, Math.max(55, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
+                   ${mkBarVal(rzCarries, Math.max(maxRbRzCarries, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
                    <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
                  </div>`
               : ''}
@@ -4555,7 +4556,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${touchPgClass.color};">${touchPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '', 'MED')}
+              ${mkBarVal(touchesPg, maxRbTouchesPg, avgTouchPg, touchPgClass.color, '', 'MED')}
               <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · 2025 stats</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
@@ -4582,7 +4583,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${rbTgtPgClass.color};">${rbTgtPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${rbTgtPgClass.color};">${tgtPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(tgtPg, 10, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG')}
+              ${mkBarVal(tgtPg, maxRbTgtPg, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG')}
               <div class="pp-wl-card-sub">${tgts} total tgt · ${gp} games · bench: top 32 RBs by carries · 2025 stats</div>
             </div>
             ${recPg !== null
@@ -4592,7 +4593,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rbRecPgClass.color};">${rbRecPgClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rbRecPgClass.color};">${recPg}<span>/g</span></div>
-                   ${mkBarVal(recPg, 8, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(recPg, maxRbRecPg, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${rec} total rec · ${gp} games · bench: top 32 RBs by carries · 2025 stats</div>
                  </div>`
               : ''}
@@ -4603,7 +4604,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rbRecYdPgClass.color};">${rbRecYdPgClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rbRecYdPgClass.color};">${recYdPg}<span>/g</span></div>
-                   ${mkBarVal(recYdPg, 70, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(recYdPg, maxRbRecYdPg, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${recYd} total rec yds · ${rec} rec · ${gp} games · 2025 stats</div>
                  </div>`
               : ''}
@@ -5612,6 +5613,22 @@ let avgRbMaxSpeed      = 20.5;   // median top speed (mph) — NGS tracking, top
 let avgRbAvgTimeToLos  =  2.5;   // median avg time to LOS (sec) — NGS, top-32 RBs
 let avgRbEfficiency    = 65.0;   // median NGS efficiency score — top-32 RBs (unused card, kept for bench)
 let avgRbForty         =  4.49;  // median 40-yard dash (sec) — combine data, all RBs last 15 yrs
+// Physical averages — seeded, overridden by benchmarks.json after CI
+let avgRbSpeedScore    = 103.0;  // median Speed Score (wt*200/forty^4) — top-32 RBs
+let avgRbBmi           =  28.5;  // median BMI — top-32 RBs
+let avgRbCompSpeed     =  62.0;  // median Composite Speed (0–100) — top-32 RBs
+// Bar scale maxima — p95 of top-32 pool (prevents extreme outlier from compressing bars)
+let maxRbRushYdPg      = 150.0;
+let maxRbTouchesPg     =  25.0;
+let maxRbYpc           =   8.0;
+let maxRbMtfPerAtt     =   0.20;
+let maxRbTgtPg         =  10.0;
+let maxRbRecPg         =   8.0;
+let maxRbRecYdPg       =  70.0;
+let maxRbMaxSpeed      =  24.0;
+let maxRbSpeedScore    = 140.0;
+let maxRbBmi           =  38.0;
+let maxRbRzCarries     =  55.0;
 
 // Height / weight percentile distribution — built once from Sleeper player directory.
 // Sorted arrays let us do a binary-search-style percentile in O(log n).
@@ -6267,6 +6284,20 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbAvgTimeToLos) avgRbAvgTimeToLos = bench.avgRbAvgTimeToLos;
     if (bench?.avgRbEfficiency)   avgRbEfficiency   = bench.avgRbEfficiency;
     if (bench?.avgRbForty)        avgRbForty        = bench.avgRbForty;
+    if (bench?.avgRbSpeedScore)   avgRbSpeedScore   = bench.avgRbSpeedScore;
+    if (bench?.avgRbBmi)          avgRbBmi          = bench.avgRbBmi;
+    if (bench?.avgRbCompSpeed)    avgRbCompSpeed    = bench.avgRbCompSpeed;
+    if (bench?.maxRbRushYdPg)     maxRbRushYdPg     = bench.maxRbRushYdPg;
+    if (bench?.maxRbTouchesPg)    maxRbTouchesPg    = bench.maxRbTouchesPg;
+    if (bench?.maxRbYpc)          maxRbYpc          = bench.maxRbYpc;
+    if (bench?.maxRbMtfPerAtt)    maxRbMtfPerAtt    = bench.maxRbMtfPerAtt;
+    if (bench?.maxRbTgtPg)        maxRbTgtPg        = bench.maxRbTgtPg;
+    if (bench?.maxRbRecPg)        maxRbRecPg        = bench.maxRbRecPg;
+    if (bench?.maxRbRecYdPg)      maxRbRecYdPg      = bench.maxRbRecYdPg;
+    if (bench?.maxRbMaxSpeed)     maxRbMaxSpeed     = bench.maxRbMaxSpeed;
+    if (bench?.maxRbSpeedScore)   maxRbSpeedScore   = bench.maxRbSpeedScore;
+    if (bench?.maxRbBmi)          maxRbBmi          = bench.maxRbBmi;
+    if (bench?.maxRbRzCarries)    maxRbRzCarries    = bench.maxRbRzCarries;
 
     // teamdb.json is optional — new cards show "—" if it hasn't been built yet
     if (teamResRaw?.ok) {
@@ -6351,6 +6382,28 @@ function _loadOptionalDataFiles() {
           if (bench?.avgRbYpcN)          avgRbYpcN          = bench.avgRbYpcN;
           if (bench?.avgRbPpt)           avgRbPpt           = bench.avgRbPpt;
           if (bench?.avgRbPptN)          avgRbPptN          = bench.avgRbPptN;
+          if (bench?.avgRbTgtPg)         avgRbTgtPg         = bench.avgRbTgtPg;
+          if (bench?.avgRbRecPg)         avgRbRecPg         = bench.avgRbRecPg;
+          if (bench?.avgRbRecYdPg)       avgRbRecYdPg       = bench.avgRbRecYdPg;
+          if (bench?.avgRbRushYdPg)      avgRbRushYdPg      = bench.avgRbRushYdPg;
+          if (bench?.avgRbMaxSpeed)      avgRbMaxSpeed      = bench.avgRbMaxSpeed;
+          if (bench?.avgRbAvgTimeToLos)  avgRbAvgTimeToLos  = bench.avgRbAvgTimeToLos;
+          if (bench?.avgRbEfficiency)    avgRbEfficiency    = bench.avgRbEfficiency;
+          if (bench?.avgRbForty)         avgRbForty         = bench.avgRbForty;
+          if (bench?.avgRbSpeedScore)    avgRbSpeedScore    = bench.avgRbSpeedScore;
+          if (bench?.avgRbBmi)           avgRbBmi           = bench.avgRbBmi;
+          if (bench?.avgRbCompSpeed)     avgRbCompSpeed     = bench.avgRbCompSpeed;
+          if (bench?.maxRbRushYdPg)      maxRbRushYdPg      = bench.maxRbRushYdPg;
+          if (bench?.maxRbTouchesPg)     maxRbTouchesPg     = bench.maxRbTouchesPg;
+          if (bench?.maxRbYpc)           maxRbYpc           = bench.maxRbYpc;
+          if (bench?.maxRbMtfPerAtt)     maxRbMtfPerAtt     = bench.maxRbMtfPerAtt;
+          if (bench?.maxRbTgtPg)         maxRbTgtPg         = bench.maxRbTgtPg;
+          if (bench?.maxRbRecPg)         maxRbRecPg         = bench.maxRbRecPg;
+          if (bench?.maxRbRecYdPg)       maxRbRecYdPg       = bench.maxRbRecYdPg;
+          if (bench?.maxRbMaxSpeed)      maxRbMaxSpeed      = bench.maxRbMaxSpeed;
+          if (bench?.maxRbSpeedScore)    maxRbSpeedScore    = bench.maxRbSpeedScore;
+          if (bench?.maxRbBmi)           maxRbBmi           = bench.maxRbBmi;
+          if (bench?.maxRbRzCarries)     maxRbRzCarries     = bench.maxRbRzCarries;
         } catch(e) {}
       }
       if (teamRes?.ok)     try { teamDB     = await teamRes.json();     } catch(e) {}
