@@ -3194,8 +3194,9 @@ async function loadPlayerProfile(pid) {
   // It comes from sp directly since we store it below
 
   // ── Workload section (RBs) — calculated from Sleeper stats ──
-  let workloadHTML = '';
-  let outlookHTML  = '';
+  let workloadHTML  = '';
+  let outlookHTML   = '';
+  let overviewHTML  = '';
 
   // ── Injury Likelihood (computed for all positions from careerDB) ──────────
   const _schedGms      = yr => yr >= 2021 ? 17 : 16;
@@ -3764,6 +3765,14 @@ async function loadPlayerProfile(pid) {
             ${_curTeamYpc !== null ? `<span class="pp-proj-stat">${_curTeamYpc} team YPC</span>` : ''}
           </div>
         </div>
+      </div>`;
+
+    overviewHTML = `
+      <div class="pp-workload-section">
+        <div style="margin-bottom:6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2025 Season</div>
+        ${_scorecardHTML}
+        <div style="margin:18px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2026 Outlook</div>
+        ${_scorecardHTML2026}
       </div>`;
 
     const snapCard = hasSnap
@@ -5166,12 +5175,7 @@ async function loadPlayerProfile(pid) {
 
         <!-- TAB: Overview -->
         <div class="pp-tab-panel" id="pp-tab-overview" style="display:none; padding:0;">
-          <div class="pp-workload-section">
-            <div style="margin-bottom:6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2025 Season</div>
-            ${_scorecardHTML}
-            <div style="margin:18px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2026 Outlook</div>
-            ${_scorecardHTML2026}
-          </div>
+          ${overviewHTML || `<div style="padding:48px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">// OVERVIEW — COMING SOON</div>`}
         </div>
 
       </div>
