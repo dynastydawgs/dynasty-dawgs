@@ -3481,17 +3481,8 @@ async function loadPlayerProfile(pid) {
     const ryoeIsNGS    = _ryoeEntry !== null;
 
     // Speed / scheme — NGS tracking data (from ryoedb.json, same file as RYOE)
-    const maxSpeed       = _ryoeEntry?.maxSpeed      ?? null;  // mph, GPS-tracked top speed (column absent in nflverse)
     const avgTtLos       = _ryoeEntry?.avgTimeToLos  ?? null;  // sec from snap to line of scrimmage
-    const ngsEff         = _ryoeEntry?.efficiency    ?? null;  // NGS efficiency score
     const stackedBoxPct  = _ryoeEntry?.stackedBoxPct ?? null;  // % carries vs ≥8 defenders in box
-
-    const maxSpeedClass = maxSpeed === null         ? { label:'No Data',      color:'var(--text-dim)' }
-                        : maxSpeed >= 22.0          ? { label:'Elite Speed',   color:'var(--green)'   }
-                        : maxSpeed >= 21.0          ? { label:'Fast',          color:'var(--accent)'    }
-                        : maxSpeed >= 20.0          ? { label:'Average',       color:'var(--orange)'  }
-                        : maxSpeed >= 19.0          ? { label:'Below Avg',     color:'var(--red)'  }
-                        :                             { label:'Slow',          color:'var(--red)'     };
 
     const stackedBoxClass = stackedBoxPct === null  ? { label:'No Data',         color:'var(--text-dim)' }
                           : stackedBoxPct >= 35     ? { label:'Must-Stop',        color:'var(--green)'   }
@@ -3552,38 +3543,6 @@ async function loadPlayerProfile(pid) {
                         : speedScore >= 97    ? { label:'Average',           color:'var(--orange)'  }
                         : speedScore >= 85    ? { label:'Below Avg',         color:'var(--red)'  }
                         :                       { label:'Poor',              color:'var(--red)'     };
-
-    // Composite Speed Score — proprietary blend of in-game and pre-draft athleticism.
-    // Each component normalized to 0–1 within realistic NFL RB ranges, then weighted.
-    // Weights shift when a source is unavailable; needs at least two sources to render.
-    //   Top Speed    [17–24 mph]  → 40% (live GPS, most direct)
-    //   Time to LOS  [1.8–3.8s]  → 35% (quickness/decisiveness, inverted)
-    //   Speed Score  [70–140]    → 25% (combine athleticism, size-adjusted)
-    const _nrm = (val, lo, hi, inv = false) => {
-      if (val == null) return null;
-      const n = Math.min(Math.max((val - lo) / (hi - lo), 0), 1);
-      return inv ? 1 - n : n;
-    };
-    const _spdN  = _nrm(maxSpeed,  17,  24);
-    const _losN  = _nrm(avgTtLos,  1.8, 3.8, true);
-    const _ssN   = _nrm(speedScore, 70, 140);
-    let compSpeed = null, compSpeedNote = '';
-    if (_spdN !== null && _losN !== null && _ssN !== null) {
-      compSpeed = Math.round((_spdN * 0.40 + _losN * 0.35 + _ssN * 0.25) * 100);
-      compSpeedNote = '40% top speed · 35% time to LOS · 25% speed score';
-    } else {
-      const _missing = [];
-      if (_spdN === null) _missing.push('NGS top speed');
-      if (_losN === null) _missing.push('NGS time to LOS');
-      if (_ssN  === null) _missing.push('combine 40-yard dash');
-      compSpeedNote = `Missing: ${_missing.join(', ')}`;
-    }
-    const compSpeedClass = compSpeed === null ? { label:'Insufficient Data',    color:'var(--text-dim)' }
-                         : compSpeed >= 82     ? { label:'Elite Athlete',        color:'var(--green)'   }
-                         : compSpeed >= 68     ? { label:'Above Average',        color:'var(--accent)'    }
-                         : compSpeed >= 52     ? { label:'Average',              color:'var(--orange)'  }
-                         : compSpeed >= 38     ? { label:'Below Average',        color:'var(--red)'  }
-                         :                       { label:'Limited Athleticism',  color:'var(--red)'     };
 
     // Classifiers for new Situation and Efficiency cards
     // Use === null (not !value) so that legitimate low values (e.g. run rate near 0) don't
@@ -4117,17 +4076,6 @@ async function loadPlayerProfile(pid) {
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Physical</div>
           <div class="pp-wl-cards">
-            ${maxSpeed !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${maxSpeedClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">Top Speed</span>
-                     <span class="pp-wl-card-cls" style="color:${maxSpeedClass.color};">${maxSpeedClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${maxSpeedClass.color};">${maxSpeed}<span> mph</span></div>
-                   ${mkBarVal(maxSpeed, maxRbMaxSpeed, avgRbMaxSpeed, maxSpeedClass.color, ' mph', 'AVG')}
-                   <div class="pp-wl-card-sub">Max GPS-tracked speed · 2025 season · NFL Next Gen Stats</div>
-                 </div>`
-              : noDataCard('Top Speed')}
             ${avgTtLos !== null
               ? `<div class="pp-wl-card" style="border-left-color:${ttLosClass.color};">
                    <div class="pp-wl-card-header">
@@ -4221,21 +4169,6 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Speed Score</span><span class="pp-wl-card-cls" style="color:var(--text-dim);">N/A</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Requires combine 40-yard dash · not available</div>
-                 </div>`}
-            ${compSpeed !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${compSpeedClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">Composite Speed</span>
-                     <span class="pp-wl-card-cls" style="color:${compSpeedClass.color};">${compSpeedClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${compSpeedClass.color};">${compSpeed}<span>/100</span></div>
-                   ${mkBarVal(compSpeed, 100, avgRbCompSpeed, compSpeedClass.color, '', 'AVG')}
-                   <div class="pp-wl-card-sub">${compSpeedNote} · proprietary blend</div>
-                 </div>`
-              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.55;">
-                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Composite Speed</span><span class="pp-wl-card-cls" style="color:var(--text-dim);">N/A</span></div>
-                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-                   <div class="pp-wl-card-sub">${compSpeedNote}</div>
                  </div>`}
           </div>
 
@@ -5627,16 +5560,12 @@ let avgRbTgtPg         =  3.5;   // median tgt/g (top-32 RBs by carries)
 let avgRbRecPg         =  2.5;   // median rec/g (top-32 RBs by carries)
 let avgRbRecYdPg       = 22.0;   // median rec yds/g (top-32 RBs by carries)
 let avgRbRushYdPg      = 60.0;   // median rush yds/g (top-32 RBs by carries)
-// Physical / speed benchmarks — seeded, overridden by benchmarks.json after CI
-let avgRbMaxSpeed      = 20.5;   // median top speed (mph) — NGS tracking, top-32 RBs
-let avgRbAvgTimeToLos  =  2.5;   // median avg time to LOS (sec) — NGS, top-32 RBs
-let avgRbEfficiency    = 65.0;   // median NGS efficiency score — top-32 RBs (unused card, kept for bench)
+// NGS / physical benchmarks — seeded, overridden by benchmarks.json after CI
+let avgRbAvgTimeToLos  =  2.5;   // mean avg time to LOS (sec) — NGS, top-32 RBs
 let avgRbStackedBoxPct = 25.4;   // mean stacked box rate (≥8 defenders) — NGS, top-32 RBs
 let avgRbForty         =  4.49;  // median 40-yard dash (sec) — combine data, all RBs last 15 yrs
-// Physical averages — seeded, overridden by benchmarks.json after CI
-let avgRbSpeedScore    = 103.0;  // median Speed Score (wt*200/forty^4) — top-32 RBs
-let avgRbBmi           =  28.5;  // median BMI — top-32 RBs
-let avgRbCompSpeed     =  62.0;  // median Composite Speed (0–100) — top-32 RBs
+let avgRbSpeedScore    = 103.0;  // mean Speed Score (wt*200/forty^4) — top-32 RBs
+let avgRbBmi           =  28.5;  // mean BMI — top-32 RBs
 // Bar scale maxima — p95 of top-32 pool (prevents extreme outlier from compressing bars)
 let maxRbRushYdPg      = 150.0;
 let maxRbTouchesPg     =  25.0;
@@ -5645,7 +5574,6 @@ let maxRbMtfPerAtt     =   0.20;
 let maxRbTgtPg         =  10.0;
 let maxRbRecPg         =   8.0;
 let maxRbRecYdPg       =  70.0;
-let maxRbMaxSpeed      =  24.0;
 let maxRbSpeedScore    = 140.0;
 let maxRbBmi           =  38.0;
 let maxRbRzCarries     =  55.0;
@@ -6300,14 +6228,11 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbRecPg)       avgRbRecPg       = bench.avgRbRecPg;
     if (bench?.avgRbRecYdPg)     avgRbRecYdPg     = bench.avgRbRecYdPg;
     if (bench?.avgRbRushYdPg)    avgRbRushYdPg    = bench.avgRbRushYdPg;
-    if (bench?.avgRbMaxSpeed)     avgRbMaxSpeed     = bench.avgRbMaxSpeed;
     if (bench?.avgRbAvgTimeToLos)  avgRbAvgTimeToLos  = bench.avgRbAvgTimeToLos;
-    if (bench?.avgRbEfficiency)    avgRbEfficiency    = bench.avgRbEfficiency;
     if (bench?.avgRbStackedBoxPct) avgRbStackedBoxPct = bench.avgRbStackedBoxPct;
     if (bench?.avgRbForty)         avgRbForty         = bench.avgRbForty;
     if (bench?.avgRbSpeedScore)   avgRbSpeedScore   = bench.avgRbSpeedScore;
     if (bench?.avgRbBmi)          avgRbBmi          = bench.avgRbBmi;
-    if (bench?.avgRbCompSpeed)    avgRbCompSpeed    = bench.avgRbCompSpeed;
     if (bench?.maxRbRushYdPg)     maxRbRushYdPg     = bench.maxRbRushYdPg;
     if (bench?.maxRbTouchesPg)    maxRbTouchesPg    = bench.maxRbTouchesPg;
     if (bench?.maxRbYpc)          maxRbYpc          = bench.maxRbYpc;
@@ -6315,7 +6240,6 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.maxRbTgtPg)        maxRbTgtPg        = bench.maxRbTgtPg;
     if (bench?.maxRbRecPg)        maxRbRecPg        = bench.maxRbRecPg;
     if (bench?.maxRbRecYdPg)      maxRbRecYdPg      = bench.maxRbRecYdPg;
-    if (bench?.maxRbMaxSpeed)     maxRbMaxSpeed     = bench.maxRbMaxSpeed;
     if (bench?.maxRbSpeedScore)   maxRbSpeedScore   = bench.maxRbSpeedScore;
     if (bench?.maxRbBmi)          maxRbBmi          = bench.maxRbBmi;
     if (bench?.maxRbRzCarries)    maxRbRzCarries    = bench.maxRbRzCarries;
@@ -6407,14 +6331,11 @@ function _loadOptionalDataFiles() {
           if (bench?.avgRbRecPg)         avgRbRecPg         = bench.avgRbRecPg;
           if (bench?.avgRbRecYdPg)       avgRbRecYdPg       = bench.avgRbRecYdPg;
           if (bench?.avgRbRushYdPg)      avgRbRushYdPg      = bench.avgRbRushYdPg;
-          if (bench?.avgRbMaxSpeed)      avgRbMaxSpeed      = bench.avgRbMaxSpeed;
           if (bench?.avgRbAvgTimeToLos)  avgRbAvgTimeToLos  = bench.avgRbAvgTimeToLos;
-          if (bench?.avgRbEfficiency)    avgRbEfficiency    = bench.avgRbEfficiency;
           if (bench?.avgRbStackedBoxPct) avgRbStackedBoxPct = bench.avgRbStackedBoxPct;
           if (bench?.avgRbForty)         avgRbForty         = bench.avgRbForty;
           if (bench?.avgRbSpeedScore)    avgRbSpeedScore    = bench.avgRbSpeedScore;
           if (bench?.avgRbBmi)           avgRbBmi           = bench.avgRbBmi;
-          if (bench?.avgRbCompSpeed)     avgRbCompSpeed     = bench.avgRbCompSpeed;
           if (bench?.maxRbRushYdPg)      maxRbRushYdPg      = bench.maxRbRushYdPg;
           if (bench?.maxRbTouchesPg)     maxRbTouchesPg     = bench.maxRbTouchesPg;
           if (bench?.maxRbYpc)           maxRbYpc           = bench.maxRbYpc;
@@ -6422,7 +6343,6 @@ function _loadOptionalDataFiles() {
           if (bench?.maxRbTgtPg)         maxRbTgtPg         = bench.maxRbTgtPg;
           if (bench?.maxRbRecPg)         maxRbRecPg         = bench.maxRbRecPg;
           if (bench?.maxRbRecYdPg)       maxRbRecYdPg       = bench.maxRbRecYdPg;
-          if (bench?.maxRbMaxSpeed)      maxRbMaxSpeed      = bench.maxRbMaxSpeed;
           if (bench?.maxRbSpeedScore)    maxRbSpeedScore    = bench.maxRbSpeedScore;
           if (bench?.maxRbBmi)           maxRbBmi           = bench.maxRbBmi;
           if (bench?.maxRbRzCarries)     maxRbRzCarries     = bench.maxRbRzCarries;
