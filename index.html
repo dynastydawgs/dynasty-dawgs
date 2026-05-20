@@ -4085,14 +4085,14 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:${ttLosClass.color};">${avgTtLos}<span>s</span></div>
                    ${(() => {
                      const maxT   = 4;
-                     const fillW  = Math.min((maxT - avgTtLos) / maxT * 100, 100).toFixed(1);
-                     const avgPos = Math.min((maxT - avgRbAvgTimeToLos) / maxT * 100, 100).toFixed(1);
+                     const fillW  = Math.min(avgTtLos / maxT * 100, 100).toFixed(1);
+                     const avgPos = Math.min(avgRbAvgTimeToLos / maxT * 100, 100).toFixed(1);
                      return `<div class="pp-wl-track">
                        <div class="pp-wl-fill"     style="width:${fillW}%;background:${ttLosClass.color};"></div>
                        <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
                        <div class="pp-wl-dot"      style="left:${fillW}%;background:${ttLosClass.color};box-shadow:0 0 6px ${ttLosClass.color};"></div>
                      </div>
-                     <div class="pp-wl-scale"><span>slow</span><span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgRbAvgTimeToLos}s</span><span>fast</span></div>`;
+                     <div class="pp-wl-scale"><span>fast</span><span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgRbAvgTimeToLos}s</span><span>slow</span></div>`;
                    })()}
                    <div class="pp-wl-card-sub">Avg sec from snap to line of scrimmage · lower = quicker · NFL NGS</div>
                  </div>`
@@ -4106,14 +4106,14 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:${fortyClass.color};">${forty}<span>s</span></div>
                    ${(() => {
                      const lo = 4.1, hi = 5.0;
-                     const fillW  = Math.min(Math.max((hi - forty)  / (hi - lo) * 100, 0), 100).toFixed(1);
-                     const avgPos = Math.min(Math.max((hi - avgRbForty) / (hi - lo) * 100, 0), 100).toFixed(1);
+                     const fillW  = Math.min(Math.max((forty - lo)     / (hi - lo) * 100, 0), 100).toFixed(1);
+                     const avgPos = Math.min(Math.max((avgRbForty - lo) / (hi - lo) * 100, 0), 100).toFixed(1);
                      return `<div class="pp-wl-track">
                        <div class="pp-wl-fill"     style="width:${fillW}%;background:${fortyClass.color};"></div>
                        <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
                        <div class="pp-wl-dot"      style="left:${fillW}%;background:${fortyClass.color};box-shadow:0 0 6px ${fortyClass.color};"></div>
                      </div>
-                     <div class="pp-wl-scale"><span>slow</span><span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgRbForty}s</span><span>fast</span></div>`;
+                     <div class="pp-wl-scale"><span>fast</span><span class="pp-wl-avg-label" style="left:${avgPos}%;">AVG ${avgRbForty}s</span><span>slow</span></div>`;
                    })()}
                    <div class="pp-wl-card-sub">NFL combine · lower = faster · nflverse combine.csv</div>
                  </div>`
