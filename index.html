@@ -3314,10 +3314,6 @@ async function loadPlayerProfile(pid) {
                       : targetPct >= 3  ? { label:'Limited',          color:'var(--red)' }
                       :                   { label:'Minimal',          color:'var(--red)'    };
 
-    const avgRbTgtPg    = 3.5;   // avg tgt/g for top 32 RBs by carries
-    const avgRbRecPg    = 2.5;   // avg rec/g for top 32 RBs by carries
-    const avgRbRecYdPg  = 22.0;  // avg rec yds/g for top 32 RBs by carries
-
     const rbTgtPgClass  = tgtPg >= 6   ? { label:'Elite Receiver', color:'var(--green)'  }
                         : tgtPg >= 4   ? { label:'Pass-Catcher',   color:'var(--accent)'   }
                         : tgtPg >= 2.5 ? { label:'Average',        color:'var(--orange)' }
@@ -3924,7 +3920,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${rushAtt >= 10 ? ypcClass.label : 'Low Sample'}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${rushYdPg}<span>/g</span></div>
-                   ${mkBarVal(rushYdPg, 150, null, ypcClass.color, '', '')}
+                   ${mkBarVal(rushYdPg, 150, avgRbRushYdPg, ypcClass.color, '/g', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} total rush yds · ${rushAtt} att · ${gp} games</div>
                  </div>`
               : ''}
@@ -5381,6 +5377,10 @@ let avgRbTargetShare   =  9.0;   // avg target share %
 let avgRbRzCarryShare  = 38.0;   // median RZ carry share % (carries inside the 20 / team RZ carries)
 let avgRbRzCarries     = 22.0;   // median RZ carries (raw count, inside the 20)
 let avgRbRzTdRate      = 17.0;   // mean RZ TD rate % (TDs / RZ carries, top-32 RBs)
+let avgRbTgtPg         =  3.5;   // median tgt/g (top-32 RBs by carries)
+let avgRbRecPg         =  2.5;   // median rec/g (top-32 RBs by carries)
+let avgRbRecYdPg       = 22.0;   // median rec yds/g (top-32 RBs by carries)
+let avgRbRushYdPg      = 60.0;   // median rush yds/g (top-32 RBs by carries)
 // Team situation benchmarks — seeded with estimates, overridden by benchmarks.json
 let avgTeamRushPg      = 26.0;   // avg team rush att/game (all 32 teams)
 let avgTeamPassPg      = 33.0;   // avg team pass att/game
@@ -6004,6 +6004,10 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbYpcN)        avgRbYpcN        = bench.avgRbYpcN;
     if (bench?.avgRbPpt)         avgRbPpt         = bench.avgRbPpt;
     if (bench?.avgRbPptN)        avgRbPptN        = bench.avgRbPptN;
+    if (bench?.avgRbTgtPg)       avgRbTgtPg       = bench.avgRbTgtPg;
+    if (bench?.avgRbRecPg)       avgRbRecPg       = bench.avgRbRecPg;
+    if (bench?.avgRbRecYdPg)     avgRbRecYdPg     = bench.avgRbRecYdPg;
+    if (bench?.avgRbRushYdPg)    avgRbRushYdPg    = bench.avgRbRushYdPg;
 
     // teamdb.json is optional — new cards show "—" if it hasn't been built yet
     if (teamResRaw?.ok) {
