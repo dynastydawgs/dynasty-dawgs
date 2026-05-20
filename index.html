@@ -3314,6 +3314,28 @@ async function loadPlayerProfile(pid) {
                       : targetPct >= 3  ? { label:'Limited',          color:'var(--red)' }
                       :                   { label:'Minimal',          color:'var(--red)'    };
 
+    const avgRbTgtPg    = 3.5;   // avg tgt/g for top 32 RBs by carries
+    const avgRbRecPg    = 2.5;   // avg rec/g for top 32 RBs by carries
+    const avgRbRecYdPg  = 22.0;  // avg rec yds/g for top 32 RBs by carries
+
+    const rbTgtPgClass  = tgtPg >= 6   ? { label:'Elite Receiver', color:'var(--green)'  }
+                        : tgtPg >= 4   ? { label:'Pass-Catcher',   color:'var(--accent)'   }
+                        : tgtPg >= 2.5 ? { label:'Average',        color:'var(--orange)' }
+                        : tgtPg >= 1.5 ? { label:'Limited',        color:'var(--red)' }
+                        :                { label:'Minimal',        color:'var(--red)'    };
+
+    const rbRecPgClass  = recPg >= 4   ? { label:'Elite',          color:'var(--green)'  }
+                        : recPg >= 3   ? { label:'Good',           color:'var(--accent)'   }
+                        : recPg >= 2   ? { label:'Average',        color:'var(--orange)' }
+                        : recPg >= 1   ? { label:'Limited',        color:'var(--red)' }
+                        :                { label:'Minimal',        color:'var(--red)'    };
+
+    const rbRecYdPgClass = recYdPg >= 35 ? { label:'Elite',        color:'var(--green)'  }
+                         : recYdPg >= 25 ? { label:'Good',         color:'var(--accent)'   }
+                         : recYdPg >= 15 ? { label:'Average',      color:'var(--orange)' }
+                         : recYdPg >= 8  ? { label:'Limited',      color:'var(--red)' }
+                         :                 { label:'Minimal',      color:'var(--red)'    };
+
     const roleTag     = carryPct >= 65 && tgtPg >= 4.5 ? { label:'Workhorse + Receiver',   color:'var(--green)'  }
                       : carryPct >= 65                  ? { label:'Workhorse',              color:'var(--green)'  }
                       : carryPct >= 50 && tgtPg >= 5   ? { label:'Three-Down Back',        color:'var(--accent)'   }
@@ -3387,8 +3409,13 @@ async function loadPlayerProfile(pid) {
     };
 
     // Touches per game & touch share
-    const touches       = rushAtt + +(stats.rec ?? 0);
+    const rec           = +(stats.rec    ?? 0);
+    const recYd         = +(stats.rec_yd ?? 0);
+    const touches       = rushAtt + rec;
     const touchesPg     = touches / gp;
+    const rushYdPg      = gp > 0 ? Math.round(rushYd / gp * 10) / 10 : null;
+    const recPg         = gp > 0 ? Math.round(rec    / gp * 10) / 10 : null;
+    const recYdPg       = gp > 0 ? Math.round(recYd  / gp * 10) / 10 : null;
     const avgTeamRecPg  = 22.0;                           // avg team receptions/game (~33 tgt × 66% catch rate)
     // Touch share denominator: actual team rush att/g + league-avg rec/g.
     // We don't have tm_rec from Sleeper so receiving side stays at league avg.
@@ -3890,6 +3917,17 @@ async function loadPlayerProfile(pid) {
               <div id="rb-carry-bar-placeholder">${mkBar(carryPct, 100, avgCarryPct, carryClass.color, 'MED')}</div>
               <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att · ${adsCarryShare !== null ? 'player÷team carries · nflverse PBP' : (usingActualTeam ? `team ${teamRushPg.toFixed(1)} att/g` : 'vs league avg')} · bench: top 32 RBs by carries</div>
             </div>
+            ${rushYdPg !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${ypcClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Rush Yds / Game</span>
+                     <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${rushAtt >= 10 ? ypcClass.label : 'Low Sample'}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${ypcClass.color};">${rushYdPg}<span>/g</span></div>
+                   ${mkBarVal(rushYdPg, 150, null, ypcClass.color, '', '')}
+                   <div class="pp-wl-card-sub">${rushYd} total rush yds · ${rushAtt} att · ${gp} games</div>
+                 </div>`
+              : ''}
             <div class="pp-wl-card" style="border-left-color:${touchPgClass.color};">
               <div class="pp-wl-card-header">
                 <span class="pp-wl-card-label">Touches / Game</span>
@@ -3897,7 +3935,7 @@ async function loadPlayerProfile(pid) {
               </div>
               <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
               ${mkBarVal(touchesPg, 25, avgTouchPg, touchPgClass.color, '', 'MED')}
-              <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · ${touches} total · bench: top 32 RBs by carries</div>
+              <div class="pp-wl-card-sub">${rushAtt} carries + ${rec} rec · ${touches} total · bench: top 32 RBs by carries</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
               <div class="pp-wl-card-header">
@@ -3937,6 +3975,37 @@ async function loadPlayerProfile(pid) {
               ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color, 'MED')}
               <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench: top 32 RBs by carries</div>
             </div>
+            <div class="pp-wl-card" style="border-left-color:${rbTgtPgClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Targets / Game</span>
+                <span class="pp-wl-card-cls" style="color:${rbTgtPgClass.color};">${rbTgtPgClass.label}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${rbTgtPgClass.color};">${tgtPg.toFixed(1)}<span>/g</span></div>
+              ${mkBarVal(tgtPg, 10, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG')}
+              <div class="pp-wl-card-sub">${tgts} total tgt · ${gp} games · bench: top 32 RBs by carries</div>
+            </div>
+            ${recPg !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rbRecPgClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Receptions / Game</span>
+                     <span class="pp-wl-card-cls" style="color:${rbRecPgClass.color};">${rbRecPgClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rbRecPgClass.color};">${recPg}<span>/g</span></div>
+                   ${mkBarVal(recPg, 8, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG')}
+                   <div class="pp-wl-card-sub">${rec} total rec · ${gp} games · bench: top 32 RBs by carries</div>
+                 </div>`
+              : ''}
+            ${recYdPg !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rbRecYdPgClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Rec Yds / Game</span>
+                     <span class="pp-wl-card-cls" style="color:${rbRecYdPgClass.color};">${rbRecYdPgClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rbRecYdPgClass.color};">${recYdPg}<span>/g</span></div>
+                   ${mkBarVal(recYdPg, 70, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG')}
+                   <div class="pp-wl-card-sub">${recYd} total rec yds · ${rec} rec · ${gp} games</div>
+                 </div>`
+              : ''}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Red Zone</div>
@@ -4285,6 +4354,37 @@ async function loadPlayerProfile(pid) {
               ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color, 'MED')}
               <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench: top 32 RBs by carries · 2025 stats</div>
             </div>
+            <div class="pp-wl-card" style="border-left-color:${rbTgtPgClass.color};">
+              <div class="pp-wl-card-header">
+                <span class="pp-wl-card-label">Targets / Game</span>
+                <span class="pp-wl-card-cls" style="color:${rbTgtPgClass.color};">${rbTgtPgClass.label}</span>
+              </div>
+              <div class="pp-wl-card-val" style="color:${rbTgtPgClass.color};">${tgtPg.toFixed(1)}<span>/g</span></div>
+              ${mkBarVal(tgtPg, 10, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG')}
+              <div class="pp-wl-card-sub">${tgts} total tgt · ${gp} games · bench: top 32 RBs by carries · 2025 stats</div>
+            </div>
+            ${recPg !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rbRecPgClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Receptions / Game</span>
+                     <span class="pp-wl-card-cls" style="color:${rbRecPgClass.color};">${rbRecPgClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rbRecPgClass.color};">${recPg}<span>/g</span></div>
+                   ${mkBarVal(recPg, 8, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG')}
+                   <div class="pp-wl-card-sub">${rec} total rec · ${gp} games · bench: top 32 RBs by carries · 2025 stats</div>
+                 </div>`
+              : ''}
+            ${recYdPg !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rbRecYdPgClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Rec Yds / Game</span>
+                     <span class="pp-wl-card-cls" style="color:${rbRecYdPgClass.color};">${rbRecYdPgClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rbRecYdPgClass.color};">${recYdPg}<span>/g</span></div>
+                   ${mkBarVal(recYdPg, 70, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG')}
+                   <div class="pp-wl-card-sub">${recYd} total rec yds · ${rec} rec · ${gp} games · 2025 stats</div>
+                 </div>`
+              : ''}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Situation <span style="font-size:9px;color:var(--text-dim);letter-spacing:0;font-family:var(--sans);text-transform:none;margin-left:4px;">${nflTeam} current team</span></div>
