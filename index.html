@@ -3977,6 +3977,17 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Not in Sleeper data</div>
                  </div>`}
+            ${rzTdRate !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rzTdClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">RZ TD Rate</span>
+                     <span class="pp-wl-card-cls" style="color:${rzTdClass.color};">${rzTdClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
+                   ${mkBar(rzTdRate, 50, avgRbRzTdRate, rzTdClass.color, 'AVG')}
+                   <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
+                 </div>`
+              : ''}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Volume</div>
@@ -4019,6 +4030,17 @@ async function loadPlayerProfile(pid) {
               ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color, 'AVG')}
               <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g of ~${avgTmTouchPg} team avg · bench: top 32 RBs by carries</div>
             </div>
+            ${rzCarries !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rzCarriesClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">RZ Carries</span>
+                     <span class="pp-wl-card-cls" style="color:${rzCarriesClass.color};">${rzCarriesClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rzCarriesClass.color};">${rzCarries}<span> att</span></div>
+                   ${mkBarVal(rzCarries, Math.max(maxRbRzCarries, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
+                   <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
+                 </div>`
+              : ''}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Usage</div>
@@ -4033,6 +4055,17 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnapPct}<span>%</span></div>
                    ${mkBar(thirdDownSnapPct, 100, avgRbThirdDownSnaps, tdSnapsClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${tdRawSnaps !== null ? `${tdRawSnaps} snaps / ${tdRawGames}g = ${tdSnapsPerGame}/g · ` : ''}% of team 3rd-down plays on field · nflverse participation</div>
+                 </div>`
+              : ''}
+            ${rzCarryShare !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rzCarryClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">RZ Carry Share</span>
+                     <span class="pp-wl-card-cls" style="color:${rzCarryClass.color};">${rzCarryClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rzCarryClass.color};">${rzCarryShare}<span>%</span></div>
+                   ${mkBar(rzCarryShare, 100, avgRbRzCarryShare, rzCarryClass.color, 'MED')}
+                   <div class="pp-wl-card-sub">% of team rush att inside the 20 · TD opportunity rate · nflverse PBP</div>
                  </div>`
               : ''}
           </div>
@@ -4177,43 +4210,6 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val">N/A</div>
                    <div class="pp-wl-card-sub">Requires combine 40-yard dash · not available</div>
                  </div>`}
-          </div>
-
-          <div class="pp-wl-row-label" style="margin-top:14px;">Red Zone</div>
-          <div class="pp-wl-cards">
-            ${rzCarryShare !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${rzCarryClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">RZ Carry Share</span>
-                     <span class="pp-wl-card-cls" style="color:${rzCarryClass.color};">${rzCarryClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${rzCarryClass.color};">${rzCarryShare}<span>%</span></div>
-                   ${mkBar(rzCarryShare, 100, avgRbRzCarryShare, rzCarryClass.color, 'MED')}
-                   <div class="pp-wl-card-sub">% of team rush att inside the 20 · TD opportunity rate · nflverse PBP</div>
-                 </div>`
-              : ''}
-            ${rzCarries !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${rzCarriesClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">RZ Carries</span>
-                     <span class="pp-wl-card-cls" style="color:${rzCarriesClass.color};">${rzCarriesClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${rzCarriesClass.color};">${rzCarries}<span> att</span></div>
-                   ${mkBarVal(rzCarries, Math.max(maxRbRzCarries, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
-                   <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
-                 </div>`
-              : ''}
-            ${rzTdRate !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${rzTdClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">RZ TD Rate</span>
-                     <span class="pp-wl-card-cls" style="color:${rzTdClass.color};">${rzTdClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
-                   ${mkBar(rzTdRate, 50, avgRbRzTdRate, rzTdClass.color, 'AVG')}
-                   <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
-                 </div>`
-              : ''}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Situation</div>
@@ -4451,6 +4447,17 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Not enough carries (min 50)</div>
                  </div>`}
+            ${rzTdRate !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rzTdClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">RZ TD Rate</span>
+                     <span class="pp-wl-card-cls" style="color:${rzTdClass.color};">${rzTdClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
+                   ${mkBar(rzTdRate, 50, avgRbRzTdRate, rzTdClass.color, 'AVG')}
+                   <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
+                 </div>`
+              : ''}
           </div>
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Workload</div>
@@ -4464,39 +4471,6 @@ async function loadPlayerProfile(pid) {
               ${mkBar(carryPct, 100, avgCarryPct, carryClass.color, 'AVG')}
               <div class="pp-wl-card-sub">${attPg.toFixed(1)} att/g · ${rushAtt} total att · 2025 stats</div>
             </div>
-            ${rzCarryShare !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${rzCarryClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">RZ Carry Share</span>
-                     <span class="pp-wl-card-cls" style="color:${rzCarryClass.color};">${rzCarryClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${rzCarryClass.color};">${rzCarryShare}<span>%</span></div>
-                   ${mkBar(rzCarryShare, 100, avgRbRzCarryShare, rzCarryClass.color, 'MED')}
-                   <div class="pp-wl-card-sub">% of team rush att inside the 20 · TD opportunity rate · nflverse PBP</div>
-                 </div>`
-              : ''}
-            ${rzCarries !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${rzCarriesClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">RZ Carries</span>
-                     <span class="pp-wl-card-cls" style="color:${rzCarriesClass.color};">${rzCarriesClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${rzCarriesClass.color};">${rzCarries}<span> att</span></div>
-                   ${mkBarVal(rzCarries, Math.max(maxRbRzCarries, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
-                   <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
-                 </div>`
-              : ''}
-            ${rzTdRate !== null
-              ? `<div class="pp-wl-card" style="border-left-color:${rzTdClass.color};">
-                   <div class="pp-wl-card-header">
-                     <span class="pp-wl-card-label">RZ TD Rate</span>
-                     <span class="pp-wl-card-cls" style="color:${rzTdClass.color};">${rzTdClass.label}</span>
-                   </div>
-                   <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
-                   ${mkBar(rzTdRate, 50, avgRbRzTdRate, rzTdClass.color, 'AVG')}
-                   <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
-                 </div>`
-              : ''}
             ${thirdDownSnapPct !== null
               ? `<div class="pp-wl-card" style="border-left-color:${tdSnapsClass.color};">
                    <div class="pp-wl-card-header">
@@ -4506,6 +4480,17 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-val" style="color:${tdSnapsClass.color};">${thirdDownSnapPct}<span>%</span></div>
                    ${mkBar(thirdDownSnapPct, 100, avgRbThirdDownSnaps, tdSnapsClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${tdRawSnaps !== null ? `${tdRawSnaps} snaps / ${tdRawGames}g = ${tdSnapsPerGame}/g · ` : ''}% of team 3rd-down plays on field · nflverse participation</div>
+                 </div>`
+              : ''}
+            ${rzCarryShare !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rzCarryClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">RZ Carry Share</span>
+                     <span class="pp-wl-card-cls" style="color:${rzCarryClass.color};">${rzCarryClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rzCarryClass.color};">${rzCarryShare}<span>%</span></div>
+                   ${mkBar(rzCarryShare, 100, avgRbRzCarryShare, rzCarryClass.color, 'MED')}
+                   <div class="pp-wl-card-sub">% of team rush att inside the 20 · TD opportunity rate · nflverse PBP</div>
                  </div>`
               : ''}
             ${snapCard}
@@ -4527,6 +4512,17 @@ async function loadPlayerProfile(pid) {
               ${mkBar(touchSharePct, 60, avgTouchShare, touchShareClass.color, 'AVG')}
               <div class="pp-wl-card-sub">${touchesPg.toFixed(1)} tch/g · 2025 stats</div>
             </div>
+            ${rzCarries !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${rzCarriesClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">RZ Carries</span>
+                     <span class="pp-wl-card-cls" style="color:${rzCarriesClass.color};">${rzCarriesClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${rzCarriesClass.color};">${rzCarries}<span> att</span></div>
+                   ${mkBarVal(rzCarries, Math.max(maxRbRzCarries, rzCarries), avgRbRzCarries, rzCarriesClass.color, '', 'MED')}
+                   <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
+                 </div>`
+              : ''}
             <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
               <div class="pp-wl-card-header">
                 <span class="pp-wl-card-label">Target Share</span>
