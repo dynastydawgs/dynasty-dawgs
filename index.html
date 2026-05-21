@@ -3473,8 +3473,8 @@ async function loadPlayerProfile(pid) {
     const avgYpc    = avgRbYpc;
     const ypcClass  = !ypc           ? {label:'No Data',    color:'var(--text-dim)'}
                     : ypc >= 5.5    ? {label:'Explosive',  color:'var(--green)'  }
-                    : ypc >= 4.5    ? {label:'Above Avg',  color:'var(--accent)'   }
-                    : ypc >= 3.8    ? {label:'Average',    color:'var(--orange)' }
+                    : ypc >= 5.0    ? {label:'Above Avg',  color:'var(--accent)'   }
+                    : ypc >= 4.0    ? {label:'Average',    color:'var(--orange)' }
                     : ypc >= 3.0    ? {label:'Below Avg',  color:'var(--red)' }
                     :                 {label:'Inefficient',color:'var(--red)'    };
     const rushYdPgClass = rushYdPg === null  ? {label:'No Data',    color:'var(--text-dim)'}
@@ -4059,7 +4059,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, 8.0, avgYpc, ypcClass.color, ' yds', 'AVG')}
+                   ${mkBarVal(ypc, 6.5, avgYpc, ypcClass.color, ' yds', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4104,7 +4104,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
-                   ${mkBarVal(adsMtfPerAtt, 0.20, avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
+                   ${mkBarVal(adsMtfPerAtt, 0.15, avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}66 RBs (min 50 carries) · PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4119,7 +4119,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts', 'AVG')}
+                   ${mkBarVal(ptsPerTouch, 1.6, avgPpt, pptClass.color, ' pts', 'AVG')}
                    <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} PPR pts · ${touches} touches · ${gp} gp${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4134,7 +4134,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rzTdClass.color};">${rzTdClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
-                   ${mkBar(rzTdRate, 50, avgRbRzTdRate, rzTdClass.color, 'AVG')}
+                   ${mkBar(rzTdRate, 30, avgRbRzTdRate, rzTdClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
                  </div>`
               : ''}
@@ -4535,7 +4535,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, 8.0, avgYpc, ypcClass.color, ' yds', 'AVG')}
+                   ${mkBarVal(ypc, 6.5, avgYpc, ypcClass.color, ' yds', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4550,7 +4550,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, 2.0, avgPpt, pptClass.color, ' pts', 'AVG')}
+                   ${mkBarVal(ptsPerTouch, 1.6, avgPpt, pptClass.color, ' pts', 'AVG')}
                    <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4595,7 +4595,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
-                   ${mkBarVal(adsMtfPerAtt, 0.20, avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
+                   ${mkBarVal(adsMtfPerAtt, 0.15, avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}66 RBs (min 50 carries) · PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4610,7 +4610,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rzTdClass.color};">${rzTdClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
-                   ${mkBar(rzTdRate, 50, avgRbRzTdRate, rzTdClass.color, 'AVG')}
+                   ${mkBar(rzTdRate, 30, avgRbRzTdRate, rzTdClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
                  </div>`
               : ''}
@@ -5733,13 +5733,13 @@ let avgRbForty         =  4.49;  // median 40-yard dash (sec) — combine data, 
 let avgRbSpeedScore    = 103.0;  // mean Speed Score (wt*200/forty^4) — top-32 RBs
 let avgRbBmi           =  28.5;  // mean BMI — top-32 RBs
 // Bar scale maxima — p95 of top-32 pool (prevents extreme outlier from compressing bars)
-let maxRbRushYdPg      = 150.0;
+let maxRbRushYdPg      = 130.0;
 let maxRbTouchesPg     =  25.0;
-let maxRbYpc           =   8.0;
-let maxRbMtfPerAtt     =   0.20;
-let maxRbTgtPg         =  10.0;
-let maxRbRecPg         =   8.0;
-let maxRbRecYdPg       =  70.0;
+let maxRbYpc           =   6.5;
+let maxRbMtfPerAtt     =   0.15;
+let maxRbTgtPg         =   7.0;
+let maxRbRecPg         =   5.5;
+let maxRbRecYdPg       =  55.0;
 let maxRbSpeedScore    = 140.0;
 let maxRbBmi           =  38.0;
 let maxRbRzCarries     =  55.0;
