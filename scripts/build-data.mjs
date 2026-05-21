@@ -10,7 +10,7 @@
 //   data/teamdb.json      — teamAbbr → {rushAttPg, passAttPg, offPlaysPg, …, offRating}
 //   data/depthdb.json     — teamAbbr → {QB/RB/WR/TE: [{name, rank, status}]}
 //   data/ryoedb.json      — playerName → {ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected}
-//   data/advstatsdb.json  — playerName → {successPct, mtfPerAtt, brkTkl, att}
+//   data/advstatsdb.json  — playerName → {successPct, mtfPerAtt, brkTkl, att, bfTgtShare, …}
 
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -199,6 +199,7 @@ async function main() {
   let avgRbTouchesPg      = 15.0;
   let avgRbTouchShare     = 31.0;
   let avgRbTargetShare    =  9.0;
+  let avgRbBfTgtShare     = 50.0; // mean backfield target share % among top-32 RBs
   let avgRbSnapPct        = 62.0;
   let avgRbRzCarryShare   = 38.0; // median RZ carry share among top-32 RBs
   let avgRbRzCarries      = 22.0; // median RZ carries among top-32 RBs
@@ -665,6 +666,7 @@ async function main() {
     const workloadByGsis       = {}; // gsis_id → { carries, rzCarries, rushYds, tgts, rec, gameIds, team }
     const teamCarriesPerGame   = {}; // gameId → { posteam → total rush attempts (incl. QB) }
     const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
+    const teamRbTgtsPerGame    = {}; // gameId → { posteam → total RB targets } (backfield tgt share denom)
     const teamThirdDownPlaysPerGame = {}; // gameId → { posteam → 3rd-down play count } (denominator for snap%)
     const thirdDownMap         = new Map(); // game_id → Set<play_id (int)> for REG 3rd-down plays
     try {
@@ -740,11 +742,18 @@ async function main() {
           }
 
           if (paI >= 0 && v[paI] === '1') {
-            const gsis = recvI >= 0 ? v[recvI]?.trim() : null;
+            const gsis  = recvI >= 0 ? v[recvI]?.trim() : null;
+            const pteam = pteamI >= 0 ? v[pteamI]?.trim() : null;
+            // Track team RB targets per game (denominator for backfield target share)
+            if (gsis && gsisToPos[gsis] === 'RB' && gameId && pteam) {
+              if (!teamRbTgtsPerGame[gameId]) teamRbTgtsPerGame[gameId] = {};
+              teamRbTgtsPerGame[gameId][pteam] = (teamRbTgtsPerGame[gameId][pteam] ?? 0) + 1;
+            }
             if (gsis) {
               if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rzTDs: 0, rushYds: 0, tgts: 0, rec: 0, recYds: 0, gameIds: new Set(), team: null };
               workloadByGsis[gsis].tgts++;
               if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
+              if (pteam && !workloadByGsis[gsis].team) workloadByGsis[gsis].team = pteam;
               if (cpI >= 0 && v[cpI] === '1') {
                 workloadByGsis[gsis].rec++;
                 workloadByGsis[gsis].recYds += ydsI >= 0 ? (parseFloat(v[ydsI]) || 0) : 0;
@@ -838,6 +847,22 @@ async function main() {
       }
     }
     console.log(`  Carry share: ${Object.keys(carryShareMap).length} players`);
+
+    // ── 5a-i. Backfield target share (player RB tgts / total team RB tgts) ────
+    const bfTgtShareMap = {};  // normKey → backfield target share %
+    for (const [gsis, d] of Object.entries(workloadByGsis)) {
+      if (!d.team || d.tgts < 8) continue;
+      if (gsisToPos[gsis] !== 'RB') continue;
+      const nk = gsisToNormName[gsis];
+      if (!nk) continue;
+      const teamRbTgts = [...d.gameIds].reduce((sum, gid) =>
+        sum + (teamRbTgtsPerGame[gid]?.[d.team] ?? 0), 0);
+      if (teamRbTgts >= 1) {
+        bfTgtShareMap[nk] = Math.round(d.tgts / teamRbTgts * 1000) / 10;
+        if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+      }
+    }
+    console.log(`  Backfield target share: ${Object.keys(bfTgtShareMap).length} players`);
     console.log(`  RZ carry share: ${Object.keys(rzCarryShareMap).length} players`);
 
     // ── 5a-ii. RZ TD rate (rzTDs / rzCarries, min 8 RZ carries) ─────────────
@@ -924,7 +949,7 @@ async function main() {
       ...Object.keys(mtfMap), ...Object.keys(successMap),
       ...Object.keys(carryShareMap), ...Object.keys(rzCarryShareMap),
       ...Object.keys(rzTdRateMap), ...Object.keys(thirdDownSnapPctMap),
-      ...Object.keys(combineMap),
+      ...Object.keys(combineMap), ...Object.keys(bfTgtShareMap),
     ]);
     for (const nk of allNormKeys) {
       const entry = {};
@@ -938,6 +963,7 @@ async function main() {
       if (thirdDownSnapPctMap[nk])   entry.thirdDownSnapPct  = thirdDownSnapPctMap[nk];
       if (thirdDownSnapRawMap[nk])   Object.assign(entry, thirdDownSnapRawMap[nk]);  // snaps, games
       if (combineMap[nk])            entry.forty             = combineMap[nk].forty;
+      if (bfTgtShareMap[nk])         entry.bfTgtShare        = bfTgtShareMap[nk];
       if (!Object.keys(entry).length) continue;
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
@@ -1035,6 +1061,7 @@ async function main() {
           successPct:        nk ? (successMap[nk] ?? null) : null,
           mtfPerAtt:         nk ? (mtfMap[nk]?.mtfPerAtt ?? null) : null,
           thirdDownSnapPct:  nk ? (thirdDownSnapPctMap[nk] ?? null) : null,
+          bfTgtShare:        nk ? (bfTgtShareMap[nk]        ?? null) : null,
           avgTimeToLos:      nk ? (ryoeDB[normToDisplay[nk]]?.avgTimeToLos  ?? null) : null,
           stackedBoxPct:     nk ? (ryoeDB[normToDisplay[nk]]?.stackedBoxPct ?? null) : null,
           wt,
@@ -1065,6 +1092,7 @@ async function main() {
       avgRbTouchesPg    = _mn('touchesPg',      15.0);
       avgRbTouchShare   = _mn('touchSharePct',  31.0);
       avgRbTargetShare  = _mn('targetSharePct',  9.0);
+      avgRbBfTgtShare   = _mn('bfTgtShare',      50.0);
       avgRbTgtPg        = _mn('tgtPg',           3.5);
       avgRbRecPg        = _mn('recPg',           2.5);
       avgRbRecYdPg      = _mn('recYdPg',        22.0);
@@ -1119,7 +1147,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbAvgTimeToLos, avgRbStackedBoxPct, avgRbForty, avgRbSpeedScore, avgRbBmi, maxRbRushYdPg, maxRbTouchesPg, maxRbYpc, maxRbMtfPerAtt, maxRbTgtPg, maxRbRecPg, maxRbRecYdPg, maxRbSpeedScore, maxRbBmi, maxRbRzCarries });
+  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbBfTgtShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbAvgTimeToLos, avgRbStackedBoxPct, avgRbForty, avgRbSpeedScore, avgRbBmi, maxRbRushYdPg, maxRbTouchesPg, maxRbYpc, maxRbMtfPerAtt, maxRbTgtPg, maxRbRecPg, maxRbRecYdPg, maxRbSpeedScore, maxRbBmi, maxRbRzCarries });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);

@@ -3320,6 +3320,15 @@ async function loadPlayerProfile(pid) {
                         : tgtPg >= 1.5 ? { label:'Limited',        color:'var(--red)' }
                         :                { label:'Minimal',        color:'var(--red)'    };
 
+    // Backfield target share — player RB targets / total team RB targets (PBP-derived)
+    const bfTgtShare      = _advEntry?.bfTgtShare ?? null;
+    const bfTgtShareClass = bfTgtShare === null    ? { label:'No Data',   color:'var(--text-dim)' }
+                          : bfTgtShare >= 70       ? { label:'Dominant',  color:'var(--green)'  }
+                          : bfTgtShare >= 50       ? { label:'Featured',  color:'var(--accent)'   }
+                          : bfTgtShare >= 30       ? { label:'Shared',    color:'var(--orange)' }
+                          : bfTgtShare >= 15       ? { label:'Limited',   color:'var(--red)' }
+                          :                          { label:'Minimal',   color:'var(--red)'    };
+
     const roleTag     = carryPct >= 65 && tgtPg >= 4.5 ? { label:'Workhorse + Receiver',   color:'var(--green)'  }
                       : carryPct >= 65                  ? { label:'Workhorse',              color:'var(--green)'  }
                       : carryPct >= 50 && tgtPg >= 5   ? { label:'Three-Down Back',        color:'var(--accent)'   }
@@ -4072,15 +4081,21 @@ async function loadPlayerProfile(pid) {
 
           <div class="pp-wl-row-label" style="margin-top:14px;">Receiving</div>
           <div class="pp-wl-cards">
-            <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
-              <div class="pp-wl-card-header">
-                <span class="pp-wl-card-label">Target Share</span>
-                <span class="pp-wl-card-cls" style="color:${tgtClass.color};">${tgtClass.label}</span>
-              </div>
-              <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
-              ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color, 'AVG')}
-              <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench: top 32 RBs by carries</div>
-            </div>
+            ${bfTgtShare !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${bfTgtShareClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Backfield Target Share</span>
+                     <span class="pp-wl-card-cls" style="color:${bfTgtShareClass.color};">${bfTgtShareClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${bfTgtShareClass.color};">${bfTgtShare}<span>%</span></div>
+                   ${mkBar(bfTgtShare, 100, avgRbBfTgtShare, bfTgtShareClass.color, 'AVG')}
+                   <div class="pp-wl-card-sub">${tgts} tgts of all RB targets on ${statTeam} · player÷backfield tgts · nflverse PBP</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Backfield Target Share</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Not enough targets (min 8) · nflverse PBP</div>
+                 </div>`}
             <div class="pp-wl-card" style="border-left-color:${rbTgtPgClass.color};">
               <div class="pp-wl-card-header">
                 <span class="pp-wl-card-label">Targets / Game</span>
@@ -4523,15 +4538,21 @@ async function loadPlayerProfile(pid) {
                    <div class="pp-wl-card-sub">total carries inside the 20 · 2025 season · bench: top 32 RBs by carries · nflverse PBP</div>
                  </div>`
               : ''}
-            <div class="pp-wl-card" style="border-left-color:${tgtClass.color};">
-              <div class="pp-wl-card-header">
-                <span class="pp-wl-card-label">Target Share</span>
-                <span class="pp-wl-card-cls" style="color:${tgtClass.color};">${tgtClass.label}</span>
-              </div>
-              <div class="pp-wl-card-val" style="color:${tgtClass.color};">${targetPct}<span>%</span></div>
-              ${mkBar(targetPct, 25, avgTgtPct, tgtClass.color, 'AVG')}
-              <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total tgt · bench: top 32 RBs by carries · 2025 stats</div>
-            </div>
+            ${bfTgtShare !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${bfTgtShareClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">Backfield Target Share</span>
+                     <span class="pp-wl-card-cls" style="color:${bfTgtShareClass.color};">${bfTgtShareClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${bfTgtShareClass.color};">${bfTgtShare}<span>%</span></div>
+                   ${mkBar(bfTgtShare, 100, avgRbBfTgtShare, bfTgtShareClass.color, 'AVG')}
+                   <div class="pp-wl-card-sub">${tgts} tgts of all RB targets on ${statTeam} · player÷backfield tgts · nflverse PBP</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">Backfield Target Share</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Not enough targets (min 8) · nflverse PBP</div>
+                 </div>`}
             <div class="pp-wl-card" style="border-left-color:${rbTgtPgClass.color};">
               <div class="pp-wl-card-header">
                 <span class="pp-wl-card-label">Targets / Game</span>
@@ -5555,7 +5576,8 @@ let avgRbCarryPct = (() => {
 let avgRbSnapPct       = 62.0;   // avg offensive snap share
 let avgRbTouchesPg     = 15.0;   // avg touches per game
 let avgRbTouchShare    = 31.0;   // avg touch share %
-let avgRbTargetShare   =  9.0;   // avg target share %
+let avgRbTargetShare   =  9.0;   // avg target share % (vs all team targets)
+let avgRbBfTgtShare    = 50.0;   // avg backfield target share % (vs team RB targets)
 let avgRbRzCarryShare  = 38.0;   // median RZ carry share % (carries inside the 20 / team RZ carries)
 let avgRbRzCarries     = 22.0;   // median RZ carries (raw count, inside the 20)
 let avgRbRzTdRate      = 17.0;   // mean RZ TD rate % (TDs / RZ carries, top-32 RBs)
@@ -6212,6 +6234,7 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbTouchesPg)     avgRbTouchesPg     = bench.avgRbTouchesPg;
     if (bench?.avgRbTouchShare)    avgRbTouchShare    = bench.avgRbTouchShare;
     if (bench?.avgRbTargetShare)   avgRbTargetShare   = bench.avgRbTargetShare;
+    if (bench?.avgRbBfTgtShare)    avgRbBfTgtShare    = bench.avgRbBfTgtShare;
     if (bench?.avgRbRzCarryShare)  avgRbRzCarryShare  = bench.avgRbRzCarryShare;
     if (bench?.avgRbRzCarries)     avgRbRzCarries     = bench.avgRbRzCarries;
     if (bench?.avgRbRzTdRate)      avgRbRzTdRate      = bench.avgRbRzTdRate;
@@ -6315,6 +6338,7 @@ function _loadOptionalDataFiles() {
           if (bench?.avgRbTouchesPg)     avgRbTouchesPg     = bench.avgRbTouchesPg;
           if (bench?.avgRbTouchShare)    avgRbTouchShare    = bench.avgRbTouchShare;
           if (bench?.avgRbTargetShare)   avgRbTargetShare   = bench.avgRbTargetShare;
+    if (bench?.avgRbBfTgtShare)    avgRbBfTgtShare    = bench.avgRbBfTgtShare;
           if (bench?.avgRbRzCarryShare)  avgRbRzCarryShare  = bench.avgRbRzCarryShare;
           if (bench?.avgRbRzCarries)     avgRbRzCarries     = bench.avgRbRzCarries;
           if (bench?.avgRbRzTdRate)      avgRbRzTdRate      = bench.avgRbRzTdRate;
