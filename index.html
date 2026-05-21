@@ -1213,6 +1213,20 @@
     background: linear-gradient(to right, rgba(96,165,250,0.3), transparent);
   }
 
+  /* ── SECTION GRADE CIRCLES ── */
+  .pp-grade-circles {
+    display: flex; justify-content: space-around; flex-wrap: wrap; gap: 8px;
+    padding: 16px 12px; background: rgba(11,17,32,0.5);
+    border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 18px;
+  }
+  .pp-grade-circle-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+  }
+  .pp-grade-circle-label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--text-dim); text-align: center;
+  }
+
   /* ── PLAYER SCORECARD ── */
   .pp-scorecard {
     background: rgba(11,17,32,0.7);
@@ -3709,6 +3723,69 @@ async function loadPlayerProfile(pid) {
     const _rushVolS = Math.min(100, Math.max(0, (teamRushPg - 18) / (38 - 18) * 100));
     const _sitScore = _dcS * 0.55 + _rushVolS * 0.45;
 
+    // ── Section grade scores (0–100) — one per section, based only on cards in that section ──
+
+    // Efficiency: YPC 25% · RYOE/att 20% · Success% 20% · MTF/att 15% · PPR pts/touch 15% · RZ TD rate 5%
+    const _ypcS2   = ypc !== null          ? Math.min(100, Math.max(0, (ypc - 2.0) / 5.0 * 100))          : null;
+    const _ryoeS2  = ryoePerAtt !== null   ? Math.min(100, Math.max(0, (ryoePerAtt + 2.0) / 4.0 * 100))   : null;
+    const _succS   = successPct !== null   ? Math.min(100, Math.max(0, (successPct - 28) / 28 * 100))      : null;
+    const _mtfS    = adsMtfPerAtt !== null ? Math.min(100, adsMtfPerAtt / 0.20 * 100)                      : null;
+    const _pptS2   = ptsPerTouch           ? Math.min(100, ptsPerTouch / 2.0 * 100)                        : null;
+    const _rzTdS   = rzTdRate !== null     ? Math.min(100, rzTdRate / 40 * 100)                             : null;
+    const _effParts2 = [{s:_ypcS2,w:0.25},{s:_ryoeS2,w:0.20},{s:_succS,w:0.20},{s:_mtfS,w:0.15},{s:_pptS2,w:0.15},{s:_rzTdS,w:0.05}].filter(c=>c.s!==null);
+    const _effW2   = _effParts2.reduce((a,c)=>a+c.w,0)||1;
+    const _effScore2 = _effParts2.length ? _effParts2.reduce((a,c)=>a+c.s*c.w,0)/_effW2 : null;
+
+    // Opportunity & Usage:
+    //   — Opportunity cluster (65%): carry share 22% · snap% 18% · RZ carry share 12% · touch share 8% · 3rd-down snap% 5%
+    //   — Usage cluster     (35%): rush yds/g 15% · touches/g 12% · RZ carries 8%
+    const _cryS2   = Math.min(100, Math.max(0, carryPct / 80 * 100));
+    const _snpS    = hasSnap               ? Math.min(100, snapPct)                                         : null;
+    const _rzCSs   = rzCarryShare !== null ? Math.min(100, Math.max(0, rzCarryShare / 70 * 100))            : null;
+    const _tshS2   = Math.min(100, touchSharePct / 60 * 100);
+    const _tdSnpS  = thirdDownSnapPct !== null ? Math.min(100, Math.max(0, thirdDownSnapPct / 65 * 100))    : null;
+    const _rushYdS = rushYdPg !== null     ? Math.min(100, Math.max(0, rushYdPg / 120 * 100))              : null;
+    const _tchS2   = Math.min(100, touchesPg / 28 * 100);
+    const _rzCrS   = rzCarries !== null    ? Math.min(100, rzCarries / 50 * 100)                            : null;
+    const _usageParts = [{s:_cryS2,w:0.22},{s:_snpS,w:0.18},{s:_rzCSs,w:0.12},{s:_tshS2,w:0.08},{s:_tdSnpS,w:0.05},{s:_rushYdS,w:0.15},{s:_tchS2,w:0.12},{s:_rzCrS,w:0.08}].filter(c=>c.s!==null);
+    const _usageW    = _usageParts.reduce((a,c)=>a+c.w,0)||1;
+    const _usageScore = _usageParts.length ? _usageParts.reduce((a,c)=>a+c.s*c.w,0)/_usageW : null;
+
+    // Receiving: backfield tgt share 35% · tgt/g 30% · rec/g 20% · rec yds/g 15%
+    const _bfTgtS  = bfTgtShare !== null   ? Math.min(100, bfTgtShare)                                      : null;
+    const _tgtPgS2 = Math.min(100, tgtPg / 8 * 100);
+    const _recPgS2 = recPg   !== null      ? Math.min(100, recPg   / 7  * 100)                              : null;
+    const _recYdS  = recYdPg !== null      ? Math.min(100, recYdPg / 75 * 100)                              : null;
+    const _recParts  = [{s:_bfTgtS,w:0.35},{s:_tgtPgS2,w:0.30},{s:_recPgS2,w:0.20},{s:_recYdS,w:0.15}].filter(c=>c.s!==null);
+    const _recW      = _recParts.reduce((a,c)=>a+c.w,0)||1;
+    const _recScore  = _recParts.length ? _recParts.reduce((a,c)=>a+c.s*c.w,0)/_recW : null;
+
+    // Physical (combine available):    speed score 30% · 40-yd dash 25% · time to LOS 20% · BMI 15% · height 5% · weight 5%
+    // Physical (no combine data):      time to LOS 50% · BMI 30% · weight 12% · height 8%
+    const _ssS     = speedScore !== null   ? Math.min(100, Math.max(0, (speedScore - 80) / 55 * 100))      : null;
+    const _fortyS  = forty !== null        ? Math.min(100, Math.max(0, (5.0 - forty) / 0.9 * 100))         : null;
+    const _ttLosS  = avgTtLos !== null     ? Math.min(100, Math.max(0, (4.0 - avgTtLos) / 2.5 * 100))      : null;
+    const _bmiS    = bmi !== null          ? Math.min(100, Math.max(0, (bmi - 26) / 14 * 100))              : null;
+    const _htS     = heightPct !== null    ? heightPct                                                       : null;
+    const _wtS     = weightPct !== null    ? weightPct                                                       : null;
+    const _noCombine = _ssS === null && _fortyS === null;
+    const _phyParts  = _noCombine
+      ? [{s:_ttLosS,w:0.50},{s:_bmiS,w:0.30},{s:_wtS,w:0.12},{s:_htS,w:0.08}].filter(c=>c.s!==null)
+      : [{s:_ssS,w:0.30},{s:_fortyS,w:0.25},{s:_ttLosS,w:0.20},{s:_bmiS,w:0.15},{s:_htS,w:0.05},{s:_wtS,w:0.05}].filter(c=>c.s!==null);
+    const _phyW      = _phyParts.reduce((a,c)=>a+c.w,0)||1;
+    const _phyScore  = _phyParts.length ? _phyParts.reduce((a,c)=>a+c.s*c.w,0)/_phyW : null;
+
+    // Situation: run rate 25% · rush att/g 25% · run blocking 20% · offense rank 15% · off plays/g 10% · stacked box 5%
+    const _runRateS  = runRate      !== null ? Math.min(100, Math.max(0, (runRate - 30) / 25 * 100))        : null;
+    const _rushAttS  = Math.min(100, Math.max(0, (teamRushPg - 18) / 20 * 100));
+    const _blkS      = teamYpc      !== null ? Math.min(100, Math.max(0, (teamYpc - 3.0) / 3.0 * 100))      : null;
+    const _offRankS  = offRank      !== null ? Math.min(100, Math.max(0, (33 - offRank) / 31 * 100))        : null;
+    const _offPlsS   = offPlaysPg   !== null ? Math.min(100, Math.max(0, (offPlaysPg - 55) / 25 * 100))     : null;
+    const _stkBoxS   = stackedBoxPct !== null ? Math.min(100, Math.max(0, (50 - stackedBoxPct) / 50 * 100)) : null;
+    const _sitParts2 = [{s:_runRateS,w:0.25},{s:_rushAttS,w:0.25},{s:_blkS,w:0.20},{s:_offRankS,w:0.15},{s:_offPlsS,w:0.10},{s:_stkBoxS,w:0.05}].filter(c=>c.s!==null);
+    const _sitW2     = _sitParts2.reduce((a,c)=>a+c.w,0)||1;
+    const _sitScore2 = _sitParts2.reduce((a,c)=>a+c.s*c.w,0)/_sitW2;
+
     // ── 2026 (current team) context — used in the forward-looking tab ─────────
     const _curRawTeamCtx  = teamChanged ? (teamDB?.[nflTeam] ?? null) : _rawTeamCtx;
     const _curTeamCtx     = teamChanged
@@ -3784,6 +3861,26 @@ async function loadPlayerProfile(pid) {
     const _toGradeClass = s => s === null ? 'grade-dim'
       : s >= 83 ? 'grade-green' : s >= 70 ? 'grade-blue'
       : s >= 57 ? 'grade-accent' : s >= 43 ? 'grade-orange' : 'grade-red';
+
+    // Circular section grade indicator (SVG arc, number inside, label below)
+    const mkGradeCircle = (rawScore, label) => {
+      const sc   = rawScore === null ? null : Math.min(99, Math.round(rawScore));
+      const col  = _toColor(rawScore);
+      const r    = 32, circ = +(2 * Math.PI * r).toFixed(2);
+      const off  = rawScore === null ? circ : +(circ * (1 - Math.min(rawScore, 100) / 100)).toFixed(2);
+      return `<div class="pp-grade-circle-wrap">
+        <div style="position:relative;width:80px;height:80px;">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="5"/>
+            <circle cx="40" cy="40" r="${r}" fill="none" stroke="${col}" stroke-width="5"
+              stroke-dasharray="${circ}" stroke-dashoffset="${off}"
+              stroke-linecap="round" transform="rotate(-90 40 40)"/>
+          </svg>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--display);font-size:22px;line-height:1;color:${col};">${sc !== null ? sc : '—'}</div>
+        </div>
+        <div class="pp-grade-circle-label">${label}</div>
+      </div>`;
+    };
 
     const _effDesc = _effScore === null ? 'No efficiency data available.'
       : _effScore >= 83 ? 'Elite per-touch production — top-tier YPC and scoring.'
@@ -3869,8 +3966,19 @@ async function loadPlayerProfile(pid) {
         </div>
       </div>`;
 
+    const _gradeCirclesHTML = `
+      <div style="margin-bottom:8px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">Section Grades</div>
+      <div class="pp-grade-circles">
+        ${mkGradeCircle(_effScore2,   'Efficiency')}
+        ${mkGradeCircle(_usageScore,  'Opp & Usage')}
+        ${mkGradeCircle(_recScore,    'Receiving')}
+        ${mkGradeCircle(_phyScore,    'Physical')}
+        ${mkGradeCircle(_sitScore2,   'Situation')}
+      </div>`;
+
     overviewHTML = `
       <div class="pp-workload-section">
+        ${_gradeCirclesHTML}
         <div style="margin-bottom:6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2025 Season</div>
         ${_scorecardHTML}
         <div style="margin:18px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2026 Outlook</div>
