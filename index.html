@@ -3726,12 +3726,19 @@ async function loadPlayerProfile(pid) {
     // ── Section grade scores (0–100) — one per section, based only on cards in that section ──
 
     // Efficiency: YPC 25% · RYOE/att 20% · Success% 20% · MTF/att 15% · PPR pts/touch 15% · RZ TD rate 5%
+    // Scales calibrated so league average ≈ 50:
+    //   YPC floor 2.0, ceiling 7.0 → avg 4.3 ≈ 46
+    //   RYOE centered at 0 → avg 0 = 50
+    //   Success floor 28%, ceiling 56% → avg 41% ≈ 46
+    //   MTF ceiling 0.12 → avg 0.062 ≈ 52
+    //   PPR pts/touch ceiling 1.7 → avg 0.854 ≈ 50
+    //   RZ TD rate ceiling 28% → avg 14.5% ≈ 52
     const _ypcS2   = ypc !== null          ? Math.min(100, Math.max(0, (ypc - 2.0) / 5.0 * 100))          : null;
     const _ryoeS2  = ryoePerAtt !== null   ? Math.min(100, Math.max(0, (ryoePerAtt + 2.0) / 4.0 * 100))   : null;
     const _succS   = successPct !== null   ? Math.min(100, Math.max(0, (successPct - 28) / 28 * 100))      : null;
-    const _mtfS    = adsMtfPerAtt !== null ? Math.min(100, adsMtfPerAtt / 0.20 * 100)                      : null;
-    const _pptS2   = ptsPerTouch           ? Math.min(100, ptsPerTouch / 2.0 * 100)                        : null;
-    const _rzTdS   = rzTdRate !== null     ? Math.min(100, rzTdRate / 40 * 100)                             : null;
+    const _mtfS    = adsMtfPerAtt !== null ? Math.min(100, adsMtfPerAtt / 0.12 * 100)                      : null;
+    const _pptS2   = ptsPerTouch           ? Math.min(100, ptsPerTouch / 1.7 * 100)                        : null;
+    const _rzTdS   = rzTdRate !== null     ? Math.min(100, rzTdRate / 28 * 100)                             : null;
     const _effParts2 = [{s:_ypcS2,w:0.25},{s:_ryoeS2,w:0.20},{s:_succS,w:0.20},{s:_mtfS,w:0.15},{s:_pptS2,w:0.15},{s:_rzTdS,w:0.05}].filter(c=>c.s!==null);
     const _effW2   = _effParts2.reduce((a,c)=>a+c.w,0)||1;
     const _effScore2 = _effParts2.length ? _effParts2.reduce((a,c)=>a+c.s*c.w,0)/_effW2 : null;
@@ -4026,7 +4033,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, maxRbYpc, avgYpc, ypcClass.color, ' yds', 'AVG')}
+                   ${mkBarVal(ypc, 8.0, avgYpc, ypcClass.color, ' yds', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4502,7 +4509,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, maxRbYpc, avgYpc, ypcClass.color, ' yds', 'AVG')}
+                   ${mkBarVal(ypc, 8.0, avgYpc, ypcClass.color, ' yds', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
