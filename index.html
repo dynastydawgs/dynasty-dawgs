@@ -3328,20 +3328,20 @@ async function loadPlayerProfile(pid) {
                       : targetPct >= 3  ? { label:'Limited',          color:'var(--red)' }
                       :                   { label:'Minimal',          color:'var(--red)'    };
 
-    const rbTgtPgClass  = tgtPg >= 6   ? { label:'Elite Receiver', color:'var(--green)'  }
-                        : tgtPg >= 4   ? { label:'Pass-Catcher',   color:'var(--accent)'   }
-                        : tgtPg >= 2.5 ? { label:'Average',        color:'var(--orange)' }
-                        : tgtPg >= 1.5 ? { label:'Limited',        color:'var(--red)' }
+    const rbTgtPgClass  = tgtPg >= 6.0 ? { label:'Elite Receiver', color:'var(--green)'  }
+                        : tgtPg >= 4.5 ? { label:'Pass-Catcher',   color:'var(--accent)'   }
+                        : tgtPg >= 3.0 ? { label:'Average',        color:'var(--orange)' }
+                        : tgtPg >= 1.8 ? { label:'Limited',        color:'var(--red)' }
                         :                { label:'Minimal',        color:'var(--red)'    };
 
     // Backfield target share — player RB targets / total team RB targets (PBP-derived)
     const bfTgtShare      = _advEntry?.bfTgtShare ?? null;
     const bfTgtShareClass = bfTgtShare === null    ? { label:'No Data',   color:'var(--text-dim)' }
                           : bfTgtShare >= 70       ? { label:'Dominant',  color:'var(--green)'  }
-                          : bfTgtShare >= 50       ? { label:'Featured',  color:'var(--accent)'   }
-                          : bfTgtShare >= 30       ? { label:'Shared',    color:'var(--orange)' }
-                          : bfTgtShare >= 15       ? { label:'Limited',   color:'var(--red)' }
-                          :                          { label:'Minimal',   color:'var(--red)'    };
+                          : bfTgtShare >= 57       ? { label:'Featured',  color:'var(--accent)'   }
+                          : bfTgtShare >= 42       ? { label:'Average',   color:'var(--orange)' }
+                          : bfTgtShare >= 25       ? { label:'Shared',    color:'var(--red)' }
+                          :                          { label:'Limited',   color:'var(--red)'    };
 
     const roleTag     = carryPct >= 65 && tgtPg >= 4.5 ? { label:'Workhorse + Receiver',   color:'var(--green)'  }
                       : carryPct >= 65                  ? { label:'Workhorse',              color:'var(--green)'  }
@@ -3360,9 +3360,9 @@ async function loadPlayerProfile(pid) {
 
     const snapClass = !hasSnap         ? { label: 'No Data',    color: 'var(--text-dim)' }
                     : snapPct >= 75    ? { label: 'Every-Down',  color: 'var(--green)'   }
-                    : snapPct >= 60    ? { label: 'High',        color: 'var(--accent)'    }
-                    : snapPct >= 45    ? { label: 'Average',     color: 'var(--orange)'  }
-                    : snapPct >= 30    ? { label: 'Limited',     color: 'var(--red)'  }
+                    : snapPct >= 65    ? { label: 'High',        color: 'var(--accent)'    }
+                    : snapPct >= 50    ? { label: 'Average',     color: 'var(--orange)'  }
+                    : snapPct >= 35    ? { label: 'Limited',     color: 'var(--red)'  }
                     :                    { label: 'Minimal',     color: 'var(--red)'     };
 
     const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'MED') => {
@@ -3426,13 +3426,13 @@ async function loadPlayerProfile(pid) {
     const recPg         = gp > 0 ? Math.round(rec    / gp * 10) / 10 : null;
     const recYdPg       = gp > 0 ? Math.round(recYd  / gp * 10) / 10 : null;
 
-    const rbRecPgClass   = recPg   >= 4  ? { label:'Elite',   color:'var(--green)'  }
-                         : recPg   >= 3  ? { label:'Good',    color:'var(--accent)'   }
-                         : recPg   >= 2  ? { label:'Average', color:'var(--orange)' }
-                         : recPg   >= 1  ? { label:'Limited', color:'var(--red)' }
-                         :                 { label:'Minimal', color:'var(--red)'    };
-    const rbRecYdPgClass = recYdPg >= 35 ? { label:'Elite',   color:'var(--green)'  }
-                         : recYdPg >= 25 ? { label:'Good',    color:'var(--accent)'   }
+    const rbRecPgClass   = recPg   >= 4.0 ? { label:'Elite',   color:'var(--green)'  }
+                         : recPg   >= 3.2 ? { label:'Good',    color:'var(--accent)'   }
+                         : recPg   >= 1.8 ? { label:'Average', color:'var(--orange)' }
+                         : recPg   >= 1.0 ? { label:'Limited', color:'var(--red)' }
+                         :                  { label:'Minimal', color:'var(--red)'    };
+    const rbRecYdPgClass = recYdPg >= 38 ? { label:'Elite',   color:'var(--green)'  }
+                         : recYdPg >= 28 ? { label:'Good',    color:'var(--accent)'   }
                          : recYdPg >= 15 ? { label:'Average', color:'var(--orange)' }
                          : recYdPg >= 8  ? { label:'Limited', color:'var(--red)' }
                          :                 { label:'Minimal', color:'var(--red)'    };
@@ -3444,16 +3444,16 @@ async function loadPlayerProfile(pid) {
     const avgTouchPg    = avgRbTouchesPg;
     const avgTouchShare = avgRbTouchShare;
 
-    const touchPgClass  = touchesPg >= 20 ? { label: 'Elite Volume',  color: 'var(--green)'  }
-                        : touchesPg >= 16 ? { label: 'High Volume',   color: 'var(--accent)'   }
-                        : touchesPg >= 11 ? { label: 'Average',       color: 'var(--orange)' }
+    const touchPgClass  = touchesPg >= 21 ? { label: 'Elite Volume',  color: 'var(--green)'  }
+                        : touchesPg >= 17 ? { label: 'High Volume',   color: 'var(--accent)'   }
+                        : touchesPg >= 12 ? { label: 'Average',       color: 'var(--orange)' }
                         : touchesPg >= 7  ? { label: 'Limited',       color: 'var(--red)' }
                         :                   { label: 'Minimal',       color: 'var(--red)'    };
 
-    const touchShareClass = touchSharePct >= 40 ? { label: 'Dominant',   color: 'var(--green)'  }
-                          : touchSharePct >= 30 ? { label: 'High',       color: 'var(--accent)'   }
-                          : touchSharePct >= 20 ? { label: 'Average',    color: 'var(--orange)' }
-                          : touchSharePct >= 12 ? { label: 'Committee',  color: 'var(--red)' }
+    const touchShareClass = touchSharePct >= 42 ? { label: 'Dominant',   color: 'var(--green)'  }
+                          : touchSharePct >= 35 ? { label: 'High',       color: 'var(--accent)'   }
+                          : touchSharePct >= 25 ? { label: 'Average',    color: 'var(--orange)' }
+                          : touchSharePct >= 15 ? { label: 'Committee',  color: 'var(--red)' }
                           :                       { label: 'Limited',    color: 'var(--red)'    };
 
     // Points per touch (PPR pts / total touches)
@@ -3463,9 +3463,9 @@ async function loadPlayerProfile(pid) {
 
     const pptClass = !ptsPerTouch          ? { label: 'No Data',      color: 'var(--text-dim)' }
                    : ptsPerTouch >= 1.25   ? { label: 'Elite',        color: 'var(--green)'   }
-                   : ptsPerTouch >= 1.05   ? { label: 'Good',         color: 'var(--accent)'    }
-                   : ptsPerTouch >= 0.85   ? { label: 'Average',      color: 'var(--orange)'  }
-                   : ptsPerTouch >= 0.65   ? { label: 'Below Avg',    color: 'var(--red)'  }
+                   : ptsPerTouch >= 1.03   ? { label: 'Good',         color: 'var(--accent)'    }
+                   : ptsPerTouch >= 0.77   ? { label: 'Average',      color: 'var(--orange)'  }
+                   : ptsPerTouch >= 0.57   ? { label: 'Below Avg',    color: 'var(--red)'  }
                    :                         { label: 'Poor',         color: 'var(--red)'     };
 
     // Ground Game: Yards Per Carry + Red Zone Carries
@@ -3473,15 +3473,15 @@ async function loadPlayerProfile(pid) {
     const avgYpc    = avgRbYpc;
     const ypcClass  = !ypc           ? {label:'No Data',    color:'var(--text-dim)'}
                     : ypc >= 5.5    ? {label:'Explosive',  color:'var(--green)'  }
-                    : ypc >= 5.0    ? {label:'Above Avg',  color:'var(--accent)'   }
+                    : ypc >= 4.6    ? {label:'Above Avg',  color:'var(--accent)'   }
                     : ypc >= 4.0    ? {label:'Average',    color:'var(--orange)' }
-                    : ypc >= 3.0    ? {label:'Below Avg',  color:'var(--red)' }
+                    : ypc >= 3.4    ? {label:'Below Avg',  color:'var(--red)' }
                     :                 {label:'Inefficient',color:'var(--red)'    };
     const rushYdPgClass = rushYdPg === null  ? {label:'No Data',    color:'var(--text-dim)'}
-                        : rushYdPg >= 90     ? {label:'Elite',       color:'var(--green)'  }
-                        : rushYdPg >= 72     ? {label:'Above Avg',   color:'var(--accent)'   }
-                        : rushYdPg >= 55     ? {label:'Average',     color:'var(--orange)' }
-                        : rushYdPg >= 35     ? {label:'Below Avg',   color:'var(--red)' }
+                        : rushYdPg >= 95     ? {label:'Elite',       color:'var(--green)'  }
+                        : rushYdPg >= 73     ? {label:'Above Avg',   color:'var(--accent)'   }
+                        : rushYdPg >= 47     ? {label:'Average',     color:'var(--orange)' }
+                        : rushYdPg >= 30     ? {label:'Below Avg',   color:'var(--red)' }
                         :                      {label:'Minimal',     color:'var(--red)'    };
     // First Down Rate — from ESPN player stats (rushingFirstDowns / rushingAttempts)
     // Replaces the broken RZ Carries card (Sleeper doesn't expose red zone rush attempts)
@@ -3492,8 +3492,8 @@ async function loadPlayerProfile(pid) {
     const fdRateClass = rushFDRate === null ? {label:'No Data',   color:'var(--text-dim)'}
                       : rushFDRate >= 28    ? {label:'Elite',     color:'var(--green)'  }
                       : rushFDRate >= 22    ? {label:'Above Avg', color:'var(--accent)'   }
-                      : rushFDRate >= 17    ? {label:'Average',   color:'var(--orange)' }
-                      : rushFDRate >= 12    ? {label:'Below Avg', color:'var(--red)' }
+                      : rushFDRate >= 16    ? {label:'Average',   color:'var(--orange)' }
+                      : rushFDRate >= 11    ? {label:'Below Avg', color:'var(--red)' }
                       :                      {label:'Poor',       color:'var(--red)'    };
 
     // RYOE — prefer official NFL NGS data (nflverse); proxy as fallback when ryoedb.json absent.
@@ -3543,7 +3543,7 @@ async function loadPlayerProfile(pid) {
 
     const fortyClass    = forty === null  ? { label:'No Combine Data', color:'var(--text-dim)' }
                         : forty <= 4.33   ? { label:'Elite Speed',     color:'var(--green)'   }
-                        : forty <= 4.44   ? { label:'Fast',            color:'var(--accent)'    }
+                        : forty <= 4.43   ? { label:'Fast',            color:'var(--accent)'    }
                         : forty <= 4.55   ? { label:'Average',         color:'var(--orange)'  }
                         : forty <= 4.65   ? { label:'Below Avg',       color:'var(--red)'  }
                         :                   { label:'Slow',            color:'var(--red)'     };
@@ -3569,9 +3569,9 @@ async function loadPlayerProfile(pid) {
 
     const ssClass       = speedScore === null ? { label:'N/A — No Combine', color:'var(--text-dim)' }
                         : speedScore >= 120   ? { label:'Elite',             color:'var(--green)'   }
-                        : speedScore >= 110   ? { label:'Good',              color:'var(--accent)'    }
-                        : speedScore >= 97    ? { label:'Average',           color:'var(--orange)'  }
-                        : speedScore >= 85    ? { label:'Below Avg',         color:'var(--red)'  }
+                        : speedScore >= 112   ? { label:'Good',              color:'var(--accent)'    }
+                        : speedScore >= 93    ? { label:'Average',           color:'var(--orange)'  }
+                        : speedScore >= 80    ? { label:'Below Avg',         color:'var(--red)'  }
                         :                       { label:'Poor',              color:'var(--red)'     };
 
     // Classifiers for new Situation and Efficiency cards
@@ -3639,16 +3639,16 @@ async function loadPlayerProfile(pid) {
     const successClass = successPct === null ? {label:'No Data',  color:'var(--text-dim)'}
       : successPct >= 48  ? {label:'Elite',      color:'var(--green)'  }
       : successPct >= 44  ? {label:'Good',       color:'var(--accent)'   }
-      : successPct >= 40  ? {label:'Average',    color:'var(--orange)' }
-      : successPct >= 36  ? {label:'Below Avg',  color:'var(--red)' }
+      : successPct >= 38  ? {label:'Average',    color:'var(--orange)' }
+      : successPct >= 33  ? {label:'Below Avg',  color:'var(--red)' }
       :                     {label:'Poor',       color:'var(--red)'    };
 
     const mtfAdsClass = adsMtfPerAtt === null ? {label:'No Data',  color:'var(--text-dim)'}
-      : adsMtfPerAtt >= 0.11 ? {label:'Elite',      color:'var(--green)'  }
-      : adsMtfPerAtt >= 0.08 ? {label:'Good',       color:'var(--accent)'   }
-      : adsMtfPerAtt >= 0.05 ? {label:'Average',    color:'var(--orange)' }
-      : adsMtfPerAtt >= 0.03 ? {label:'Below Avg',  color:'var(--red)' }
-      :                        {label:'Poor',       color:'var(--red)'    };
+      : adsMtfPerAtt >= 0.110 ? {label:'Elite',      color:'var(--green)'  }
+      : adsMtfPerAtt >= 0.083 ? {label:'Good',       color:'var(--accent)'   }
+      : adsMtfPerAtt >= 0.047 ? {label:'Average',    color:'var(--orange)' }
+      : adsMtfPerAtt >= 0.025 ? {label:'Below Avg',  color:'var(--red)' }
+      :                         {label:'Poor',       color:'var(--red)'    };
 
     // ── Redzone carry share (PBP-derived, advstatsdb.json) ───────────────────
     const rzCarryShare = _advEntry?.rzCarryShare ?? null;
@@ -3656,15 +3656,16 @@ async function loadPlayerProfile(pid) {
 
     const rzCarryClass = rzCarryShare === null ? {label:'No Data',     color:'var(--text-dim)'}
       : rzCarryShare >= 55 ? {label:'RZ Dominant',  color:'var(--green)'  }
-      : rzCarryShare >= 40 ? {label:'RZ Featured',  color:'var(--accent)'   }
-      : rzCarryShare >= 25 ? {label:'RZ Shared',    color:'var(--orange)' }
+      : rzCarryShare >= 45 ? {label:'RZ Featured',  color:'var(--accent)'   }
+      : rzCarryShare >= 29 ? {label:'RZ Shared',    color:'var(--orange)' }
       :                      {label:'RZ Rotational',color:'var(--red)'    };
 
     const rzCarriesClass = rzCarries === null ? {label:'No Data',   color:'var(--text-dim)'}
       : rzCarries >= 35 ? {label:'Elite',        color:'var(--green)'  }
-      : rzCarries >= 22 ? {label:'Above Avg',    color:'var(--accent)'   }
-      : rzCarries >= 12 ? {label:'Average',      color:'var(--orange)' }
-      :                   {label:'Below Avg',    color:'var(--red)'    };
+      : rzCarries >= 27 ? {label:'Above Avg',    color:'var(--accent)'   }
+      : rzCarries >= 15 ? {label:'Average',      color:'var(--orange)' }
+      : rzCarries >= 7  ? {label:'Below Avg',    color:'var(--red)' }
+      :                   {label:'Minimal',      color:'var(--red)'    };
 
     // ── RZ TD rate (TDs / RZ carries, advstatsdb.json) ───────────────────────
     const rzTdRate  = _advEntry?.rzTdRate ?? null;
@@ -3672,9 +3673,10 @@ async function loadPlayerProfile(pid) {
 
     const rzTdClass = rzTdRate === null ? {label:'No Data',   color:'var(--text-dim)'}
       : rzTdRate >= 25 ? {label:'Elite Finisher',  color:'var(--green)'  }
-      : rzTdRate >= 18 ? {label:'Good Finisher',   color:'var(--accent)'   }
-      : rzTdRate >= 12 ? {label:'Average',         color:'var(--orange)' }
-      :                  {label:'Below Avg',       color:'var(--red)'    };
+      : rzTdRate >= 20 ? {label:'Good Finisher',   color:'var(--accent)'   }
+      : rzTdRate >= 13 ? {label:'Average',         color:'var(--orange)' }
+      : rzTdRate >= 7  ? {label:'Below Avg',       color:'var(--red)' }
+      :                  {label:'Poor',            color:'var(--red)'    };
 
     // ── 3rd-down snap% (player 3rd-dn snaps / team total 3rd-dn plays, advstatsdb.json) ──
     const thirdDownSnapPct   = _advEntry?.thirdDownSnapPct ?? null;
@@ -3683,8 +3685,8 @@ async function loadPlayerProfile(pid) {
     const tdSnapsPerGame     = tdRawSnaps !== null && tdRawGames ? (tdRawSnaps / tdRawGames).toFixed(1) : null;
     const tdSnapsClass     = thirdDownSnapPct === null ? {label:'No Data',            color:'var(--text-dim)'}
       : thirdDownSnapPct >= 55 ? {label:'3rd-Down Specialist', color:'var(--green)'  }
-      : thirdDownSnapPct >= 40 ? {label:'Featured',            color:'var(--accent)'   }
-      : thirdDownSnapPct >= 25 ? {label:'Rotational',          color:'var(--orange)' }
+      : thirdDownSnapPct >= 42 ? {label:'Featured',            color:'var(--accent)'   }
+      : thirdDownSnapPct >= 22 ? {label:'Rotational',          color:'var(--orange)' }
       :                          {label:'Limited',             color:'var(--red)'    };
 
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
