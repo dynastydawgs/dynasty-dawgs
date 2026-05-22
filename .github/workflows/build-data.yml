@@ -1,6 +1,9 @@
 name: Rebuild static data
 
 on:
+  push:
+    paths:
+      - 'scripts/build-data.mjs'   # Auto-rebuild when the build script changes
   schedule:
     - cron: '0 6 * * 2'   # Every Tuesday at 6 AM UTC
   workflow_dispatch:        # Manual trigger from the Actions tab any time
