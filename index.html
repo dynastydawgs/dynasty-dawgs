@@ -1922,7 +1922,7 @@
   /* ── DYNAMIC SCENE ── */
   .proto-dynscene {
     position: relative; width: 100%; max-width: 960px;
-    margin: 0 auto; height: 520px; overflow: visible;
+    margin: 0 auto; height: 540px; overflow: visible;
   }
   .proto-dynlines {
     position: absolute; top: 0; left: 0;
@@ -2310,7 +2310,7 @@
       <div class="proto-dynscene">
 
         <!-- SVG: all elbow connecting lines -->
-        <svg class="proto-dynlines" viewBox="0 0 960 520" preserveAspectRatio="xMidYMid meet">
+        <svg class="proto-dynlines" viewBox="0 0 960 540" preserveAspectRatio="xMidYMid meet">
 
           <!-- EFFICIENCY: horizontal then steep diagonal → upper chest left -->
           <line x1="176" y1="90" x2="308" y2="90" stroke="rgba(74,222,128,0.45)" stroke-width="1.3"/>
@@ -2336,23 +2336,35 @@
           <circle cx="672" cy="360" r="3" fill="rgba(99,179,237,0.5)"/>
           <circle cx="600" cy="382" r="5.5" fill="rgba(99,179,237,0.65)"/>
 
-          <!-- SPEED (dashed): short horizontal then drops to card top -->
-          <line x1="456" y1="24" x2="478" y2="24" stroke="rgba(245,197,24,0.6)" stroke-width="1.1" stroke-dasharray="5,3"/>
-          <line x1="478" y1="24" x2="482" y2="78" stroke="rgba(245,197,24,0.6)" stroke-width="1.1" stroke-dasharray="5,3"/>
-          <circle cx="478" cy="24" r="2.5" fill="rgba(245,197,24,0.55)"/>
-          <circle cx="482" cy="78" r="3.5" fill="rgba(245,197,24,0.65)"/>
+          <!-- EFFICIENT (dashed): far-left top → horizontal right → diagonal to upper-left card -->
+          <line x1="158" y1="16" x2="265" y2="16" stroke="rgba(245,197,24,0.6)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <line x1="265" y1="16" x2="362" y2="192" stroke="rgba(245,197,24,0.6)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <circle cx="265" cy="16" r="2.5" fill="rgba(245,197,24,0.55)"/>
+          <circle cx="362" cy="192" r="3.5" fill="rgba(245,197,24,0.65)"/>
 
-          <!-- SHIFTINESS (dashed): long horizontal right then diagonal up → lower-left card -->
-          <line x1="154" y1="474" x2="278" y2="474" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
-          <line x1="278" y1="474" x2="374" y2="438" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
-          <circle cx="278" cy="474" r="2.5" fill="rgba(245,197,24,0.5)"/>
-          <circle cx="374" cy="438" r="3.5" fill="rgba(245,197,24,0.65)"/>
+          <!-- SPEED (dashed): center-top → short horizontal then drops to card top -->
+          <line x1="456" y1="16" x2="476" y2="16" stroke="rgba(245,197,24,0.6)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <line x1="476" y1="16" x2="480" y2="78" stroke="rgba(245,197,24,0.6)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <circle cx="476" cy="16" r="2.5" fill="rgba(245,197,24,0.55)"/>
+          <circle cx="480" cy="78" r="3.5" fill="rgba(245,197,24,0.65)"/>
 
-          <!-- ELUSIVENESS (dashed): horizontal left then long diagonal → upper-right card -->
-          <line x1="796" y1="24" x2="706" y2="24" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
-          <line x1="706" y1="24" x2="600" y2="154" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
-          <circle cx="706" cy="24" r="2.5" fill="rgba(245,197,24,0.5)"/>
-          <circle cx="600" cy="154" r="3.5" fill="rgba(245,197,24,0.65)"/>
+          <!-- ELUSIVE (dashed): far-right top → horizontal left → diagonal to upper-right card -->
+          <line x1="818" y1="16" x2="714" y2="16" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <line x1="714" y1="16" x2="600" y2="152" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <circle cx="714" cy="16" r="2.5" fill="rgba(245,197,24,0.5)"/>
+          <circle cx="600" cy="152" r="3.5" fill="rgba(245,197,24,0.65)"/>
+
+          <!-- WORKHORSE (dashed): bottom-center-left → up → diagonal to lower-left card -->
+          <line x1="294" y1="490" x2="294" y2="456" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <line x1="294" y1="456" x2="400" y2="432" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <circle cx="294" cy="456" r="2.5" fill="rgba(245,197,24,0.5)"/>
+          <circle cx="400" cy="432" r="3.5" fill="rgba(245,197,24,0.65)"/>
+
+          <!-- PASS CATCHER (dashed): bottom-center-right → up → diagonal to lower-right card -->
+          <line x1="560" y1="490" x2="560" y2="454" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <line x1="560" y1="454" x2="530" y2="432" stroke="rgba(245,197,24,0.5)" stroke-width="1.1" stroke-dasharray="5,3"/>
+          <circle cx="560" cy="454" r="2.5" fill="rgba(245,197,24,0.5)"/>
+          <circle cx="530" cy="432" r="3.5" fill="rgba(245,197,24,0.65)"/>
 
         </svg>
 
@@ -2418,10 +2430,14 @@
           </div>
         </div>
 
-        <!-- Trait floats -->
-        <div class="proto-trait-float" style="left:376px;top:4px;">⚡ SPEED</div>
-        <div class="proto-trait-float" style="left:16px;top:458px;">◈ SHIFTINESS</div>
-        <div class="proto-trait-float" style="right:42px;top:4px;">◎ ELUSIVENESS</div>
+        <!-- Trait floats (5 grade-based adjectives) -->
+        <!-- Top row: safe zone y=0-26, outside dropdown columns -->
+        <div class="proto-trait-float" style="left:48px;top:4px;">◈ EFFICIENT</div>
+        <div class="proto-trait-float" style="left:404px;top:4px;">⚡ SPEED</div>
+        <div class="proto-trait-float" style="right:44px;top:4px;">◎ ELUSIVE</div>
+        <!-- Bottom row: safe zone x=200-760, clear of left/right grade block columns -->
+        <div class="proto-trait-float" style="left:238px;top:500px;">★ WORKHORSE</div>
+        <div class="proto-trait-float" style="left:492px;top:500px;">◉ PASS CATCHER</div>
 
       </div><!-- /proto-dynscene -->
 
