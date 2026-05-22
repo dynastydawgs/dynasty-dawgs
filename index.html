@@ -1838,6 +1838,75 @@
   .mb-risk-vhigh { background:#c0392b; color:#fff; }
   .mb-risk-badge { display:inline-block; font-size:9px; font-family:var(--mono); font-weight:700; padding:2px 6px; border-radius:3px; letter-spacing:.04em; }
   .mb-inj-no-data { color:var(--text-dim); font-family:var(--mono); font-size:11px; text-align:center; padding:24px; }
+
+  /* ── PROTOTYPE ──────────────────────────────────────────────────────────── */
+  .proto-page { padding: 40px 24px 60px; max-width: 860px; margin: 0 auto; }
+  .proto-header, .proto-page-header { text-align:center; margin-bottom:36px; }
+  .proto-header-kicker, .proto-page-label { font-family:var(--mono); font-size:9px; letter-spacing:0.2em; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px; display:block; }
+  .proto-header-title { font-size:22px; font-weight:700; color:var(--text); }
+  .proto-page-sub { font-size:13px; color:var(--text-muted); display:block; margin-top:6px; }
+
+  .proto-scene { display:flex; gap:28px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
+
+  /* Player figure card */
+  .proto-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:20px;
+    padding:28px 24px 20px; text-align:center; position:relative; overflow:hidden;
+    min-width:240px; flex-shrink:0;
+  }
+  .proto-card::before {
+    content:''; position:absolute; top:-40px; left:50%; transform:translateX(-50%);
+    width:220px; height:220px;
+    background:radial-gradient(circle, rgba(0,118,182,0.18) 0%, transparent 70%);
+    pointer-events:none;
+  }
+  .proto-player-name, .proto-card-name { font-size:20px; font-weight:700; color:var(--text); letter-spacing:-0.02em; margin-bottom:3px; }
+  .proto-player-meta, .proto-card-meta { font-family:var(--mono); font-size:10px; color:var(--text-muted); letter-spacing:0.1em; margin-bottom:18px; }
+  .proto-player-team-color { color:#0076B6; font-weight:700; }
+
+  /* Animated figure */
+  .proto-figure-outer { display:flex; flex-direction:column; align-items:center; }
+  .proto-figure-wrap { display:inline-block; animation:proto-bounce 2.6s ease-in-out infinite; }
+  .proto-figure-svg { width:210px; height:auto; display:block; margin:0 auto; }
+  .proto-shadow-div {
+    width:76px; height:13px;
+    background:radial-gradient(ellipse, rgba(0,118,182,0.4) 0%, transparent 70%);
+    border-radius:50%; margin:0 auto 4px;
+    animation:proto-shadow-pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes proto-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-13px)} }
+  @keyframes proto-shadow-pulse { 0%,100%{transform:scaleX(1);opacity:1} 50%{transform:scaleX(0.55);opacity:0.35} }
+
+  .proto-physical { margin-top:12px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap; }
+  .proto-phys-pill {
+    font-family:var(--mono); font-size:10px; color:var(--text-muted);
+    background:var(--surface2); padding:3px 10px; border-radius:20px; border:1px solid var(--border);
+  }
+  .proto-note { font-size:10px; color:var(--text-dim); margin-top:14px; font-style:italic; }
+
+  /* Right info panels */
+  .proto-info { display:flex; flex-direction:column; gap:16px; min-width:250px; flex:1; max-width:340px; }
+  .proto-panel {
+    background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px 20px;
+  }
+  .proto-panel-label { font-family:var(--mono); font-size:9px; letter-spacing:0.18em; color:var(--text-dim); text-transform:uppercase; margin-bottom:14px; }
+
+  /* Grade rows */
+  .proto-grade-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+  .proto-grade-row:last-child { margin-bottom:0; }
+  .proto-grade-name { font-size:12px; color:var(--text-muted); width:82px; flex-shrink:0; }
+  .proto-grade-track { flex:1; height:5px; background:var(--surface2); border-radius:3px; overflow:hidden; }
+  .proto-grade-fill { height:100%; border-radius:3px; }
+  .proto-grade-letter { font-family:var(--mono); font-size:12px; font-weight:700; width:26px; text-align:right; flex-shrink:0; }
+
+  /* Stat rows */
+  .proto-stat-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--border); }
+  .proto-stat-row:last-child { border-bottom:none; padding-bottom:0; }
+  .proto-stat-row:first-child { padding-top:0; }
+  .proto-stat-lbl { font-size:12px; color:var(--text-muted); }
+  .proto-stat-right { display:flex; align-items:center; gap:8px; }
+  .proto-stat-cls { font-size:10px; font-family:var(--mono); }
+  .proto-stat-val { font-family:var(--mono); font-size:13px; color:var(--text); font-weight:600; }
 </style>
 </head>
 <body>
@@ -1849,6 +1918,7 @@
       <button class="topnav-tab active" onclick="switchMainView('league', this)">My League</button>
       <button class="topnav-tab" onclick="switchMainView('profiles', this)">Player Profiles</button>
       <button class="topnav-tab" onclick="switchMainView('model', this)">Model Building</button>
+      <button class="topnav-tab" onclick="switchMainView('prototype', this)">Prototype</button>
     </div>
   </div>
 </nav>
@@ -2066,6 +2136,228 @@
       <div id="mb-root"></div>
     </section>
   </div><!-- /mainview-model -->
+
+  <!-- ── PROTOTYPE ── -->
+  <div class="main-view" id="mainview-prototype" style="display:none;">
+    <section class="section">
+      <div class="proto-page">
+
+        <div class="proto-page-header">
+          <span class="proto-page-label">Prototype &nbsp;·&nbsp; Visual Player Card</span>
+          <span class="proto-page-sub">Concept UI — Jahmyr Gibbs, RB · Detroit Lions</span>
+        </div>
+
+        <div class="proto-scene">
+
+          <!-- LEFT: animated figure card -->
+          <div class="proto-card">
+            <div class="proto-card-name">Jahmyr Gibbs</div>
+            <div class="proto-card-meta">RB &nbsp;·&nbsp; Detroit Lions &nbsp;·&nbsp; #26</div>
+
+            <div class="proto-figure-outer">
+            <div class="proto-figure-wrap">
+              <svg class="proto-figure-svg" viewBox="0 0 220 400" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                <defs>
+                  <!-- head headshot clip -->
+                  <clipPath id="gibbs-head-clip">
+                    <circle cx="110" cy="85" r="46"/>
+                  </clipPath>
+                  <!-- jersey shine gradient -->
+                  <linearGradient id="jersey-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%"   stop-color="#0076B6"/>
+                    <stop offset="55%"  stop-color="#005a8e"/>
+                    <stop offset="100%" stop-color="#003f66"/>
+                  </linearGradient>
+                  <!-- helmet shine gradient -->
+                  <radialGradient id="helmet-grad" cx="40%" cy="35%" r="55%">
+                    <stop offset="0%"   stop-color="#4db3f0"/>
+                    <stop offset="60%"  stop-color="#0076B6"/>
+                    <stop offset="100%" stop-color="#004a75"/>
+                  </radialGradient>
+                  <!-- background glow -->
+                  <radialGradient id="bg-glow" cx="50%" cy="70%" r="55%">
+                    <stop offset="0%"   stop-color="#0076B6" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="transparent" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+
+                <!-- background glow -->
+                <ellipse cx="110" cy="310" rx="90" ry="55" fill="url(#bg-glow)"/>
+
+                <!-- ── CLEATS ── -->
+                <!-- left cleat -->
+                <ellipse cx="80" cy="378" rx="22" ry="8" fill="#111"/>
+                <rect x="64" y="362" width="20" height="18" rx="4" fill="#1a1a2e"/>
+                <!-- cleat studs left -->
+                <ellipse cx="68" cy="378" rx="3" ry="2" fill="#555"/>
+                <ellipse cx="78" cy="379" rx="3" ry="2" fill="#555"/>
+                <!-- right cleat -->
+                <ellipse cx="140" cy="378" rx="22" ry="8" fill="#111"/>
+                <rect x="136" y="362" width="20" height="18" rx="4" fill="#1a1a2e"/>
+                <!-- cleat studs right -->
+                <ellipse cx="142" cy="378" rx="3" ry="2" fill="#555"/>
+                <ellipse cx="152" cy="379" rx="3" ry="2" fill="#555"/>
+
+                <!-- ── PANTS / LEGS ── -->
+                <!-- left leg -->
+                <rect x="68" y="270" width="30" height="95" rx="6" fill="#0d1b2e"/>
+                <!-- left leg silver stripe -->
+                <rect x="82" y="270" width="5" height="95" rx="2" fill="#B0B7BC" opacity="0.6"/>
+                <!-- right leg -->
+                <rect x="122" y="270" width="30" height="95" rx="6" fill="#0d1b2e"/>
+                <!-- right leg silver stripe -->
+                <rect x="133" y="270" width="5" height="95" rx="2" fill="#B0B7BC" opacity="0.6"/>
+                <!-- pant waistband -->
+                <rect x="64" y="265" width="92" height="14" rx="4" fill="#0a1520"/>
+
+                <!-- ── ARMS ── -->
+                <!-- left arm (player's right, viewer's left) -->
+                <path d="M70,185 Q48,210 44,255 Q43,262 50,263 Q57,264 60,257 Q66,220 78,200 Z" fill="url(#jersey-grad)"/>
+                <!-- left hand (skin) -->
+                <ellipse cx="50" cy="265" rx="9" ry="11" fill="#c8936a"/>
+                <!-- right arm -->
+                <path d="M150,185 Q172,210 176,255 Q177,262 170,263 Q163,264 160,257 Q154,220 142,200 Z" fill="url(#jersey-grad)"/>
+                <!-- right hand (skin) -->
+                <ellipse cx="170" cy="265" rx="9" ry="11" fill="#c8936a"/>
+
+                <!-- ── JERSEY TORSO ── -->
+                <!-- side accent panels (silver) -->
+                <path d="M70,180 L65,270 L82,270 L82,180 Z" fill="#B0B7BC" opacity="0.45"/>
+                <path d="M150,180 L155,270 L138,270 L138,180 Z" fill="#B0B7BC" opacity="0.45"/>
+                <!-- main torso -->
+                <rect x="70" y="168" width="80" height="105" rx="6" fill="url(#jersey-grad)"/>
+                <!-- jersey collar (silver V) -->
+                <path d="M95,168 L110,195 L125,168 Z" fill="#B0B7BC"/>
+                <!-- jersey number -->
+                <text x="110" y="235" text-anchor="middle" font-family="'Arial Black', Arial, sans-serif" font-size="34" font-weight="900" fill="white" opacity="0.95" letter-spacing="-1">26</text>
+                <!-- jersey number outline -->
+                <text x="110" y="235" text-anchor="middle" font-family="'Arial Black', Arial, sans-serif" font-size="34" font-weight="900" fill="none" stroke="#B0B7BC" stroke-width="1" opacity="0.5" letter-spacing="-1">26</text>
+
+                <!-- ── NECK ── -->
+                <rect x="102" y="152" width="16" height="20" rx="4" fill="#c8936a"/>
+
+                <!-- ── HELMET ── -->
+                <!-- helmet shell -->
+                <ellipse cx="110" cy="87" rx="50" ry="52" fill="url(#helmet-grad)"/>
+                <!-- helmet back ridge -->
+                <path d="M62,87 Q60,120 75,138 Q85,148 98,152" stroke="#004a75" stroke-width="3" fill="none"/>
+                <!-- face mask bars (silver) -->
+                <path d="M72,100 Q68,115 72,130 Q85,145 110,148" stroke="#C0C0C0" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                <path d="M78,108 Q76,122 80,136 Q92,148 110,148" stroke="#C0C0C0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <path d="M73,120 L80,123" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round"/>
+                <path d="M73,112 L80,115" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round"/>
+                <!-- helmet dark visor strip at top -->
+                <path d="M68,75 Q70,55 110,52 Q150,55 152,75 Q145,68 110,67 Q75,68 68,75 Z" fill="#001f3d" opacity="0.6"/>
+                <!-- Lions logo area (simplified lion silhouette) -->
+                <text x="125" y="82" text-anchor="middle" font-size="13" fill="white" opacity="0.55" font-family="serif" font-weight="bold">🦁</text>
+                <!-- helmet shine -->
+                <ellipse cx="94" cy="68" rx="14" ry="8" fill="white" opacity="0.18" transform="rotate(-20 94 68)"/>
+
+                <!-- headshot clipped into face area -->
+                <image href="https://sleepercdn.com/content/nfl/players/thumb/9221.jpg"
+                       x="64" y="39" width="92" height="92"
+                       clip-path="url(#gibbs-head-clip)"
+                       preserveAspectRatio="xMidYMid slice"/>
+
+                <!-- helmet ring on top of headshot -->
+                <circle cx="110" cy="85" r="46" fill="none" stroke="#0076B6" stroke-width="3" opacity="0.6"/>
+
+              </svg>
+
+            </div><!-- /figure-wrap -->
+              <!-- shadow stays on ground while figure bounces above -->
+              <div class="proto-shadow-div"></div>
+            </div><!-- /figure-outer -->
+
+            <div class="proto-physical">
+              <span class="proto-phys-pill">5′9″</span>
+              <span class="proto-phys-pill">202 lbs</span>
+              <span class="proto-phys-pill">Age 24</span>
+            </div>
+            <div class="proto-note">Prototype UI — stats are illustrative</div>
+          </div><!-- /proto-card -->
+
+          <!-- RIGHT: grades + stats panel -->
+          <div class="proto-info">
+
+            <div class="proto-panel">
+              <div class="proto-panel-label">Section Grades</div>
+              <div class="proto-grade-row">
+                <span class="proto-grade-name">Efficiency</span>
+                <div class="proto-grade-track">
+                  <div class="proto-grade-fill" style="width:85%;background:var(--green);"></div>
+                </div>
+                <span class="proto-grade-letter" style="color:var(--green);">A</span>
+              </div>
+              <div class="proto-grade-row">
+                <span class="proto-grade-name">Vol &amp; Opp</span>
+                <div class="proto-grade-track">
+                  <div class="proto-grade-fill" style="width:79%;background:var(--accent);"></div>
+                </div>
+                <span class="proto-grade-letter" style="color:var(--accent);">B+</span>
+              </div>
+              <div class="proto-grade-row">
+                <span class="proto-grade-name">Receiving</span>
+                <div class="proto-grade-track">
+                  <div class="proto-grade-fill" style="width:73%;background:var(--accent);"></div>
+                </div>
+                <span class="proto-grade-letter" style="color:var(--accent);">B</span>
+              </div>
+              <div class="proto-grade-row">
+                <span class="proto-grade-name">Physical</span>
+                <div class="proto-grade-track">
+                  <div class="proto-grade-fill" style="width:81%;background:var(--green);"></div>
+                </div>
+                <span class="proto-grade-letter" style="color:var(--green);">A−</span>
+              </div>
+            </div>
+
+            <div class="proto-panel">
+              <div class="proto-panel-label">Key Stats &nbsp;·&nbsp; 2025</div>
+              <div class="proto-stat-row">
+                <span class="proto-stat-lbl">Carry Share</span>
+                <div class="proto-stat-right">
+                  <span class="proto-stat-cls" style="color:var(--green);">Workhorse</span>
+                  <span class="proto-stat-val">54%</span>
+                </div>
+              </div>
+              <div class="proto-stat-row">
+                <span class="proto-stat-lbl">RYOE / Att</span>
+                <div class="proto-stat-right">
+                  <span class="proto-stat-cls" style="color:var(--green);">Elite</span>
+                  <span class="proto-stat-val">+0.70</span>
+                </div>
+              </div>
+              <div class="proto-stat-row">
+                <span class="proto-stat-lbl">YPC</span>
+                <div class="proto-stat-right">
+                  <span class="proto-stat-cls" style="color:var(--accent);">Above Avg</span>
+                  <span class="proto-stat-val">5.0</span>
+                </div>
+              </div>
+              <div class="proto-stat-row">
+                <span class="proto-stat-lbl">Success Rate</span>
+                <div class="proto-stat-right">
+                  <span class="proto-stat-cls" style="color:var(--accent);">Good</span>
+                  <span class="proto-stat-val">44%</span>
+                </div>
+              </div>
+              <div class="proto-stat-row">
+                <span class="proto-stat-lbl">Snap %</span>
+                <div class="proto-stat-right">
+                  <span class="proto-stat-cls" style="color:var(--accent);">High</span>
+                  <span class="proto-stat-val">63%</span>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /proto-info -->
+
+        </div><!-- /proto-scene -->
+
+      </div><!-- /proto-page -->
+    </section>
+  </div><!-- /mainview-prototype -->
 
   <footer class="footer">
     <span class="footer-brand">DYNASTYDAWGS</span>
@@ -8354,7 +8646,7 @@ function goToLeagueTab(tab) {
 function switchMainView(view, btn) {
   document.querySelectorAll('.topnav-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  const views = ['league', 'profiles', 'model'];
+  const views = ['league', 'profiles', 'model', 'prototype'];
   views.forEach(v => {
     const el = document.getElementById(`mainview-${v}`);
     if (el) el.style.display = v === view ? '' : 'none';
