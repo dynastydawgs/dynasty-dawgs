@@ -2048,10 +2048,25 @@
       0 0 0 7px rgba(99,179,237,0.10),
       0 0 48px rgba(99,179,237,0.35),
       0 0 90px rgba(99,179,237,0.15);
-    background: #0d1117;
+    background: #071020;
   }
-  .p3-headshot-wrap img {
-    width: 100%; height: 100%;
+  /* Team logo fills the full circle background */
+  .p3-logo-bg {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .p3-logo-bg img {
+    width: 72%; height: auto;
+    opacity: 0.32;
+    filter: saturate(0.8);
+  }
+  /* Headshot is a smaller inner circle so logo shows in the ring */
+  .p3-face {
+    position: absolute;
+    width: 168px; height: 168px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
     object-fit: cover; object-position: top center;
     display: block;
   }
@@ -2651,9 +2666,12 @@
 
         </svg>
 
-        <!-- Headshot circle (Sleeper CDN) -->
+        <!-- Headshot circle: team logo background + smaller headshot on top -->
         <div class="p3-headshot-wrap">
-          <img src="https://sleepercdn.com/content/nfl/players/9221.jpg" alt="Jahmyr Gibbs"/>
+          <div class="p3-logo-bg">
+            <img src="https://a.espncdn.com/i/teamlogos/nfl/500/det.png" alt=""/>
+          </div>
+          <img class="p3-face" src="https://sleepercdn.com/content/nfl/players/9221.jpg" alt="Jahmyr Gibbs"/>
         </div>
 
         <!-- Stat category labels -->
