@@ -3316,6 +3316,26 @@ async function loadPlayerProfile(pid) {
                     : Math.round(attPg / teamRushPg * 1000) / 10;
     const targetPct = Math.round(tgtPg / avgTeamTgtPg  * 1000) / 10;
 
+    // ── Data-driven RB classifier ───────────────────────────────────────────────
+    // Colors: >Q3 = green · avg–Q3 = yellow · Q1–avg = orange · <Q1 = red
+    // inv=true for metrics where lower is better (forty, avgTimeToLos, stackedBoxPct).
+    // Falls back gracefully to orange/average-tier label when rbStats isn't loaded yet.
+    const mkRbCls = (val, field, [l0, l1, l2, l3], inv = false) => {
+      if (val == null) return { label: 'No Data', color: 'var(--text-dim)' };
+      const s = rbStats?.[field];
+      if (!s) return { label: l2, color: 'var(--orange)' };
+      const v  = inv ? -val  : val;
+      const q1 = inv ? -s.q3 : s.q1;
+      const av = inv ? -s.avg : s.avg;
+      const q3 = inv ? -s.q1 : s.q3;
+      if (v >= q3) return { label: l0, color: 'var(--green)'  };
+      if (v >= av) return { label: l1, color: 'var(--accent)' };
+      if (v >= q1) return { label: l2, color: 'var(--orange)' };
+      return           { label: l3, color: 'var(--red)'    };
+    };
+    // Bar scale maximum: use computed p95 from rbStats, fall back to provided value.
+    const rbBarMax = (field, fallback) => rbStats?.[field]?.max ?? fallback;
+
     const carryClass    = mkRbCls(carryPct,  'carryPct',  ['Workhorse',      'Featured',     'Committee',  'Limited'    ]);
     const tgtClass      = mkRbCls(targetPct, 'targetSharePct', ['Elite Receiver','Pass-Catcher', 'Average',    'Minimal'    ]);
     const rbTgtPgClass  = mkRbCls(tgtPg,     'tgtPg',     ['Elite Receiver', 'Pass-Catcher', 'Average',    'Minimal'    ]);
@@ -3376,25 +3396,6 @@ async function loadPlayerProfile(pid) {
           <span>${effMax}${unit}</span>
         </div>`;
     };
-    // ── Data-driven RB classifier ───────────────────────────────────────────────
-    // Colors: >Q3 = green · avg–Q3 = yellow · Q1–avg = orange · <Q1 = red
-    // inv=true for metrics where lower is better (forty, avgTimeToLos, stackedBoxPct).
-    // Falls back gracefully to orange/average-tier label when rbStats isn't loaded yet.
-    const mkRbCls = (val, field, [l0, l1, l2, l3], inv = false) => {
-      if (val == null) return { label: 'No Data', color: 'var(--text-dim)' };
-      const s = rbStats?.[field];
-      if (!s) return { label: l2, color: 'var(--orange)' };
-      const v  = inv ? -val  : val;
-      const q1 = inv ? -s.q3 : s.q1;
-      const av = inv ? -s.avg : s.avg;
-      const q3 = inv ? -s.q1 : s.q3;
-      if (v >= q3) return { label: l0, color: 'var(--green)'  };
-      if (v >= av) return { label: l1, color: 'var(--accent)' };
-      if (v >= q1) return { label: l2, color: 'var(--orange)' };
-      return           { label: l3, color: 'var(--red)'    };
-    };
-    // Bar scale maximum: use computed p95 from rbStats, fall back to provided value.
-    const rbBarMax = (field, fallback) => rbStats?.[field]?.max ?? fallback;
     // Same pattern for team situation metrics.
     const mkTeamCls = (val, field, [l0, l1, l2, l3], inv = false) => {
       if (val == null) return { label: 'No Data', color: 'var(--text-dim)' };
