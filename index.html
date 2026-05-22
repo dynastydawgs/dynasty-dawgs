@@ -2035,6 +2035,27 @@
     border-color: rgba(228,233,238,0.28);
   }
 
+  /* ── PROTOTYPE 3: Headshot Circle ── */
+  .p3-headshot-wrap {
+    position: absolute;
+    left: 50%; top: 160px;
+    transform: translateX(-50%);
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid rgba(99,179,237,0.75);
+    box-shadow:
+      0 0 0 7px rgba(99,179,237,0.10),
+      0 0 48px rgba(99,179,237,0.35),
+      0 0 90px rgba(99,179,237,0.15);
+    background: #0d1117;
+  }
+  .p3-headshot-wrap img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top center;
+    display: block;
+  }
+
   /* Legacy proto-page (kept for fallback) */
   .proto-page { padding: 40px 24px 60px; max-width: 860px; margin: 0 auto; }
   .proto-header, .proto-page-header { text-align:center; margin-bottom:36px; }
@@ -2124,6 +2145,7 @@
       <button class="topnav-tab" onclick="switchMainView('model', this)">Model Building</button>
       <button class="topnav-tab" onclick="switchMainView('prototype', this)">Prototype</button>
       <button class="topnav-tab" onclick="switchMainView('prototype2', this)">Prototype 2</button>
+      <button class="topnav-tab" onclick="switchMainView('prototype3', this)">Prototype 3</button>
     </div>
   </div>
 </nav>
@@ -2579,6 +2601,95 @@
 
     </section>
   </div><!-- /mainview-prototype2 -->
+
+  <!-- ── PROTOTYPE 3 ── -->
+  <div class="main-view" id="mainview-prototype3" style="display:none;">
+    <section class="section">
+
+      <!-- HEADER -->
+      <div class="proto-showcase-header">
+        <div class="proto-nickname-badge">⚡ SONIC</div>
+        <div class="proto-showcase-name">JAHMYR GIBBS</div>
+        <div class="proto-showcase-sub">RB &nbsp;·&nbsp; DETROIT LIONS &nbsp;·&nbsp; #0 &nbsp;·&nbsp; AGE 24</div>
+      </div>
+
+      <!-- HEADSHOT CIRCLE ANNOTATION SCENE -->
+      <div class="proto-dynscene" style="background:radial-gradient(ellipse 380px 380px at 50% 50%, rgba(99,179,237,0.08) 0%, rgba(99,179,237,0.03) 50%, transparent 72%); border-radius:18px;">
+
+        <!-- SVG: label → box connectors + stat box → circle elbow lines -->
+        <svg class="proto-dynlines" viewBox="0 0 960 540" preserveAspectRatio="xMidYMid meet">
+
+          <!-- Stat label → box connectors (short dashed, silver) -->
+          <line x1="144" y1="49" x2="144" y2="74" stroke="rgba(228,233,238,0.4)" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="144" y1="309" x2="144" y2="334" stroke="rgba(228,233,238,0.4)" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="816" y1="49" x2="816" y2="74" stroke="rgba(228,233,238,0.4)" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="816" y1="309" x2="816" y2="334" stroke="rgba(228,233,238,0.4)" stroke-width="1" stroke-dasharray="3,3"/>
+
+          <!-- YDS/CARRY → circle upper-left (green elbow) -->
+          <line x1="168" y1="121" x2="300" y2="121" stroke="rgba(74,222,128,0.45)" stroke-width="1.3"/>
+          <line x1="300" y1="121" x2="385" y2="215" stroke="rgba(74,222,128,0.45)" stroke-width="1.3"/>
+          <circle cx="300" cy="121" r="3" fill="rgba(74,222,128,0.5)"/>
+          <circle cx="385" cy="215" r="5.5" fill="rgba(74,222,128,0.65)"/>
+
+          <!-- MTF/ATT → circle lower-left (green elbow) -->
+          <line x1="168" y1="381" x2="288" y2="381" stroke="rgba(74,222,128,0.45)" stroke-width="1.3"/>
+          <line x1="288" y1="381" x2="385" y2="325" stroke="rgba(74,222,128,0.45)" stroke-width="1.3"/>
+          <circle cx="288" cy="381" r="3" fill="rgba(74,222,128,0.5)"/>
+          <circle cx="385" cy="325" r="5.5" fill="rgba(74,222,128,0.65)"/>
+
+          <!-- CARRY SHARE → circle upper-right (blue elbow) -->
+          <line x1="792" y1="121" x2="660" y2="121" stroke="rgba(99,179,237,0.45)" stroke-width="1.3"/>
+          <line x1="660" y1="121" x2="575" y2="215" stroke="rgba(99,179,237,0.45)" stroke-width="1.3"/>
+          <circle cx="660" cy="121" r="3" fill="rgba(99,179,237,0.5)"/>
+          <circle cx="575" cy="215" r="5.5" fill="rgba(99,179,237,0.65)"/>
+
+          <!-- CATCH RATE → circle lower-right (blue elbow) -->
+          <line x1="792" y1="381" x2="672" y2="381" stroke="rgba(99,179,237,0.45)" stroke-width="1.3"/>
+          <line x1="672" y1="381" x2="575" y2="325" stroke="rgba(99,179,237,0.45)" stroke-width="1.3"/>
+          <circle cx="672" cy="381" r="3" fill="rgba(99,179,237,0.5)"/>
+          <circle cx="575" cy="325" r="5.5" fill="rgba(99,179,237,0.65)"/>
+
+        </svg>
+
+        <!-- Headshot circle (Sleeper CDN) -->
+        <div class="p3-headshot-wrap">
+          <img src="https://sleepercdn.com/content/nfl/players/9221.jpg" alt="Jahmyr Gibbs"/>
+        </div>
+
+        <!-- Stat category labels -->
+        <div class="psb-float psb-float--left"  style="top:32px;">YDS / CARRY</div>
+        <div class="psb-float psb-float--left"  style="top:292px;">MTF / ATT</div>
+        <div class="psb-float psb-float--right" style="top:32px;">CARRY SHARE</div>
+        <div class="psb-float psb-float--right" style="top:292px;">CATCH RATE</div>
+
+        <!-- YDS/CARRY — upper left -->
+        <div class="psb psb--left psb--upper">
+          <span class="psb-value" style="color:var(--green);text-shadow:0 0 28px rgba(74,222,128,0.45);">5.0</span>
+          <span class="psb-pct">89th percentile</span>
+        </div>
+
+        <!-- MTF/ATT — lower left -->
+        <div class="psb psb--left psb--lower">
+          <span class="psb-value" style="color:var(--green);text-shadow:0 0 28px rgba(74,222,128,0.45);">0.28</span>
+          <span class="psb-pct">91st percentile</span>
+        </div>
+
+        <!-- CARRY SHARE — upper right -->
+        <div class="psb psb--right psb--upper">
+          <span class="psb-value" style="color:var(--accent);text-shadow:0 0 28px rgba(99,179,237,0.45);">54%</span>
+          <span class="psb-pct">78th percentile</span>
+        </div>
+
+        <!-- CATCH RATE — lower right -->
+        <div class="psb psb--right psb--lower">
+          <span class="psb-value" style="color:var(--accent);text-shadow:0 0 28px rgba(99,179,237,0.45);">82%</span>
+          <span class="psb-pct">94th percentile</span>
+        </div>
+
+      </div><!-- /proto-dynscene -->
+
+    </section>
+  </div><!-- /mainview-prototype3 -->
 
   <footer class="footer">
     <span class="footer-brand">DYNASTYDAWGS</span>
@@ -8874,7 +8985,7 @@ function togglePgb(el) {
 function switchMainView(view, btn) {
   document.querySelectorAll('.topnav-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  const views = ['league', 'profiles', 'model', 'prototype', 'prototype2'];
+  const views = ['league', 'profiles', 'model', 'prototype', 'prototype2', 'prototype3'];
   views.forEach(v => {
     const el = document.getElementById(`mainview-${v}`);
     if (el) el.style.display = v === view ? '' : 'none';
