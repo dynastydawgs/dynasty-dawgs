@@ -1839,7 +1839,87 @@
   .mb-risk-badge { display:inline-block; font-size:9px; font-family:var(--mono); font-weight:700; padding:2px 6px; border-radius:3px; letter-spacing:.04em; }
   .mb-inj-no-data { color:var(--text-dim); font-family:var(--mono); font-size:11px; text-align:center; padding:24px; }
 
-  /* ── PROTOTYPE ──────────────────────────────────────────────────────────── */
+  /* ── PROTOTYPE SHOWCASE ─────────────────────────────────────────────────── */
+  .proto-showcase { max-width: 980px; margin: 0 auto; padding: 40px 24px 60px; }
+
+  /* Header */
+  .proto-showcase-header { text-align: center; margin-bottom: 36px; }
+
+  .proto-nickname-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg, #f5c518 0%, #d49a00 100%);
+    color: #0d1117; font-family: var(--mono); font-size: 11px; font-weight: 800;
+    letter-spacing: 0.24em; padding: 5px 22px; border-radius: 40px;
+    text-transform: uppercase; margin-bottom: 14px;
+    box-shadow: 0 0 30px rgba(245,197,24,0.45), 0 2px 10px rgba(0,0,0,0.45);
+  }
+  .proto-showcase-name {
+    font-family: 'Arial Black', Impact, Arial, sans-serif;
+    font-size: 58px; font-weight: 900; letter-spacing: 0.06em;
+    color: var(--text); line-height: 1; margin: 0 0 8px;
+  }
+  .proto-showcase-sub {
+    font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+    letter-spacing: 0.24em; text-transform: uppercase; margin-bottom: 18px;
+  }
+  .proto-trait-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .proto-trait-pill {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.16em; padding: 5px 16px; border-radius: 30px;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .proto-trait-pill--speed     { border: 1px solid rgba(245,197,24,0.6); color:#f5c518; background:rgba(245,197,24,0.08); }
+  .proto-trait-pill--agility   { border: 1px solid rgba(245,197,24,0.4); color:#e8b800; background:rgba(245,197,24,0.05); }
+  .proto-trait-pill--elusiveness { border: 1px solid rgba(245,197,24,0.3); color:#c99e00; background:rgba(245,197,24,0.04); }
+
+  /* Main 3-column scene */
+  .proto-showcase-scene {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; min-height: 400px;
+  }
+
+  /* Player card art (center) */
+  .proto-showcase-art { flex-shrink: 0; }
+  .proto-showcase-art .proto-player-art {
+    width: 268px; border-radius: 14px; display: block;
+    box-shadow: 0 10px 48px rgba(0,118,182,0.32), 0 2px 14px rgba(0,0,0,0.55);
+  }
+
+  /* Annotation columns */
+  .proto-annot-col {
+    display: flex; flex-direction: column; justify-content: space-around;
+    flex: 1; max-width: 300px; min-height: 380px; padding: 40px 0;
+  }
+
+  /* Each annotation: box + line + dot (left) or dot + line + box (right) */
+  .proto-annot { display: flex; align-items: center; width: 100%; }
+  .proto-annot-col--left .proto-annot  { flex-direction: row; }
+  .proto-annot-col--right .proto-annot { flex-direction: row; }
+
+  .proto-annot-line { flex: 1; height: 1px; background: var(--border); min-width: 20px; }
+
+  .proto-annot-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--text-dim); background: var(--surface2);
+  }
+
+  /* Grade label box */
+  .proto-annot-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 16px;
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .proto-annot-col--left  .proto-annot-box { text-align: right; }
+  .proto-annot-col--right .proto-annot-box { text-align: left; }
+  .proto-annot-box-label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em;
+    color: var(--text-dim); text-transform: uppercase; white-space: nowrap;
+  }
+  .proto-annot-box-grade {
+    font-family: var(--mono); font-size: 30px; font-weight: 800; line-height: 1.1;
+  }
+
+  /* Legacy proto-page (kept for fallback) */
   .proto-page { padding: 40px 24px 60px; max-width: 860px; margin: 0 auto; }
   .proto-header, .proto-page-header { text-align:center; margin-bottom:36px; }
   .proto-header-kicker, .proto-page-label { font-family:var(--mono); font-size:9px; letter-spacing:0.2em; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px; display:block; }
@@ -2148,101 +2228,77 @@
   <!-- ── PROTOTYPE ── -->
   <div class="main-view" id="mainview-prototype" style="display:none;">
     <section class="section">
-      <div class="proto-page">
+      <div class="proto-showcase">
 
-        <div class="proto-page-header">
-          <span class="proto-page-label">Prototype &nbsp;·&nbsp; Visual Player Card</span>
-          <span class="proto-page-sub">Concept UI — Jahmyr Gibbs, RB · Detroit Lions</span>
+        <!-- HEADER: name + nickname + traits -->
+        <div class="proto-showcase-header">
+          <div class="proto-nickname-badge">⚡ SONIC</div>
+          <div class="proto-showcase-name">JAHMYR GIBBS</div>
+          <div class="proto-showcase-sub">RB &nbsp;·&nbsp; DETROIT LIONS &nbsp;·&nbsp; #26 &nbsp;·&nbsp; AGE 24</div>
+          <div class="proto-trait-row">
+            <span class="proto-trait-pill proto-trait-pill--speed">⚡ SPEED</span>
+            <span class="proto-trait-pill proto-trait-pill--agility">◈ SHIFTINESS</span>
+            <span class="proto-trait-pill proto-trait-pill--elusiveness">◎ ELUSIVENESS</span>
+          </div>
         </div>
 
-        <div class="proto-scene">
+        <!-- MAIN SCENE: [left annotations] [player card] [right annotations] -->
+        <div class="proto-showcase-scene">
 
-          <!-- LEFT: animated figure card -->
-          <div class="proto-card proto-card-art">
-            <div class="proto-figure-wrap">
-              <img src="assets/players/9221.png" class="proto-player-art" alt="Jahmyr Gibbs"/>
-            </div>
-          </div><!-- /proto-card -->
+          <!-- LEFT -->
+          <div class="proto-annot-col proto-annot-col--left">
 
-          <!-- RIGHT: grades + stats panel -->
-          <div class="proto-info">
-
-            <div class="proto-panel">
-              <div class="proto-panel-label">Section Grades</div>
-              <div class="proto-grade-row">
-                <span class="proto-grade-name">Efficiency</span>
-                <div class="proto-grade-track">
-                  <div class="proto-grade-fill" style="width:85%;background:var(--green);"></div>
-                </div>
-                <span class="proto-grade-letter" style="color:var(--green);">A</span>
+            <div class="proto-annot">
+              <div class="proto-annot-box">
+                <span class="proto-annot-box-label">Efficiency</span>
+                <span class="proto-annot-box-grade" style="color:var(--green);">A</span>
               </div>
-              <div class="proto-grade-row">
-                <span class="proto-grade-name">Vol &amp; Opp</span>
-                <div class="proto-grade-track">
-                  <div class="proto-grade-fill" style="width:79%;background:var(--accent);"></div>
-                </div>
-                <span class="proto-grade-letter" style="color:var(--accent);">B+</span>
-              </div>
-              <div class="proto-grade-row">
-                <span class="proto-grade-name">Receiving</span>
-                <div class="proto-grade-track">
-                  <div class="proto-grade-fill" style="width:73%;background:var(--accent);"></div>
-                </div>
-                <span class="proto-grade-letter" style="color:var(--accent);">B</span>
-              </div>
-              <div class="proto-grade-row">
-                <span class="proto-grade-name">Physical</span>
-                <div class="proto-grade-track">
-                  <div class="proto-grade-fill" style="width:81%;background:var(--green);"></div>
-                </div>
-                <span class="proto-grade-letter" style="color:var(--green);">A−</span>
-              </div>
+              <div class="proto-annot-line"></div>
+              <div class="proto-annot-dot" style="border-color:var(--green);background:rgba(74,222,128,0.15);"></div>
             </div>
 
-            <div class="proto-panel">
-              <div class="proto-panel-label">Key Stats &nbsp;·&nbsp; 2025</div>
-              <div class="proto-stat-row">
-                <span class="proto-stat-lbl">Carry Share</span>
-                <div class="proto-stat-right">
-                  <span class="proto-stat-cls" style="color:var(--green);">Workhorse</span>
-                  <span class="proto-stat-val">54%</span>
-                </div>
+            <div class="proto-annot">
+              <div class="proto-annot-box">
+                <span class="proto-annot-box-label">Physical</span>
+                <span class="proto-annot-box-grade" style="color:var(--green);">A−</span>
               </div>
-              <div class="proto-stat-row">
-                <span class="proto-stat-lbl">RYOE / Att</span>
-                <div class="proto-stat-right">
-                  <span class="proto-stat-cls" style="color:var(--green);">Elite</span>
-                  <span class="proto-stat-val">+0.70</span>
-                </div>
-              </div>
-              <div class="proto-stat-row">
-                <span class="proto-stat-lbl">YPC</span>
-                <div class="proto-stat-right">
-                  <span class="proto-stat-cls" style="color:var(--accent);">Above Avg</span>
-                  <span class="proto-stat-val">5.0</span>
-                </div>
-              </div>
-              <div class="proto-stat-row">
-                <span class="proto-stat-lbl">Success Rate</span>
-                <div class="proto-stat-right">
-                  <span class="proto-stat-cls" style="color:var(--accent);">Good</span>
-                  <span class="proto-stat-val">44%</span>
-                </div>
-              </div>
-              <div class="proto-stat-row">
-                <span class="proto-stat-lbl">Snap %</span>
-                <div class="proto-stat-right">
-                  <span class="proto-stat-cls" style="color:var(--accent);">High</span>
-                  <span class="proto-stat-val">63%</span>
-                </div>
+              <div class="proto-annot-line"></div>
+              <div class="proto-annot-dot" style="border-color:var(--green);background:rgba(74,222,128,0.15);"></div>
+            </div>
+
+          </div>
+
+          <!-- CENTER: player card art -->
+          <div class="proto-showcase-art">
+            <img src="assets/players/9221.png" class="proto-player-art" alt="Jahmyr Gibbs"/>
+          </div>
+
+          <!-- RIGHT -->
+          <div class="proto-annot-col proto-annot-col--right">
+
+            <div class="proto-annot">
+              <div class="proto-annot-dot" style="border-color:var(--accent);background:rgba(99,179,237,0.15);"></div>
+              <div class="proto-annot-line"></div>
+              <div class="proto-annot-box">
+                <span class="proto-annot-box-label">Vol &amp; Opp</span>
+                <span class="proto-annot-box-grade" style="color:var(--accent);">B+</span>
               </div>
             </div>
 
-          </div><!-- /proto-info -->
+            <div class="proto-annot">
+              <div class="proto-annot-dot" style="border-color:var(--accent);background:rgba(99,179,237,0.15);"></div>
+              <div class="proto-annot-line"></div>
+              <div class="proto-annot-box">
+                <span class="proto-annot-box-label">Receiving</span>
+                <span class="proto-annot-box-grade" style="color:var(--accent);">B</span>
+              </div>
+            </div>
 
-        </div><!-- /proto-scene -->
+          </div>
 
-      </div><!-- /proto-page -->
+        </div><!-- /proto-showcase-scene -->
+
+      </div><!-- /proto-showcase -->
     </section>
   </div><!-- /mainview-prototype -->
 
