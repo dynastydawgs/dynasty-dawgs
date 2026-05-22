@@ -3080,8 +3080,9 @@ async function loadPlayerProfile(pid) {
     return Number(v).toLocaleString('en-US', { maximumFractionDigits: decimals });
   }
 
-  // Games played (for PPG calc) — use gp (actual game appearances), fall back to gms_active
-  const actualGames = +(stats['gp'] ?? stats['gms_active'] ?? stats['games_played'] ?? 0);
+  // Games played — prefer ESPN (box-score appearances) over Sleeper which counts active-roster games
+  // even when the player received 0 snaps, inflating gp by 1 for late scratches.
+  const actualGames = +(espnPlayerStats['gamesPlayed'] ?? stats['gp'] ?? stats['gms_active'] ?? 0);
 
   const statDefs = {
     QB: [
