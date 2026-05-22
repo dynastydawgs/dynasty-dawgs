@@ -213,6 +213,8 @@ async function main() {
   let avgRbBmi            =  28.5; // median BMI among top-32 RBs
   // Quartile stats for every RB metric — populated from real data, written to benchmarks.json
   let rbStats = {};
+  // Quartile stats for team situation metrics — populated alongside teamDB, written to benchmarks.json
+  let teamStats = {};
   // Bar scale maxima — p95 of top-32 pool so extreme outliers don't compress the scale
   let maxRbRushYdPg       = 150.0;
   let maxRbTouchesPg      =  25.0;
@@ -366,6 +368,27 @@ async function main() {
     avgTeamRunRate    = _tmMean('runRate')     ?? avgTeamRunRate;
     avgTeamYpc        = _tmMean('teamYpc')    ?? avgTeamYpc;
     console.log(`  Team bench (${_liveTeamRows.length} live teams, mean) — rush: ${avgTeamRushPg}/g · pass: ${avgTeamPassPg}/g · plays: ${avgTeamOffPlaysPg}/g · run%: ${avgTeamRunRate}% · ypc: ${avgTeamYpc}`);
+
+    // Compute Q1/Q3/max for each team metric — same logic as rbStats, used to drive
+    // data-driven classifiers and bar scale maxes in the frontend situation cards.
+    const _tmFs = (field, prec = 10) => {
+      const vals = _liveTeamRows.map(t => t[field]).filter(v => v != null).sort((a, b) => a - b);
+      if (vals.length < 20) return null;
+      const n = vals.length, mean = vals.reduce((s, v) => s + v, 0) / n;
+      return {
+        avg: Math.round(mean * prec) / prec,
+        q1:  Math.round(vals[Math.floor((n - 1) * 0.25)] * prec) / prec,
+        q3:  Math.round(vals[Math.floor((n - 1) * 0.75)] * prec) / prec,
+        max: Math.round(vals[Math.floor((n - 1) * 0.95)] * prec) / prec,
+      };
+    };
+    for (const [field, prec] of [
+      ['rushAttPg', 10], ['passAttPg', 10], ['offPlaysPg', 10], ['runRate', 10], ['teamYpc', 100],
+    ]) {
+      const s = _tmFs(field, prec);
+      if (s) teamStats[field] = s;
+    }
+    console.log(`  Team stats Q1/Q3/max computed for ${Object.keys(teamStats).length} fields`);
   }
 
   progress(95, `Team DB: ${liveTeams} live (ESPN) + ${fallbackTeams} estimated teams`);
@@ -1207,7 +1230,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbBfTgtShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbAvgTimeToLos, avgRbStackedBoxPct, avgRbForty, avgRbSpeedScore, avgRbBmi, maxRbRushYdPg, maxRbTouchesPg, maxRbYpc, maxRbMtfPerAtt, maxRbTgtPg, maxRbRecPg, maxRbRecYdPg, maxRbSpeedScore, maxRbBmi, maxRbRzCarries, rbStats });
+  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbBfTgtShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbAvgTimeToLos, avgRbStackedBoxPct, avgRbForty, avgRbSpeedScore, avgRbBmi, maxRbRushYdPg, maxRbTouchesPg, maxRbYpc, maxRbMtfPerAtt, maxRbTgtPg, maxRbRecPg, maxRbRecYdPg, maxRbSpeedScore, maxRbBmi, maxRbRzCarries, rbStats, teamStats });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);
