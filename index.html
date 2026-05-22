@@ -3366,7 +3366,7 @@ async function loadPlayerProfile(pid) {
 
     const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'MED', floor = 0) => {
       const effMax  = Math.max(maxPct, pct);
-      const effFloor = Math.min(floor, pct, avgPct != null ? avgPct : pct);
+      const effFloor = Math.min(floor, pct);
       const range   = Math.max(effMax - effFloor, 0.001);
       const fillW   = Math.min(100, Math.max(0, (pct   - effFloor) / range * 100)).toFixed(1);
       const showAvg = avgPct != null;
@@ -3387,7 +3387,7 @@ async function loadPlayerProfile(pid) {
     // Raw-value bar (for non-percentage metrics like pts/touch)
     const mkBarVal = (val, maxVal, avgVal, color, unit, benchLabel = 'MED', floor = 0) => {
       const effMax   = Math.max(maxVal, val);
-      const effFloor = Math.min(floor, val, avgVal);
+      const effFloor = Math.min(floor, val);
       const range    = Math.max(effMax - effFloor, 0.001);
       const fillW    = Math.min(100, Math.max(0, (val    - effFloor) / range * 100)).toFixed(1);
       const avgPos   = Math.min(100, Math.max(0, (avgVal - effFloor) / range * 100)).toFixed(1);
@@ -4340,7 +4340,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${htPctClass.color};">${htPctClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${htPctClass.color};">${Math.floor(playerHt/12)}'${Math.round(playerHt%12)}"<span style="font-size:14px;margin-left:4px;">(${heightPct}th %ile)</span></div>
-                   ${mkBar(heightPct, 100, 50, htPctClass.color, 'MED')}
+                   ${mkBar(heightPct, 100, 50, htPctClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">Percentile vs all NFL RBs in Sleeper · ${playerHt} inches</div>
                  </div>`
               : noDataCard('Height')}
@@ -4351,7 +4351,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${wtPctClass.color};">${wtPctClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${wtPctClass.color};">${playerWt}<span> lbs<span style="font-size:14px;margin-left:4px;">(${weightPct}th %ile)</span></span></div>
-                   ${mkBar(weightPct, 100, 50, wtPctClass.color, 'MED')}
+                   ${mkBar(weightPct, 100, 50, wtPctClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">Percentile vs all NFL RBs in Sleeper</div>
                  </div>`
               : noDataCard('Weight')}
