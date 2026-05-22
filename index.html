@@ -3582,16 +3582,20 @@ async function loadPlayerProfile(pid) {
       : mkRbCls(ryoePerAtt, 'ryoePerAtt', ['Elite','Above Avg','On Par','Below Avg']);
 
     // ── Advanced RB stats — Success% + MTF/att (PFR via nflverse, advstatsdb.json) ──
-    const successPct    = _advEntry?.successPct  ?? null;
-    const adsMtfPerAtt  = _advEntry?.mtfPerAtt   ?? null;
-    const adsBrkTkl     = _advEntry?.brkTkl      ?? null;
-    const adsAtt        = _advEntry?.att         ?? null;
+    const successPct    = _advEntry?.successPct   ?? null;
+    const adsMtfPerAtt  = _advEntry?.mtfPerAtt    ?? null;
+    const adsBrkTkl     = _advEntry?.brkTkl       ?? null;
+    const adsAtt        = _advEntry?.att          ?? null;
+    const yacPerCarry   = _advEntry?.yacPerCarry  ?? null;
 
     const successClass = successPct === null ? {label:'No Data', color:'var(--text-dim)'}
       : mkRbCls(successPct, 'successPct', ['Elite','Good','Average','Below Avg']);
 
     const mtfAdsClass = adsMtfPerAtt === null ? {label:'No Data', color:'var(--text-dim)'}
       : mkRbCls(adsMtfPerAtt, 'mtfPerAtt', ['Elite','Good','Average','Below Avg']);
+
+    const yacPcClass = yacPerCarry === null ? {label:'No Data', color:'var(--text-dim)'}
+      : mkRbCls(yacPerCarry, 'yacPerCarry', ['Elite','Good','Average','Below Avg']);
 
     // ── Redzone carry share (PBP-derived, advstatsdb.json) ───────────────────
     const rzCarryShare = _advEntry?.rzCarryShare ?? null;
@@ -4016,6 +4020,21 @@ async function loadPlayerProfile(pid) {
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Missed Tackles Forced</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Not enough carries (min 50)</div>
+                 </div>`}
+            ${yacPerCarry !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${yacPcClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">YAC / Carry</span>
+                     <span class="pp-wl-card-cls" style="color:${yacPcClass.color};">${yacPcClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${yacPcClass.color};">${yacPerCarry}<span> yds</span></div>
+                   ${mkBarVal(yacPerCarry, rbBarMax('yacPerCarry', 4.5), avgRbYacPerCarry, yacPcClass.color, '', 'AVG', rbFloor('yacPerCarry', 1.0))}
+                   <div class="pp-wl-card-sub">yards after contact per carry · min 50 att · PFR via nflverse</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">YAC / Carry</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Not enough carries (min 50)</div>
                  </div>`}
@@ -4507,6 +4526,21 @@ async function loadPlayerProfile(pid) {
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
                    <div class="pp-wl-card-header"><span class="pp-wl-card-label">Missed Tackles Forced</span></div>
+                   <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
+                   <div class="pp-wl-card-sub">Not enough carries (min 50)</div>
+                 </div>`}
+            ${yacPerCarry !== null
+              ? `<div class="pp-wl-card" style="border-left-color:${yacPcClass.color};">
+                   <div class="pp-wl-card-header">
+                     <span class="pp-wl-card-label">YAC / Carry</span>
+                     <span class="pp-wl-card-cls" style="color:${yacPcClass.color};">${yacPcClass.label}</span>
+                   </div>
+                   <div class="pp-wl-card-val" style="color:${yacPcClass.color};">${yacPerCarry}<span> yds</span></div>
+                   ${mkBarVal(yacPerCarry, rbBarMax('yacPerCarry', 4.5), avgRbYacPerCarry, yacPcClass.color, '', 'AVG', rbFloor('yacPerCarry', 1.0))}
+                   <div class="pp-wl-card-sub">yards after contact per carry · min 50 att · PFR via nflverse</div>
+                 </div>`
+              : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
+                   <div class="pp-wl-card-header"><span class="pp-wl-card-label">YAC / Carry</span></div>
                    <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
                    <div class="pp-wl-card-sub">Not enough carries (min 50)</div>
                  </div>`}
@@ -5687,6 +5721,7 @@ let avgTeamRunRate     = 41.0;   // avg team run rate %
 let avgTeamYpc         =  4.2;   // avg team rush yards/attempt
 let avgRbSuccessPct      = 41.0;   // mean success rate % (top-32 RBs by carries)
 let avgRbMtfPerAtt       =  0.063; // mean missed tackles forced per attempt (top-32 RBs)
+let avgRbYacPerCarry     =  2.8;   // mean yards after contact per carry (top-32 RBs)
 let avgRbThirdDownSnaps  = 30.0;   // mean 3rd-down snap % (player snaps / team 3rd-dn plays, top-32 RBs)
 // RB efficiency benchmarks — seeded with estimates, overridden by benchmarks.json
 let avgRbYpc         =  4.3;   // avg yards/carry (top-64 RBs, recentYr PBP)
@@ -6293,6 +6328,7 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.avgRbRzTdRate)      avgRbRzTdRate      = bench.avgRbRzTdRate;
     if (bench?.avgRbSuccessPct)       avgRbSuccessPct       = bench.avgRbSuccessPct;
     if (bench?.avgRbMtfPerAtt)        avgRbMtfPerAtt        = bench.avgRbMtfPerAtt;
+    if (bench?.avgRbYacPerCarry)      avgRbYacPerCarry      = bench.avgRbYacPerCarry;
     if (bench?.avgRbThirdDownSnaps)   avgRbThirdDownSnaps   = bench.avgRbThirdDownSnaps;
     if (bench?.avgTeamRushPg)      avgTeamRushPg      = bench.avgTeamRushPg;
     if (bench?.avgTeamPassPg)      avgTeamPassPg      = bench.avgTeamPassPg;
@@ -6399,6 +6435,7 @@ function _loadOptionalDataFiles() {
           if (bench?.avgRbRzTdRate)      avgRbRzTdRate      = bench.avgRbRzTdRate;
           if (bench?.avgRbSuccessPct)       avgRbSuccessPct       = bench.avgRbSuccessPct;
           if (bench?.avgRbMtfPerAtt)        avgRbMtfPerAtt        = bench.avgRbMtfPerAtt;
+          if (bench?.avgRbYacPerCarry)      avgRbYacPerCarry      = bench.avgRbYacPerCarry;
           if (bench?.avgRbThirdDownSnaps)   avgRbThirdDownSnaps   = bench.avgRbThirdDownSnaps;
           if (bench?.avgTeamRushPg)      avgTeamRushPg      = bench.avgTeamRushPg;
           if (bench?.avgTeamPassPg)      avgTeamPassPg      = bench.avgTeamPassPg;
