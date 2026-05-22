@@ -3333,8 +3333,10 @@ async function loadPlayerProfile(pid) {
       if (v >= q1) return { label: l2, color: 'var(--orange)' };
       return           { label: l3, color: 'var(--red)'    };
     };
-    // Bar scale maximum: use computed p95 from rbStats, fall back to provided value.
-    const rbBarMax = (field, fallback) => rbStats?.[field]?.max ?? fallback;
+    // Bar scale maximum / floor: use computed p95 / p5 from rbStats, fall back to provided value.
+    const rbBarMax   = (field, fallback)    => rbStats?.[field]?.max   ?? fallback;
+    const rbFloor    = (field, fallback=0)  => rbStats?.[field]?.floor ?? fallback;
+    const tmFloor    = (field, fallback=0)  => teamStats?.[field]?.floor ?? fallback;
 
     const carryClass    = mkRbCls(carryPct,  'carryPct',  ['Workhorse',      'Featured',     'Committee',  'Limited'    ]);
     const tgtClass      = mkRbCls(targetPct, 'targetSharePct', ['Elite Receiver','Pass-Catcher', 'Average',    'Minimal'    ]);
@@ -3362,11 +3364,13 @@ async function loadPlayerProfile(pid) {
     const snapClass = !hasSnap ? { label: 'No Data', color: 'var(--text-dim)' }
                     : mkRbCls(snapPct, 'snapPct', ['Every-Down', 'High', 'Average', 'Limited']);
 
-    const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'MED') => {
+    const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'MED', floor = 0) => {
       const effMax  = Math.max(maxPct, pct);
-      const fillW   = (pct / effMax * 100).toFixed(1);
+      const range   = Math.max(effMax - floor, 0.001);
+      const fillW   = Math.min(100, Math.max(0, (pct   - floor) / range * 100)).toFixed(1);
       const showAvg = avgPct != null;
-      const avgPos  = showAvg ? Math.min(avgPct / effMax * 100, 100).toFixed(1) : 0;
+      const avgPos  = showAvg ? Math.min(100, Math.max(0, (avgPct - floor) / range * 100)).toFixed(1) : 0;
+      const floorLbl = floor > 0 ? floor : '0';
       return `
         <div class="pp-wl-track">
           <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
@@ -3374,16 +3378,18 @@ async function loadPlayerProfile(pid) {
           <div class="pp-wl-dot"      style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
         </div>
         <div class="pp-wl-scale">
-          <span>0%</span>
+          <span>${floorLbl}%</span>
           ${showAvg ? `<span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgPct}%</span>` : ''}
           <span>${effMax}%</span>
         </div>`;
     };
     // Raw-value bar (for non-percentage metrics like pts/touch)
-    const mkBarVal = (val, maxVal, avgVal, color, unit, benchLabel = 'MED') => {
-      const effMax = Math.max(maxVal, val);
-      const fillW  = (val / effMax * 100).toFixed(1);
-      const avgPos = Math.min(avgVal / effMax * 100, 100).toFixed(1);
+    const mkBarVal = (val, maxVal, avgVal, color, unit, benchLabel = 'MED', floor = 0) => {
+      const effMax  = Math.max(maxVal, val);
+      const range   = Math.max(effMax - floor, 0.001);
+      const fillW   = Math.min(100, Math.max(0, (val   - floor) / range * 100)).toFixed(1);
+      const avgPos  = Math.min(100, Math.max(0, (avgVal - floor) / range * 100)).toFixed(1);
+      const floorLbl = floor > 0 ? floor : '0';
       return `
         <div class="pp-wl-track">
           <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
@@ -3391,7 +3397,7 @@ async function loadPlayerProfile(pid) {
           <div class="pp-wl-dot"      style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
         </div>
         <div class="pp-wl-scale">
-          <span>0</span>
+          <span>${floorLbl}${unit}</span>
           <span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgVal}${unit}</span>
           <span>${effMax}${unit}</span>
         </div>`;
@@ -3931,7 +3937,7 @@ async function loadPlayerProfile(pid) {
              <span class="pp-wl-card-cls" style="color:${snapClass.color};">${snapClass.label}</span>
            </div>
            <div class="pp-wl-card-val" style="color:${snapClass.color};">${snapPct}<span>%</span></div>
-           ${mkBar(snapPct, 100, avgSnapPct, snapClass.color, 'AVG')}
+           ${mkBar(snapPct, 100, avgSnapPct, snapClass.color, 'AVG', rbFloor('snapPct', 20))}
            <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench: top 32 RBs by carries</div>
          </div>`
       : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -3958,7 +3964,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, rbBarMax('ypc', 6.5), avgYpc, ypcClass.color, '', 'AVG')}
+                   ${mkBarVal(ypc, rbBarMax('ypc', 6.5), avgYpc, ypcClass.color, '', 'AVG', rbFloor('ypc', 3.0))}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4018,7 +4024,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, rbBarMax('ptsPerTouch', 1.6), avgPpt, pptClass.color, ' pts', 'AVG')}
+                   ${mkBarVal(ptsPerTouch, rbBarMax('ptsPerTouch', 1.6), avgPpt, pptClass.color, ' pts', 'AVG', rbFloor('ptsPerTouch', 0.4))}
                    <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} PPR pts · ${touches} touches · ${gp} gp${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4057,7 +4063,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rushYdPgClass.color};">${rushAtt >= 10 ? rushYdPgClass.label : 'Low Sample'}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rushYdPgClass.color};">${rushYdPg}<span>/g</span></div>
-                   ${mkBarVal(rushYdPg, maxRbRushYdPg, avgRbRushYdPg, rushYdPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(rushYdPg, maxRbRushYdPg, avgRbRushYdPg, rushYdPgClass.color, '/g', 'AVG', rbFloor('rushYdPg', 20))}
                    <div class="pp-wl-card-sub">${rushYd} total rush yds · ${rushAtt} att · ${gp} games</div>
                  </div>`
               : ''}
@@ -4067,7 +4073,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${touchPgClass.color};">${touchPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(touchesPg, maxRbTouchesPg, avgTouchPg, touchPgClass.color, '', 'AVG')}
+              ${mkBarVal(touchesPg, maxRbTouchesPg, avgTouchPg, touchPgClass.color, '', 'AVG', rbFloor('touchesPg', 5))}
               <div class="pp-wl-card-sub">${rushAtt} carries + ${rec} rec · ${touches} total · bench: top 32 RBs by carries</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
@@ -4142,7 +4148,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${rbTgtPgClass.color};">${rbTgtPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${rbTgtPgClass.color};">${tgtPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(tgtPg, maxRbTgtPg, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG')}
+              ${mkBarVal(tgtPg, maxRbTgtPg, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG', rbFloor('tgtPg'))}
               <div class="pp-wl-card-sub">${tgts} total tgt · ${gp} games · bench: top 32 RBs by carries</div>
             </div>
             ${recPg !== null
@@ -4152,7 +4158,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rbRecPgClass.color};">${rbRecPgClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rbRecPgClass.color};">${recPg}<span>/g</span></div>
-                   ${mkBarVal(recPg, maxRbRecPg, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(recPg, maxRbRecPg, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG', rbFloor('recPg'))}
                    <div class="pp-wl-card-sub">${rec} total rec · ${gp} games · bench: top 32 RBs by carries</div>
                  </div>`
               : ''}
@@ -4163,7 +4169,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rbRecYdPgClass.color};">${rbRecYdPgClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rbRecYdPgClass.color};">${recYdPg}<span>/g</span></div>
-                   ${mkBarVal(recYdPg, maxRbRecYdPg, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(recYdPg, maxRbRecYdPg, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG', rbFloor('recYdPg'))}
                    <div class="pp-wl-card-sub">${recYd} total rec yds · ${rec} rec · ${gp} games</div>
                  </div>`
               : ''}
@@ -4178,7 +4184,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${runRateClass.color};">${runRateClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${runRateClass.color};">${runRate}<span>%</span></div>
-                   ${mkBar(runRate, tmBarMax('runRate', 60), avgTeamRunRate, runRateClass.color, 'AVG')}
+                   ${mkBar(runRate, tmBarMax('runRate', 60), avgTeamRunRate, runRateClass.color, 'AVG', tmFloor('runRate', 30))}
                    <div class="pp-wl-card-sub">${runRate}% runs · ${passRate}% passes of ${offPlaysPg} plays/g</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4192,7 +4198,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${teamVolClass.color};">${teamVolClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${teamVolClass.color};">${teamRushPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(teamRushPg, tmBarMax('rushAttPg', 38), avgTeamRushPg, teamVolClass.color, '/g', 'AVG')}
+              ${mkBarVal(teamRushPg, tmBarMax('rushAttPg', 38), avgTeamRushPg, teamVolClass.color, '/g', 'AVG', tmFloor('rushAttPg', 18))}
               <div class="pp-wl-card-sub">${usingActualTeam ? `${statTeam ?? 'Team'} season rush att/game` : 'Using league avg (no team data)'}</div>
             </div>
             ${passAttPg !== null
@@ -4202,7 +4208,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${passVolClass.color};">${passVolClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${passVolClass.color};">${passAttPg}<span>/g</span></div>
-                   ${mkBarVal(passAttPg, tmBarMax('passAttPg', 48), avgTeamPassPg, passVolClass.color, '/g', 'AVG')}
+                   ${mkBarVal(passAttPg, tmBarMax('passAttPg', 48), avgTeamPassPg, passVolClass.color, '/g', 'AVG', tmFloor('passAttPg', 20))}
                    <div class="pp-wl-card-sub">${statTeam ?? 'Team'} season pass att/game</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4217,7 +4223,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${offPlaysClass.color};">${offPlaysClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${offPlaysClass.color};">${offPlaysPg}<span>/g</span></div>
-                   ${mkBarVal(offPlaysPg, tmBarMax('offPlaysPg', 80), avgTeamOffPlaysPg, offPlaysClass.color, '/g', 'AVG')}
+                   ${mkBarVal(offPlaysPg, tmBarMax('offPlaysPg', 80), avgTeamOffPlaysPg, offPlaysClass.color, '/g', 'AVG', tmFloor('offPlaysPg', 48))}
                    <div class="pp-wl-card-sub">Rush + pass att · excl. sacks</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4232,7 +4238,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${olProxyClass.color};">${olProxyClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${olProxyClass.color};">${teamYpc}<span> ypc</span></div>
-                   ${mkBarVal(teamYpc, tmBarMax('teamYpc', 6.0), avgTeamYpc, olProxyClass.color, ' ypc', 'AVG')}
+                   ${mkBarVal(teamYpc, tmBarMax('teamYpc', 6.0), avgTeamYpc, olProxyClass.color, ' ypc', 'AVG', tmFloor('teamYpc', 2.5))}
                    <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4434,7 +4440,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, rbBarMax('ypc', 6.5), avgYpc, ypcClass.color, '', 'AVG')}
+                   ${mkBarVal(ypc, rbBarMax('ypc', 6.5), avgYpc, ypcClass.color, '', 'AVG', rbFloor('ypc', 3.0))}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4449,7 +4455,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, rbBarMax('ptsPerTouch', 1.6), avgPpt, pptClass.color, ' pts', 'AVG')}
+                   ${mkBarVal(ptsPerTouch, rbBarMax('ptsPerTouch', 1.6), avgPpt, pptClass.color, ' pts', 'AVG', rbFloor('ptsPerTouch', 0.4))}
                    <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4555,7 +4561,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${touchPgClass.color};">${touchPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${touchPgClass.color};">${touchesPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(touchesPg, maxRbTouchesPg, avgTouchPg, touchPgClass.color, '', 'AVG')}
+              ${mkBarVal(touchesPg, maxRbTouchesPg, avgTouchPg, touchPgClass.color, '', 'AVG', rbFloor('touchesPg', 5))}
               <div class="pp-wl-card-sub">${rushAtt} carries + ${+(stats.rec??0)} rec · 2025 stats</div>
             </div>
             <div class="pp-wl-card" style="border-left-color:${touchShareClass.color};">
@@ -4599,7 +4605,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${rbTgtPgClass.color};">${rbTgtPgClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${rbTgtPgClass.color};">${tgtPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(tgtPg, maxRbTgtPg, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG')}
+              ${mkBarVal(tgtPg, maxRbTgtPg, avgRbTgtPg, rbTgtPgClass.color, '/g', 'AVG', rbFloor('tgtPg'))}
               <div class="pp-wl-card-sub">${tgts} total tgt · ${gp} games · bench: top 32 RBs by carries · 2025 stats</div>
             </div>
             ${recPg !== null
@@ -4609,7 +4615,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rbRecPgClass.color};">${rbRecPgClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rbRecPgClass.color};">${recPg}<span>/g</span></div>
-                   ${mkBarVal(recPg, maxRbRecPg, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(recPg, maxRbRecPg, avgRbRecPg, rbRecPgClass.color, '/g', 'AVG', rbFloor('recPg'))}
                    <div class="pp-wl-card-sub">${rec} total rec · ${gp} games · bench: top 32 RBs by carries · 2025 stats</div>
                  </div>`
               : ''}
@@ -4620,7 +4626,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rbRecYdPgClass.color};">${rbRecYdPgClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rbRecYdPgClass.color};">${recYdPg}<span>/g</span></div>
-                   ${mkBarVal(recYdPg, maxRbRecYdPg, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG')}
+                   ${mkBarVal(recYdPg, maxRbRecYdPg, avgRbRecYdPg, rbRecYdPgClass.color, '/g', 'AVG', rbFloor('recYdPg'))}
                    <div class="pp-wl-card-sub">${recYd} total rec yds · ${rec} rec · ${gp} games · 2025 stats</div>
                  </div>`
               : ''}
@@ -4635,7 +4641,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${_curVolClass.color};">${_curVolClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${_curVolClass.color};">${_curRunRate}<span>%</span></div>
-                   ${mkBar(_curRunRate, tmBarMax('runRate', 60), avgTeamRunRate, _curVolClass.color, 'AVG')}
+                   ${mkBar(_curRunRate, tmBarMax('runRate', 60), avgTeamRunRate, _curVolClass.color, 'AVG', tmFloor('runRate', 30))}
                    <div class="pp-wl-card-sub">${_curRunRate}% runs · ${_curPassRate ?? '—'}% passes of ${_curOffPlaysPg ?? '—'} plays/g</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4649,7 +4655,7 @@ async function loadPlayerProfile(pid) {
                 <span class="pp-wl-card-cls" style="color:${_curVolClass.color};">${_curVolClass.label}</span>
               </div>
               <div class="pp-wl-card-val" style="color:${_curVolClass.color};">${_curTeamRushPg.toFixed(1)}<span>/g</span></div>
-              ${mkBarVal(_curTeamRushPg, tmBarMax('rushAttPg', 38), avgTeamRushPg, _curVolClass.color, '/g', 'AVG')}
+              ${mkBarVal(_curTeamRushPg, tmBarMax('rushAttPg', 38), avgTeamRushPg, _curVolClass.color, '/g', 'AVG', tmFloor('rushAttPg', 18))}
               <div class="pp-wl-card-sub">${nflTeam} season rush att/game</div>
             </div>
             ${_curPassAttPg !== null
@@ -4659,7 +4665,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${_curVolClass.color};">${_curVolClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${_curVolClass.color};">${_curPassAttPg}<span>/g</span></div>
-                   ${mkBarVal(_curPassAttPg, tmBarMax('passAttPg', 48), avgTeamPassPg, _curVolClass.color, '/g', 'AVG')}
+                   ${mkBarVal(_curPassAttPg, tmBarMax('passAttPg', 48), avgTeamPassPg, _curVolClass.color, '/g', 'AVG', tmFloor('passAttPg', 20))}
                    <div class="pp-wl-card-sub">${nflTeam} season pass att/game</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4674,7 +4680,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${_curOffRatCls.color};">${mkTeamCls(_curTeamYpc, 'teamYpc', ['Elite OL','Strong OL','Average OL','Weak OL']).label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${_curOffRatCls.color};">${_curTeamYpc}<span> ypc</span></div>
-                   ${mkBarVal(_curTeamYpc, tmBarMax('teamYpc', 6.0), avgTeamYpc, _curOffRatCls.color, ' ypc', 'AVG')}
+                   ${mkBarVal(_curTeamYpc, tmBarMax('teamYpc', 6.0), avgTeamYpc, _curOffRatCls.color, ' ypc', 'AVG', tmFloor('teamYpc', 2.5))}
                    <div class="pp-wl-card-sub">Team rush yds/att · OL run-block proxy</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">

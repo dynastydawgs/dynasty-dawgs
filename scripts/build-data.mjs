@@ -376,10 +376,11 @@ async function main() {
       if (vals.length < 20) return null;
       const n = vals.length, mean = vals.reduce((s, v) => s + v, 0) / n;
       return {
-        avg: Math.round(mean * prec) / prec,
-        q1:  Math.round(vals[Math.floor((n - 1) * 0.25)] * prec) / prec,
-        q3:  Math.round(vals[Math.floor((n - 1) * 0.75)] * prec) / prec,
-        max: Math.round(vals[Math.floor((n - 1) * 0.95)] * prec) / prec,
+        avg:   Math.round(mean * prec) / prec,
+        q1:    Math.round(vals[Math.floor((n - 1) * 0.25)] * prec) / prec,
+        q3:    Math.round(vals[Math.floor((n - 1) * 0.75)] * prec) / prec,
+        max:   Math.round(vals[Math.floor((n - 1) * 0.95)] * prec) / prec,
+        floor: Math.max(0, Math.round(vals[Math.floor((n - 1) * 0.05)] * prec) / prec),
       };
     };
     for (const [field, prec] of [
@@ -965,10 +966,11 @@ async function main() {
           const _fv = fortyVals, fn = _fv.length;
           const _fmean = _fv.reduce((s,v) => s+v, 0) / fn;
           rbStats['forty'] = {
-            avg: Math.round(_fmean * 1000) / 1000,
-            q1:  Math.round(_fv[Math.floor((fn-1)*0.25)] * 1000) / 1000,
-            q3:  Math.round(_fv[Math.floor((fn-1)*0.75)] * 1000) / 1000,
-            max: Math.round(_fv[Math.floor((fn-1)*0.95)] * 1000) / 1000,
+            avg:   Math.round(_fmean * 1000) / 1000,
+            q1:    Math.round(_fv[Math.floor((fn-1)*0.25)] * 1000) / 1000,
+            q3:    Math.round(_fv[Math.floor((fn-1)*0.75)] * 1000) / 1000,
+            max:   Math.round(_fv[Math.floor((fn-1)*0.95)] * 1000) / 1000,
+            floor: Math.round(_fv[Math.floor((fn-1)*0.05)] * 1000) / 1000,
           };
         }
         console.log(`  Combine: ${Object.keys(combineMap).length} RBs with 40-yd dash · avg: ${avgRbForty}s`);
@@ -1064,10 +1066,11 @@ async function main() {
         _pptVals.sort((a, b) => a - b);
         const pn = _pptVals.length, pmean = _pptVals.reduce((s,v) => s+v, 0) / pn;
         rbStats['ptsPerTouch'] = {
-          avg: Math.round(pmean * 1000) / 1000,
-          q1:  Math.round(_pptVals[Math.floor((pn-1)*0.25)] * 1000) / 1000,
-          q3:  Math.round(_pptVals[Math.floor((pn-1)*0.75)] * 1000) / 1000,
-          max: Math.round(_pptVals[Math.floor((pn-1)*0.95)] * 1000) / 1000,
+          avg:   Math.round(pmean * 1000) / 1000,
+          q1:    Math.round(_pptVals[Math.floor((pn-1)*0.25)] * 1000) / 1000,
+          q3:    Math.round(_pptVals[Math.floor((pn-1)*0.75)] * 1000) / 1000,
+          max:   Math.round(_pptVals[Math.floor((pn-1)*0.95)] * 1000) / 1000,
+          floor: Math.max(0, Math.round(_pptVals[Math.floor((pn-1)*0.05)] * 1000) / 1000),
         };
       }
       console.log(`  Pts/touch bench: ${avgRbPpt} pts/touch · ${avgRbPptN} RBs (${recentYr})`);
@@ -1171,10 +1174,11 @@ async function main() {
         if (vals.length < 5) return null;
         const n = vals.length, mean = vals.reduce((s,v) => s+v, 0) / n;
         return {
-          avg: Math.round(mean * prec) / prec,
-          q1:  Math.round(vals[Math.floor((n-1)*0.25)] * prec) / prec,
-          q3:  Math.round(vals[Math.floor((n-1)*0.75)] * prec) / prec,
-          max: Math.round(vals[Math.floor((n-1)*0.95)] * prec) / prec,
+          avg:   Math.round(mean * prec) / prec,
+          q1:    Math.round(vals[Math.floor((n-1)*0.25)] * prec) / prec,
+          q3:    Math.round(vals[Math.floor((n-1)*0.75)] * prec) / prec,
+          max:   Math.round(vals[Math.floor((n-1)*0.95)] * prec) / prec,
+          floor: Math.max(0, Math.round(vals[Math.floor((n-1)*0.05)] * prec) / prec),
         };
       };
       for (const [field, prec] of [
