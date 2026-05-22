@@ -211,6 +211,8 @@ async function main() {
   // Physical averages — seeded, updated from top-32 pool
   let avgRbSpeedScore     = 103.0; // median Speed Score (wt×200/forty⁴) among top-32 RBs
   let avgRbBmi            =  28.5; // median BMI among top-32 RBs
+  // Quartile stats for every RB metric — populated from real data, written to benchmarks.json
+  let rbStats = {};
   // Bar scale maxima — p95 of top-32 pool so extreme outliers don't compress the scale
   let maxRbRushYdPg       = 150.0;
   let maxRbTouchesPg      =  25.0;
@@ -930,13 +932,21 @@ async function main() {
           const yr = snI >= 0 ? parseInt(v[snI]) : 0;
           if (yr >= cutoffYr) fortyVals.push(forty);
         }
-        // Median forty from recent RB combine data
+        // Median forty + quartile stats from recent RB combine data
         if (fortyVals.length >= 10) {
           fortyVals.sort((a, b) => a - b);
           const mid = Math.floor(fortyVals.length / 2);
           avgRbForty = Math.round(
             (fortyVals.length % 2 === 1 ? fortyVals[mid] : (fortyVals[mid-1] + fortyVals[mid]) / 2) * 100
           ) / 100;
+          const _fv = fortyVals, fn = _fv.length;
+          const _fmean = _fv.reduce((s,v) => s+v, 0) / fn;
+          rbStats['forty'] = {
+            avg: Math.round(_fmean * 1000) / 1000,
+            q1:  Math.round(_fv[Math.floor((fn-1)*0.25)] * 1000) / 1000,
+            q3:  Math.round(_fv[Math.floor((fn-1)*0.75)] * 1000) / 1000,
+            max: Math.round(_fv[Math.floor((fn-1)*0.95)] * 1000) / 1000,
+          };
         }
         console.log(`  Combine: ${Object.keys(combineMap).length} RBs with 40-yd dash · avg: ${avgRbForty}s`);
       } else {
@@ -1014,6 +1024,7 @@ async function main() {
     // current scoring environment rather than blending 10 years of careerDB data.
     {
       let pts = 0, touches = 0, n = 0;
+      const _pptVals = [];
       for (const [pid, seasons] of Object.entries(careerDB)) {
         const pos = pidToPos[pid];
         if (pos !== 'RB') continue;
@@ -1022,8 +1033,20 @@ async function main() {
         pts += s.ppr ?? 0;
         touches += s.touches;
         n++;
+        const ppt = (s.ppr != null && s.touches > 0) ? s.ppr / s.touches : null;
+        if (ppt != null) _pptVals.push(ppt);
       }
       if (touches > 100) { avgRbPpt = Math.round(pts / touches * 1000) / 1000; avgRbPptN = n; }
+      if (_pptVals.length >= 5) {
+        _pptVals.sort((a, b) => a - b);
+        const pn = _pptVals.length, pmean = _pptVals.reduce((s,v) => s+v, 0) / pn;
+        rbStats['ptsPerTouch'] = {
+          avg: Math.round(pmean * 1000) / 1000,
+          q1:  Math.round(_pptVals[Math.floor((pn-1)*0.25)] * 1000) / 1000,
+          q3:  Math.round(_pptVals[Math.floor((pn-1)*0.75)] * 1000) / 1000,
+          max: Math.round(_pptVals[Math.floor((pn-1)*0.95)] * 1000) / 1000,
+        };
+      }
       console.log(`  Pts/touch bench: ${avgRbPpt} pts/touch · ${avgRbPptN} RBs (${recentYr})`);
     }
 
@@ -1114,24 +1137,61 @@ async function main() {
       console.log(`  Workload bench (median) — rz%: ${avgRbRzCarryShare}% · rz carries: ${avgRbRzCarries}`);
       console.log(`  Efficiency bench (mean) — ypc: ${avgRbYpc} (n=${avgRbYpcN}) · success: ${avgRbSuccessPct}% · mtf/att: ${avgRbMtfPerAtt} · rz td rate: ${avgRbRzTdRate}% · 3rd-dn snaps: ${avgRbThirdDownSnaps}`);
       // Physical benchmarks (mean of top-32 pool)
-      const _p95 = (field, fb) => {
-        const vals = rbBenchRows.map(r => r[field]).filter(v => v != null).sort((a, b) => a - b);
-        if (vals.length < 5) return fb;
-        return Math.round(pct(vals, 95) * 100) / 100;
-      };
       avgRbSpeedScore = _mn('speedScore', 103.0);
       avgRbBmi        = _mn('bmi',         28.5);
-      // Bar scale maxima (p95 of top-32 pool — outlier-resistant ceiling for bars)
-      maxRbRushYdPg   = _p95('rushYdPg',  150.0);
-      maxRbTouchesPg  = _p95('touchesPg',  25.0);
-      maxRbYpc        = _p95('ypc',          8.0);
-      maxRbMtfPerAtt  = _p95('mtfPerAtt',   0.20);
-      maxRbTgtPg      = _p95('tgtPg',       10.0);
-      maxRbRecPg      = _p95('recPg',        8.0);
-      maxRbRecYdPg    = _p95('recYdPg',     70.0);
-      maxRbSpeedScore = _p95('speedScore', 140.0);
-      maxRbBmi        = _p95('bmi',         38.0);
-      maxRbRzCarries  = _p95('rzCarries',   55.0);
+
+      // ── Compute Q1/avg/Q3/p95 for every rbBenchRows field ────────────────────
+      // These drive classifier color bands and bar scale maxima in the frontend.
+      // No hardcoded thresholds — all ranges are derived from the actual player pool.
+      const _fs = (field, prec = 100) => {
+        const vals = rbBenchRows.map(r => r[field]).filter(v => v != null).sort((a, b) => a - b);
+        if (vals.length < 5) return null;
+        const n = vals.length, mean = vals.reduce((s,v) => s+v, 0) / n;
+        return {
+          avg: Math.round(mean * prec) / prec,
+          q1:  Math.round(vals[Math.floor((n-1)*0.25)] * prec) / prec,
+          q3:  Math.round(vals[Math.floor((n-1)*0.75)] * prec) / prec,
+          max: Math.round(vals[Math.floor((n-1)*0.95)] * prec) / prec,
+        };
+      };
+      for (const [field, prec] of [
+        ['carryPct',10],['snapPct',10],['touchesPg',10],['touchSharePct',10],
+        ['tgtPg',10],['bfTgtShare',10],['recPg',10],['recYdPg',10],
+        ['rushYdPg',10],['ypc',100],['rzCarryShare',10],['rzCarries',10],
+        ['rzTdRate',10],['successPct',10],['mtfPerAtt',1000],
+        ['thirdDownSnapPct',10],['avgTimeToLos',100],['stackedBoxPct',10],
+        ['speedScore',10],['bmi',10],
+      ]) {
+        const s = _fs(field, prec);
+        if (s) rbStats[field] = s;
+      }
+
+      // ryoePerAtt quartiles — from ryoeDB (all qualifying players, not just top-32)
+      const _ryoeVals = Object.values(ryoeDB)
+        .map(r => r.ryoePerAtt).filter(v => v != null).sort((a,b) => a-b);
+      if (_ryoeVals.length >= 5) {
+        const rn = _ryoeVals.length, rmean = _ryoeVals.reduce((s,v) => s+v, 0) / rn;
+        rbStats['ryoePerAtt'] = {
+          avg: Math.round(rmean * 100) / 100,
+          q1:  Math.round(_ryoeVals[Math.floor((rn-1)*0.25)] * 100) / 100,
+          q3:  Math.round(_ryoeVals[Math.floor((rn-1)*0.75)] * 100) / 100,
+          max: Math.round(_ryoeVals[Math.floor((rn-1)*0.95)] * 100) / 100,
+        };
+      }
+
+      // Back-fill the legacy individual maxRb* variables from rbStats for any code
+      // still reading them directly (bar calls in index.html will be updated to rbStats).
+      maxRbRushYdPg   = rbStats['rushYdPg']?.max  ?? maxRbRushYdPg;
+      maxRbTouchesPg  = rbStats['touchesPg']?.max  ?? maxRbTouchesPg;
+      maxRbYpc        = rbStats['ypc']?.max        ?? maxRbYpc;
+      maxRbMtfPerAtt  = rbStats['mtfPerAtt']?.max  ?? maxRbMtfPerAtt;
+      maxRbTgtPg      = rbStats['tgtPg']?.max      ?? maxRbTgtPg;
+      maxRbRecPg      = rbStats['recPg']?.max      ?? maxRbRecPg;
+      maxRbRecYdPg    = rbStats['recYdPg']?.max    ?? maxRbRecYdPg;
+      maxRbSpeedScore = rbStats['speedScore']?.max ?? maxRbSpeedScore;
+      maxRbBmi        = rbStats['bmi']?.max        ?? maxRbBmi;
+      maxRbRzCarries  = rbStats['rzCarries']?.max  ?? maxRbRzCarries;
+
       console.log(`  Physical bench (top 32) — speedScore: ${avgRbSpeedScore} · bmi: ${avgRbBmi}`);
       console.log(`  Bar scale maxima (p95) — rushYdPg: ${maxRbRushYdPg} · touchesPg: ${maxRbTouchesPg} · ypc: ${maxRbYpc} · ss: ${maxRbSpeedScore} · bmi: ${maxRbBmi} · rzCarries: ${maxRbRzCarries}`);
     } else {
@@ -1147,7 +1207,7 @@ async function main() {
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
-  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbBfTgtShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbAvgTimeToLos, avgRbStackedBoxPct, avgRbForty, avgRbSpeedScore, avgRbBmi, maxRbRushYdPg, maxRbTouchesPg, maxRbYpc, maxRbMtfPerAtt, maxRbTgtPg, maxRbRecPg, maxRbRecYdPg, maxRbSpeedScore, maxRbBmi, maxRbRzCarries });
+  const benchJson     = JSON.stringify({ avgTeamRushPg, avgTeamPassPg, avgTeamOffPlaysPg, avgTeamRunRate, avgTeamYpc, avgRbCarryPct, avgRbTouchesPg, avgRbTouchShare, avgRbTargetShare, avgRbBfTgtShare, avgRbTgtPg, avgRbRecPg, avgRbRecYdPg, avgRbRushYdPg, avgRbSnapPct, avgRbRzCarryShare, avgRbRzCarries, avgRbRzTdRate, avgRbSuccessPct, avgRbMtfPerAtt, avgRbThirdDownSnaps, avgRbYpc, avgRbYpcN, avgRbPpt, avgRbPptN, avgRbAvgTimeToLos, avgRbStackedBoxPct, avgRbForty, avgRbSpeedScore, avgRbBmi, maxRbRushYdPg, maxRbTouchesPg, maxRbYpc, maxRbMtfPerAtt, maxRbTgtPg, maxRbRecPg, maxRbRecYdPg, maxRbSpeedScore, maxRbBmi, maxRbRzCarries, rbStats });
   const teamJson      = JSON.stringify(teamDB);
   const depthJson     = JSON.stringify(depthDB);
   const ryoeJson      = JSON.stringify(ryoeDB);

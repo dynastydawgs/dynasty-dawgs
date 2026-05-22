@@ -3316,32 +3316,13 @@ async function loadPlayerProfile(pid) {
                     : Math.round(attPg / teamRushPg * 1000) / 10;
     const targetPct = Math.round(tgtPg / avgTeamTgtPg  * 1000) / 10;
 
-    const carryClass  = carryPct  >= 65 ? { label:'Workhorse',        color:'var(--green)'  }
-                      : carryPct  >= 50 ? { label:'Featured',         color:'var(--green)'   }
-                      : carryPct  >= 35 ? { label:'Committee',        color:'var(--orange)' }
-                      : carryPct  >= 20 ? { label:'Rotational',       color:'var(--red)' }
-                      :                   { label:'Limited',          color:'var(--red)'    };
-
-    const tgtClass    = targetPct >= 15 ? { label:'Elite Receiver',   color:'var(--green)'  }
-                      : targetPct >= 10 ? { label:'Pass-Catcher',     color:'var(--green)'   }
-                      : targetPct >= 6  ? { label:'Average',          color:'var(--orange)' }
-                      : targetPct >= 3  ? { label:'Limited',          color:'var(--red)' }
-                      :                   { label:'Minimal',          color:'var(--red)'    };
-
-    const rbTgtPgClass  = tgtPg >= 6.0 ? { label:'Elite Receiver', color:'var(--green)'  }
-                        : tgtPg >= 4.5 ? { label:'Pass-Catcher',   color:'var(--green)'   }
-                        : tgtPg >= 3.0 ? { label:'Average',        color:'var(--orange)' }
-                        : tgtPg >= 1.8 ? { label:'Limited',        color:'var(--red)' }
-                        :                { label:'Minimal',        color:'var(--red)'    };
+    const carryClass    = mkRbCls(carryPct,  'carryPct',  ['Workhorse',      'Featured',     'Committee',  'Limited'    ]);
+    const tgtClass      = mkRbCls(targetPct, 'targetSharePct', ['Elite Receiver','Pass-Catcher', 'Average',    'Minimal'    ]);
+    const rbTgtPgClass  = mkRbCls(tgtPg,     'tgtPg',     ['Elite Receiver', 'Pass-Catcher', 'Average',    'Minimal'    ]);
 
     // Backfield target share — player RB targets / total team RB targets (PBP-derived)
     const bfTgtShare      = _advEntry?.bfTgtShare ?? null;
-    const bfTgtShareClass = bfTgtShare === null    ? { label:'No Data',   color:'var(--text-dim)' }
-                          : bfTgtShare >= 70       ? { label:'Dominant',  color:'var(--green)'  }
-                          : bfTgtShare >= 57       ? { label:'Featured',  color:'var(--green)'   }
-                          : bfTgtShare >= 42       ? { label:'Average',   color:'var(--orange)' }
-                          : bfTgtShare >= 25       ? { label:'Shared',    color:'var(--red)' }
-                          :                          { label:'Limited',   color:'var(--red)'    };
+    const bfTgtShareClass = mkRbCls(bfTgtShare, 'bfTgtShare', ['Dominant', 'Featured', 'Average', 'Limited']);
 
     const roleTag     = carryPct >= 65 && tgtPg >= 4.5 ? { label:'Workhorse + Receiver',   color:'var(--green)'  }
                       : carryPct >= 65                  ? { label:'Workhorse',              color:'var(--green)'  }
@@ -3358,12 +3339,8 @@ async function loadPlayerProfile(pid) {
     const snapPct  = hasSnap ? Math.round(offSnp / tmOffSnp * 1000) / 10 : null;
     const avgSnapPct = avgRbSnapPct;
 
-    const snapClass = !hasSnap         ? { label: 'No Data',    color: 'var(--text-dim)' }
-                    : snapPct >= 75    ? { label: 'Every-Down',  color: 'var(--green)'   }
-                    : snapPct >= 65    ? { label: 'High',        color: 'var(--green)'    }
-                    : snapPct >= 50    ? { label: 'Average',     color: 'var(--orange)'  }
-                    : snapPct >= 35    ? { label: 'Limited',     color: 'var(--red)'  }
-                    :                    { label: 'Minimal',     color: 'var(--red)'     };
+    const snapClass = !hasSnap ? { label: 'No Data', color: 'var(--text-dim)' }
+                    : mkRbCls(snapPct, 'snapPct', ['Every-Down', 'High', 'Average', 'Limited']);
 
     const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'MED') => {
       const effMax  = Math.max(maxPct, pct);
@@ -3396,9 +3373,28 @@ async function loadPlayerProfile(pid) {
         <div class="pp-wl-scale">
           <span>0</span>
           <span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgVal}${unit}</span>
-          <span>${maxVal}${unit}</span>
+          <span>${effMax}${unit}</span>
         </div>`;
     };
+    // ── Data-driven RB classifier ───────────────────────────────────────────────
+    // Colors: >Q3 = green · avg–Q3 = yellow · Q1–avg = orange · <Q1 = red
+    // inv=true for metrics where lower is better (forty, avgTimeToLos, stackedBoxPct).
+    // Falls back gracefully to orange/average-tier label when rbStats isn't loaded yet.
+    const mkRbCls = (val, field, [l0, l1, l2, l3], inv = false) => {
+      if (val == null) return { label: 'No Data', color: 'var(--text-dim)' };
+      const s = rbStats?.[field];
+      if (!s) return { label: l2, color: 'var(--orange)' };
+      const v  = inv ? -val  : val;
+      const q1 = inv ? -s.q3 : s.q1;
+      const av = inv ? -s.avg : s.avg;
+      const q3 = inv ? -s.q1 : s.q3;
+      if (v >= q3) return { label: l0, color: 'var(--green)'  };
+      if (v >= av) return { label: l1, color: 'var(--accent)' };
+      if (v >= q1) return { label: l2, color: 'var(--orange)' };
+      return           { label: l3, color: 'var(--red)'    };
+    };
+    // Bar scale maximum: use computed p95 from rbStats, fall back to provided value.
+    const rbBarMax = (field, fallback) => rbStats?.[field]?.max ?? fallback;
     // Signed (bipolar) bar: maps [-maxAbs, +maxAbs] → [0%, 100%], avg tick always at 50%
     const mkBarSigned = (val, maxAbs, color, unit = '') => {
       const _f = Math.min(Math.max((val + maxAbs) / (maxAbs * 2) * 100, 0), 100).toFixed(1);
@@ -3426,16 +3422,8 @@ async function loadPlayerProfile(pid) {
     const recPg         = gp > 0 ? Math.round(rec    / gp * 10) / 10 : null;
     const recYdPg       = gp > 0 ? Math.round(recYd  / gp * 10) / 10 : null;
 
-    const rbRecPgClass   = recPg   >= 4.0 ? { label:'Elite',   color:'var(--green)'  }
-                         : recPg   >= 3.2 ? { label:'Good',    color:'var(--green)'   }
-                         : recPg   >= 1.8 ? { label:'Average', color:'var(--orange)' }
-                         : recPg   >= 1.0 ? { label:'Limited', color:'var(--red)' }
-                         :                  { label:'Minimal', color:'var(--red)'    };
-    const rbRecYdPgClass = recYdPg >= 38 ? { label:'Elite',   color:'var(--green)'  }
-                         : recYdPg >= 28 ? { label:'Good',    color:'var(--green)'   }
-                         : recYdPg >= 15 ? { label:'Average', color:'var(--orange)' }
-                         : recYdPg >= 8  ? { label:'Limited', color:'var(--red)' }
-                         :                 { label:'Minimal', color:'var(--red)'    };
+    const rbRecPgClass   = mkRbCls(recPg,   'recPg',   ['Elite', 'Good', 'Average', 'Limited']);
+    const rbRecYdPgClass = mkRbCls(recYdPg, 'recYdPg', ['Elite', 'Good', 'Average', 'Limited']);
     const avgTeamRecPg  = 22.0;                           // avg team receptions/game (~33 tgt × 66% catch rate)
     // Touch share denominator: actual team rush att/g + league-avg rec/g.
     // We don't have tm_rec from Sleeper so receiving side stays at league avg.
@@ -3444,45 +3432,24 @@ async function loadPlayerProfile(pid) {
     const avgTouchPg    = avgRbTouchesPg;
     const avgTouchShare = avgRbTouchShare;
 
-    const touchPgClass  = touchesPg >= 21 ? { label: 'Elite Volume',  color: 'var(--green)'  }
-                        : touchesPg >= 17 ? { label: 'High Volume',   color: 'var(--green)'   }
-                        : touchesPg >= 12 ? { label: 'Average',       color: 'var(--orange)' }
-                        : touchesPg >= 7  ? { label: 'Limited',       color: 'var(--red)' }
-                        :                   { label: 'Minimal',       color: 'var(--red)'    };
-
-    const touchShareClass = touchSharePct >= 42 ? { label: 'Dominant',   color: 'var(--green)'  }
-                          : touchSharePct >= 35 ? { label: 'High',       color: 'var(--green)'   }
-                          : touchSharePct >= 25 ? { label: 'Average',    color: 'var(--orange)' }
-                          : touchSharePct >= 15 ? { label: 'Committee',  color: 'var(--red)' }
-                          :                       { label: 'Limited',    color: 'var(--red)'    };
+    const touchPgClass    = mkRbCls(touchesPg,    'touchesPg',    ['Elite Volume', 'High Volume', 'Average',  'Limited'  ]);
+    const touchShareClass = mkRbCls(touchSharePct, 'touchSharePct', ['Dominant',     'High',        'Average',  'Committee']);
 
     // Points per touch (PPR pts / total touches)
     const pprTotal     = +(stats.pts_ppr ?? 0);
     const ptsPerTouch  = touches > 0 ? Math.round(pprTotal / touches * 100) / 100 : null;
     const avgPpt       = getAvgRbPpt();  // starting RB pts/touch, previous season, from benchmarks.json
 
-    const pptClass = !ptsPerTouch          ? { label: 'No Data',      color: 'var(--text-dim)' }
-                   : ptsPerTouch >= 1.25   ? { label: 'Elite',        color: 'var(--green)'   }
-                   : ptsPerTouch >= 1.03   ? { label: 'Good',         color: 'var(--green)'    }
-                   : ptsPerTouch >= 0.77   ? { label: 'Average',      color: 'var(--orange)'  }
-                   : ptsPerTouch >= 0.57   ? { label: 'Below Avg',    color: 'var(--red)'  }
-                   :                         { label: 'Poor',         color: 'var(--red)'     };
+    const pptClass = !ptsPerTouch ? { label: 'No Data', color: 'var(--text-dim)' }
+                   : mkRbCls(ptsPerTouch, 'ptsPerTouch', ['Elite', 'Good', 'Average', 'Below Avg']);
 
     // Ground Game: Yards Per Carry + Red Zone Carries
     const ypc       = rushAtt > 0 ? Math.round(rushYd / rushAtt * 10) / 10 : null;
     const avgYpc    = avgRbYpc;
-    const ypcClass  = !ypc           ? {label:'No Data',    color:'var(--text-dim)'}
-                    : ypc >= 5.5    ? {label:'Explosive',  color:'var(--green)'  }
-                    : ypc >= 4.6    ? {label:'Above Avg',  color:'var(--green)'   }
-                    : ypc >= 4.0    ? {label:'Average',    color:'var(--orange)' }
-                    : ypc >= 3.4    ? {label:'Below Avg',  color:'var(--red)' }
-                    :                 {label:'Inefficient',color:'var(--red)'    };
-    const rushYdPgClass = rushYdPg === null  ? {label:'No Data',    color:'var(--text-dim)'}
-                        : rushYdPg >= 95     ? {label:'Elite',       color:'var(--green)'  }
-                        : rushYdPg >= 73     ? {label:'Above Avg',   color:'var(--green)'   }
-                        : rushYdPg >= 47     ? {label:'Average',     color:'var(--orange)' }
-                        : rushYdPg >= 30     ? {label:'Below Avg',   color:'var(--red)' }
-                        :                      {label:'Minimal',     color:'var(--red)'    };
+    const ypcClass      = !ypc           ? {label:'No Data', color:'var(--text-dim)'}
+                        : mkRbCls(ypc,      'ypc',      ['Explosive', 'Above Avg', 'Average', 'Below Avg']);
+    const rushYdPgClass = rushYdPg === null ? {label:'No Data', color:'var(--text-dim)'}
+                        : mkRbCls(rushYdPg, 'rushYdPg', ['Elite',     'Above Avg', 'Average', 'Minimal'  ]);
     // First Down Rate — from ESPN player stats (rushingFirstDowns / rushingAttempts)
     // Replaces the broken RZ Carries card (Sleeper doesn't expose red zone rush attempts)
     const rushFD      = espnPlayerStats['rushingFirstDowns'] ?? null;
@@ -3514,20 +3481,12 @@ async function loadPlayerProfile(pid) {
     const avgTtLos       = _ryoeEntry?.avgTimeToLos  ?? null;  // sec from snap to line of scrimmage
     const stackedBoxPct  = _ryoeEntry?.stackedBoxPct ?? null;  // % carries vs ≥8 defenders in box
 
-    const stackedBoxClass = stackedBoxPct === null  ? { label:'No Data',      color:'var(--text-dim)' }
-                          : stackedBoxPct >= 35     ? { label:'Stacked Box',  color:'var(--red)'     }
-                          : stackedBoxPct >= 28     ? { label:'Heavy Box',    color:'var(--red)'     }
-                          : stackedBoxPct >= 20     ? { label:'Average',      color:'var(--orange)'  }
-                          : stackedBoxPct >= 14     ? { label:'Light Box',    color:'var(--green)'  }
-                          :                           { label:'Open Lanes',   color:'var(--green)'   };
+    const stackedBoxClass = stackedBoxPct === null ? { label:'No Data', color:'var(--text-dim)' }
+                          : mkRbCls(stackedBoxPct, 'stackedBoxPct', ['Open Lanes','Light Box','Average','Heavy Box'], true);
 
     // Lower time to LOS = better (quicker through hole). Invert colors.
-    const ttLosClass    = avgTtLos === null          ? { label:'No Data',      color:'var(--text-dim)' }
-                        : avgTtLos <= 2.1            ? { label:'Decisive',     color:'var(--green)'   }
-                        : avgTtLos <= 2.4            ? { label:'Quick',        color:'var(--green)'    }
-                        : avgTtLos <= 2.7            ? { label:'Average',      color:'var(--orange)'  }
-                        : avgTtLos <= 3.0            ? { label:'Hesitant',     color:'var(--red)'  }
-                        :                              { label:'Slow Start',   color:'var(--red)'     };
+    const ttLosClass    = avgTtLos === null ? { label:'No Data', color:'var(--text-dim)' }
+                        : mkRbCls(avgTtLos, 'avgTimeToLos', ['Decisive','Quick','Average','Hesitant'], true);
 
     // Physical — height/weight from Sleeper, forty + speed score from advstatsDB + combine
     const forty         = _advEntry?.forty ?? null;
@@ -3541,12 +3500,8 @@ async function loadPlayerProfile(pid) {
     // Rewards heavy players who run fast. NFL RBs: ~85 (slow/light) → 130+ (elite).
     const speedScore    = (playerWt && forty)    ? Math.round(playerWt * 200 / Math.pow(forty, 4) * 10) / 10    : null;
 
-    const fortyClass    = forty === null  ? { label:'No Combine Data', color:'var(--text-dim)' }
-                        : forty <= 4.33   ? { label:'Elite Speed',     color:'var(--green)'   }
-                        : forty <= 4.43   ? { label:'Fast',            color:'var(--green)'    }
-                        : forty <= 4.55   ? { label:'Average',         color:'var(--orange)'  }
-                        : forty <= 4.65   ? { label:'Below Avg',       color:'var(--red)'  }
-                        :                   { label:'Slow',            color:'var(--red)'     };
+    const fortyClass    = forty === null ? { label:'No Combine Data', color:'var(--text-dim)' }
+                        : mkRbCls(forty, 'forty', ['Elite Speed','Fast','Average','Below Avg'], true);
 
     const htPctClass    = heightPct === null ? { label:'No Data',     color:'var(--text-dim)' }
                         : heightPct >= 75    ? { label:'Tall',         color:'var(--green)'   }
@@ -3560,19 +3515,11 @@ async function loadPlayerProfile(pid) {
                         : weightPct >= 25    ? { label:'Light',        color:'var(--orange)'  }
                         :                      { label:'Very Light',   color:'var(--red)'     };
 
-    const bmiClass      = bmi === null ? { label:'No Data',       color:'var(--text-dim)' }
-                        : bmi >= 31    ? { label:'Power Build',   color:'var(--green)'   }
-                        : bmi >= 29    ? { label:'3-Down Build',  color:'var(--green)'    }
-                        : bmi >= 27    ? { label:'Standard',      color:'var(--orange)'  }
-                        : bmi >= 25    ? { label:'Lean',          color:'var(--red)'  }
-                        :                { label:'Very Lean',     color:'var(--red)'     };
+    const bmiClass      = bmi === null ? { label:'No Data', color:'var(--text-dim)' }
+                        : mkRbCls(bmi, 'bmi', ['Power Build','3-Down Build','Standard','Lean']);
 
     const ssClass       = speedScore === null ? { label:'N/A — No Combine', color:'var(--text-dim)' }
-                        : speedScore >= 120   ? { label:'Elite',             color:'var(--green)'   }
-                        : speedScore >= 112   ? { label:'Good',              color:'var(--green)'    }
-                        : speedScore >= 93    ? { label:'Average',           color:'var(--orange)'  }
-                        : speedScore >= 80    ? { label:'Below Avg',         color:'var(--red)'  }
-                        :                       { label:'Poor',              color:'var(--red)'     };
+                        : mkRbCls(speedScore, 'speedScore', ['Elite','Good','Average','Below Avg']);
 
     // Classifiers for new Situation and Efficiency cards
     // Use === null (not !value) so that legitimate low values (e.g. run rate near 0) don't
@@ -3623,12 +3570,8 @@ async function loadPlayerProfile(pid) {
       : offRank <= 24 ? {label:'Below Avg',  color:'var(--red)' }
       :                 {label:'Weak',       color:'var(--red)'    };
 
-    const ryoeClass      = ryoePerAtt === null ? {label:'No Data',  color:'var(--text-dim)'}
-      : ryoePerAtt >= 0.8  ? {label:'Elite',       color:'var(--green)'  }
-      : ryoePerAtt >= 0.3  ? {label:'Above Avg',   color:'var(--green)'   }
-      : ryoePerAtt >= -0.3 ? {label:'On Par',      color:'var(--orange)' }
-      : ryoePerAtt >= -0.8 ? {label:'Below Avg',   color:'var(--red)' }
-      :                      {label:'Inefficient', color:'var(--red)'    };
+    const ryoeClass      = ryoePerAtt === null ? {label:'No Data', color:'var(--text-dim)'}
+      : mkRbCls(ryoePerAtt, 'ryoePerAtt', ['Elite','Above Avg','On Par','Below Avg']);
 
     // ── Advanced RB stats — Success% + MTF/att (PFR via nflverse, advstatsdb.json) ──
     const successPct    = _advEntry?.successPct  ?? null;
@@ -3636,58 +3579,36 @@ async function loadPlayerProfile(pid) {
     const adsBrkTkl     = _advEntry?.brkTkl      ?? null;
     const adsAtt        = _advEntry?.att         ?? null;
 
-    const successClass = successPct === null ? {label:'No Data',  color:'var(--text-dim)'}
-      : successPct >= 48  ? {label:'Elite',      color:'var(--green)'  }
-      : successPct >= 44  ? {label:'Good',       color:'var(--green)'   }
-      : successPct >= 38  ? {label:'Average',    color:'var(--orange)' }
-      : successPct >= 33  ? {label:'Below Avg',  color:'var(--red)' }
-      :                     {label:'Poor',       color:'var(--red)'    };
+    const successClass = successPct === null ? {label:'No Data', color:'var(--text-dim)'}
+      : mkRbCls(successPct, 'successPct', ['Elite','Good','Average','Below Avg']);
 
-    const mtfAdsClass = adsMtfPerAtt === null ? {label:'No Data',  color:'var(--text-dim)'}
-      : adsMtfPerAtt >= 0.110 ? {label:'Elite',      color:'var(--green)'  }
-      : adsMtfPerAtt >= 0.083 ? {label:'Good',       color:'var(--green)'   }
-      : adsMtfPerAtt >= 0.047 ? {label:'Average',    color:'var(--orange)' }
-      : adsMtfPerAtt >= 0.025 ? {label:'Below Avg',  color:'var(--red)' }
-      :                         {label:'Poor',       color:'var(--red)'    };
+    const mtfAdsClass = adsMtfPerAtt === null ? {label:'No Data', color:'var(--text-dim)'}
+      : mkRbCls(adsMtfPerAtt, 'mtfPerAtt', ['Elite','Good','Average','Below Avg']);
 
     // ── Redzone carry share (PBP-derived, advstatsdb.json) ───────────────────
     const rzCarryShare = _advEntry?.rzCarryShare ?? null;
     const rzCarries    = _advEntry?.rzCarries    ?? null;
 
-    const rzCarryClass = rzCarryShare === null ? {label:'No Data',     color:'var(--text-dim)'}
-      : rzCarryShare >= 55 ? {label:'RZ Dominant',  color:'var(--green)'  }
-      : rzCarryShare >= 45 ? {label:'RZ Featured',  color:'var(--green)'   }
-      : rzCarryShare >= 29 ? {label:'RZ Shared',    color:'var(--orange)' }
-      :                      {label:'RZ Rotational',color:'var(--red)'    };
+    const rzCarryClass = rzCarryShare === null ? {label:'No Data', color:'var(--text-dim)'}
+      : mkRbCls(rzCarryShare, 'rzCarryShare', ['RZ Dominant','RZ Featured','RZ Shared','RZ Rotational']);
 
-    const rzCarriesClass = rzCarries === null ? {label:'No Data',   color:'var(--text-dim)'}
-      : rzCarries >= 35 ? {label:'Elite',        color:'var(--green)'  }
-      : rzCarries >= 27 ? {label:'Above Avg',    color:'var(--green)'   }
-      : rzCarries >= 15 ? {label:'Average',      color:'var(--orange)' }
-      : rzCarries >= 7  ? {label:'Below Avg',    color:'var(--red)' }
-      :                   {label:'Minimal',      color:'var(--red)'    };
+    const rzCarriesClass = rzCarries === null ? {label:'No Data', color:'var(--text-dim)'}
+      : mkRbCls(rzCarries, 'rzCarries', ['Elite','Above Avg','Average','Below Avg']);
 
     // ── RZ TD rate (TDs / RZ carries, advstatsdb.json) ───────────────────────
     const rzTdRate  = _advEntry?.rzTdRate ?? null;
     const rzTDs     = _advEntry?.rzTDs    ?? null;
 
-    const rzTdClass = rzTdRate === null ? {label:'No Data',   color:'var(--text-dim)'}
-      : rzTdRate >= 25 ? {label:'Elite Finisher',  color:'var(--green)'  }
-      : rzTdRate >= 20 ? {label:'Good Finisher',   color:'var(--green)'   }
-      : rzTdRate >= 13 ? {label:'Average',         color:'var(--orange)' }
-      : rzTdRate >= 7  ? {label:'Below Avg',       color:'var(--red)' }
-      :                  {label:'Poor',            color:'var(--red)'    };
+    const rzTdClass = rzTdRate === null ? {label:'No Data', color:'var(--text-dim)'}
+      : mkRbCls(rzTdRate, 'rzTdRate', ['Elite Finisher','Good Finisher','Average','Below Avg']);
 
     // ── 3rd-down snap% (player 3rd-dn snaps / team total 3rd-dn plays, advstatsdb.json) ──
     const thirdDownSnapPct   = _advEntry?.thirdDownSnapPct ?? null;
     const tdRawSnaps         = _advEntry?.snaps  ?? null;
     const tdRawGames         = _advEntry?.games  ?? null;
     const tdSnapsPerGame     = tdRawSnaps !== null && tdRawGames ? (tdRawSnaps / tdRawGames).toFixed(1) : null;
-    const tdSnapsClass     = thirdDownSnapPct === null ? {label:'No Data',            color:'var(--text-dim)'}
-      : thirdDownSnapPct >= 55 ? {label:'3rd-Down Specialist', color:'var(--green)'  }
-      : thirdDownSnapPct >= 42 ? {label:'Featured',            color:'var(--green)'   }
-      : thirdDownSnapPct >= 22 ? {label:'Rotational',          color:'var(--orange)' }
-      :                          {label:'Limited',             color:'var(--red)'    };
+    const tdSnapsClass     = thirdDownSnapPct === null ? {label:'No Data', color:'var(--text-dim)'}
+      : mkRbCls(thirdDownSnapPct, 'thirdDownSnapPct', ['3rd-Down Specialist','Featured','Rotational','Limited']);
 
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
     // Efficiency: YPC 40% · Pts/Touch 35% · First Down Rate 25%
@@ -4061,7 +3982,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, 6.5, avgYpc, ypcClass.color, '', 'AVG')}
+                   ${mkBarVal(ypc, rbBarMax('ypc', 6.5), avgYpc, ypcClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4091,7 +4012,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${successClass.color};">${successClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
-                   ${mkBarVal(successPct, 60, avgRbSuccessPct, successClass.color, '%', 'AVG')}
+                   ${mkBarVal(successPct, rbBarMax('successPct', 60), avgRbSuccessPct, successClass.color, '%', 'AVG')}
                    <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · 65 RBs (min 50 att) · nflverse PBP</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4106,7 +4027,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
-                   ${mkBarVal(adsMtfPerAtt, 0.15, avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
+                   ${mkBarVal(adsMtfPerAtt, rbBarMax('mtfPerAtt', 0.15), avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}66 RBs (min 50 carries) · PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4121,7 +4042,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, 1.6, avgPpt, pptClass.color, ' pts', 'AVG')}
+                   ${mkBarVal(ptsPerTouch, rbBarMax('ptsPerTouch', 1.6), avgPpt, pptClass.color, ' pts', 'AVG')}
                    <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} PPR pts · ${touches} touches · ${gp} gp${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''}</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4136,7 +4057,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rzTdClass.color};">${rzTdClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
-                   ${mkBar(rzTdRate, 30, avgRbRzTdRate, rzTdClass.color, 'AVG')}
+                   ${mkBar(rzTdRate, rbBarMax('rzTdRate', 30), avgRbRzTdRate, rzTdClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
                  </div>`
               : ''}
@@ -4537,7 +4458,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${ypcClass.color};">${ypcClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${ypcClass.color};">${ypc}<span> yds</span></div>
-                   ${mkBarVal(ypc, 6.5, avgYpc, ypcClass.color, '', 'AVG')}
+                   ${mkBarVal(ypc, rbBarMax('ypc', 6.5), avgYpc, ypcClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${rushYd} yds on ${rushAtt} att${avgRbYpcN > 0 ? ` · top 64 RBs by carries (min 50) · nflverse PBP` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4552,7 +4473,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${pptClass.color};">${pptClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${pptClass.color};">${ptsPerTouch.toFixed(2)}<span> pts</span></div>
-                   ${mkBarVal(ptsPerTouch, 1.6, avgPpt, pptClass.color, ' pts', 'AVG')}
+                   ${mkBarVal(ptsPerTouch, rbBarMax('ptsPerTouch', 1.6), avgPpt, pptClass.color, ' pts', 'AVG')}
                    <div class="pp-wl-card-sub">${pprTotal.toFixed(1)} pts · ${touches} touches${avgRbPptN > 0 ? ` · ${avgRbPptN} RBs (min 50 touches) · Sleeper` : ''} · 2025 stats</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4582,7 +4503,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${successClass.color};">${successClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${successClass.color};">${successPct}<span>%</span></div>
-                   ${mkBarVal(successPct, 60, avgRbSuccessPct, successClass.color, '%', 'AVG')}
+                   ${mkBarVal(successPct, rbBarMax('successPct', 60), avgRbSuccessPct, successClass.color, '%', 'AVG')}
                    <div class="pp-wl-card-sub">successful on ≥40/60/100% of needed yds · 65 RBs (min 50 att) · nflverse PBP</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4597,7 +4518,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${mtfAdsClass.color};">${mtfAdsClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${mtfAdsClass.color};">${adsMtfPerAtt}<span> / att</span></div>
-                   ${mkBarVal(adsMtfPerAtt, 0.15, avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
+                   ${mkBarVal(adsMtfPerAtt, rbBarMax('mtfPerAtt', 0.15), avgRbMtfPerAtt, mtfAdsClass.color, '', 'AVG')}
                    <div class="pp-wl-card-sub">${adsBrkTkl !== null ? `${adsBrkTkl} forced on ${adsAtt} att · ` : ''}66 RBs (min 50 carries) · PFR</div>
                  </div>`
               : `<div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
@@ -4612,7 +4533,7 @@ async function loadPlayerProfile(pid) {
                      <span class="pp-wl-card-cls" style="color:${rzTdClass.color};">${rzTdClass.label}</span>
                    </div>
                    <div class="pp-wl-card-val" style="color:${rzTdClass.color};">${rzTdRate}<span>%</span></div>
-                   ${mkBar(rzTdRate, 30, avgRbRzTdRate, rzTdClass.color, 'AVG')}
+                   ${mkBar(rzTdRate, rbBarMax('rzTdRate', 30), avgRbRzTdRate, rzTdClass.color, 'AVG')}
                    <div class="pp-wl-card-sub">${rzTDs !== null ? `${rzTDs} TDs on ${rzCarries} RZ carries · ` : ''}TDs per RZ carry · 2025 season · nflverse PBP</div>
                  </div>`
               : ''}
@@ -5734,6 +5655,9 @@ let avgRbStackedBoxPct = 25.4;   // mean stacked box rate (≥8 defenders) — N
 let avgRbForty         =  4.49;  // median 40-yard dash (sec) — combine data, all RBs last 15 yrs
 let avgRbSpeedScore    = 103.0;  // mean Speed Score (wt*200/forty^4) — top-32 RBs
 let avgRbBmi           =  28.5;  // mean BMI — top-32 RBs
+// Quartile stats for every RB metric — { avg, q1, q3, max } per field.
+// Populated from benchmarks.json after CI; drives all classifier colors and bar maxes.
+let rbStats = {};
 // Bar scale maxima — p95 of top-32 pool (prevents extreme outlier from compressing bars)
 let maxRbRushYdPg      = 130.0;
 let maxRbTouchesPg     =  25.0;
@@ -6412,6 +6336,7 @@ async function loadPrebuiltData(onProgress) {
     if (bench?.maxRbSpeedScore)   maxRbSpeedScore   = bench.maxRbSpeedScore;
     if (bench?.maxRbBmi)          maxRbBmi          = bench.maxRbBmi;
     if (bench?.maxRbRzCarries)    maxRbRzCarries    = bench.maxRbRzCarries;
+    if (bench?.rbStats)           rbStats           = bench.rbStats;
 
     // teamdb.json is optional — new cards show "—" if it hasn't been built yet
     if (teamResRaw?.ok) {
@@ -6516,6 +6441,7 @@ function _loadOptionalDataFiles() {
           if (bench?.maxRbSpeedScore)    maxRbSpeedScore    = bench.maxRbSpeedScore;
           if (bench?.maxRbBmi)           maxRbBmi           = bench.maxRbBmi;
           if (bench?.maxRbRzCarries)     maxRbRzCarries     = bench.maxRbRzCarries;
+          if (bench?.rbStats)            rbStats            = bench.rbStats;
         } catch(e) {}
       }
       if (teamRes?.ok)     try { teamDB     = await teamRes.json();     } catch(e) {}
