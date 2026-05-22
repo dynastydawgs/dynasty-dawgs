@@ -3609,20 +3609,43 @@ async function loadPlayerProfile(pid) {
     const tdSnapsClass     = thirdDownSnapPct === null ? {label:'No Data', color:'var(--text-dim)'}
       : mkRbCls(thirdDownSnapPct, 'thirdDownSnapPct', ['3rd-Down Specialist','Featured','Rotational','Limited']);
 
+    // ── Unified quartile scorer — drives ALL section and scorecard sub-scores ──
+    // Piecewise linear: q1→25, avg→50, q3→75, with symmetric extrapolation beyond.
+    // Identical logic to mkRbCls so classifier labels and numeric scores are always
+    // consistent (e.g. "Above Avg" label ↔ score in [50, 75]).
+    // Returns null when rbStats[field] not yet loaded — parts are excluded from avg.
+    const _qs = (val, stats, inv = false) => {
+      if (val == null || !stats) return null;
+      const v  = inv ? -val      : val;
+      const q1 = inv ? -stats.q3 : stats.q1;
+      const av = inv ? -stats.avg : stats.avg;
+      const q3 = inv ? -stats.q1  : stats.q3;
+      if (q3 === av || av === q1) return 50; // degenerate — return neutral
+      if (v >= q3) return Math.min(100, 75 + (v - q3) / (q3 - av) * 25);
+      if (v >= av) return 50  + (v - av) / (q3 - av) * 25;
+      if (v >= q1) return 25  + (v - q1) / (av - q1) * 25;
+      return Math.max(0, 25 - (q1 - v) / (av - q1) * 25);
+    };
+    const _rbScore = (val, field, inv = false) => _qs(val, rbStats?.[field], inv);
+    const _tmScore = (val, field, inv = false) => _qs(val, teamStats?.[field], inv);
+
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
     // Efficiency: YPC 40% · Pts/Touch 35% · First Down Rate 25%
-    const _ypcS  = ypc !== null        ? Math.min(100, Math.max(0, (ypc - 1.5) / 5.5 * 100))       : null;
-    const _pptS  = ptsPerTouch         ? Math.min(100, ptsPerTouch / 2.0 * 100)                     : null;
-    const _fdS   = rushFDRate !== null ? Math.min(100, Math.max(0, (rushFDRate - 10) / 20 * 100))   : null;
+    const _ypcS  = _rbScore(ypc, 'ypc');
+    const _pptS  = _rbScore(ptsPerTouch, 'ptsPerTouch');
+    const _fdS   = rushFDRate !== null ? Math.min(100, Math.max(0, (rushFDRate - 10) / 20 * 100)) : null;
     const _effParts = [{s:_ypcS,w:0.40},{s:_pptS,w:0.35},{s:_fdS,w:0.25}].filter(c=>c.s!==null);
     const _effW     = _effParts.reduce((a,c)=>a+c.w,0)||1;
     const _effScore = _effParts.length ? _effParts.reduce((a,c)=>a+c.s*c.w,0)/_effW : null;
 
     // Workload: Carry 40% · Snap 30% · Touches/g 20% · Touch share 10%
-    const _snapProxy = hasSnap ? Math.min(100, snapPct) : Math.min(100, carryPct * 0.85);
-    const _tchS      = Math.min(100, touchesPg / 28 * 100);
-    const _tshS      = Math.min(100, touchSharePct / 60 * 100);
-    const _wklScore  = Math.min(100, carryPct) * 0.40 + _snapProxy * 0.30 + _tchS * 0.20 + _tshS * 0.10;
+    const _cryS     = _rbScore(carryPct,     'carryPct')     ?? Math.min(100, carryPct);
+    const _snapProxy = hasSnap
+      ? (_rbScore(snapPct, 'snapPct') ?? Math.min(100, snapPct))
+      : Math.min(100, carryPct * 0.85);
+    const _tchS      = _rbScore(touchesPg,    'touchesPg')    ?? Math.min(100, touchesPg / 28 * 100);
+    const _tshS      = _rbScore(touchSharePct,'touchSharePct') ?? Math.min(100, touchSharePct / 60 * 100);
+    const _wklScore  = _cryS * 0.40 + _snapProxy * 0.30 + _tchS * 0.20 + _tshS * 0.10;
 
     // Situation: Depth chart 55% · Team rush volume 45%
     // ESPN depth chart preferred (updated nightly); Sleeper depth_chart_order as fallback.
@@ -3648,19 +3671,13 @@ async function loadPlayerProfile(pid) {
     // ── Section grade scores (0–100) — one per section, based only on cards in that section ──
 
     // Efficiency: YPC 25% · RYOE/att 20% · Success% 20% · MTF/att 15% · PPR pts/touch 15% · RZ TD rate 5%
-    // Scales calibrated so league average ≈ 50:
-    //   YPC floor 2.0, ceiling 7.0 → avg 4.3 ≈ 46
-    //   RYOE centered at 0 → avg 0 = 50
-    //   Success floor 28%, ceiling 56% → avg 41% ≈ 46
-    //   MTF ceiling 0.12 → avg 0.062 ≈ 52
-    //   PPR pts/touch ceiling 1.7 → avg 0.854 ≈ 50
-    //   RZ TD rate ceiling 28% → avg 14.5% ≈ 52
-    const _ypcS2   = ypc !== null          ? Math.min(100, Math.max(0, (ypc - 2.0) / 5.0 * 100))          : null;
-    const _ryoeS2  = ryoePerAtt !== null   ? Math.min(100, Math.max(0, (ryoePerAtt + 2.0) / 4.0 * 100))   : null;
-    const _succS   = successPct !== null   ? Math.min(100, Math.max(0, (successPct - 28) / 28 * 100))      : null;
-    const _mtfS    = adsMtfPerAtt !== null ? Math.min(100, adsMtfPerAtt / 0.12 * 100)                      : null;
-    const _pptS2   = ptsPerTouch           ? Math.min(100, ptsPerTouch / 1.7 * 100)                        : null;
-    const _rzTdS   = rzTdRate !== null     ? Math.min(100, rzTdRate / 28 * 100)                             : null;
+    // All sub-scores via _rbScore → avg player = 50 by construction, consistent with classifier labels.
+    const _ypcS2   = _rbScore(ypc,          'ypc');
+    const _ryoeS2  = _rbScore(ryoePerAtt,   'ryoePerAtt');
+    const _succS   = _rbScore(successPct,   'successPct');
+    const _mtfS    = _rbScore(adsMtfPerAtt, 'mtfPerAtt');
+    const _pptS2   = _rbScore(ptsPerTouch,  'ptsPerTouch');
+    const _rzTdS   = _rbScore(rzTdRate,     'rzTdRate');
     const _effParts2 = [{s:_ypcS2,w:0.25},{s:_ryoeS2,w:0.20},{s:_succS,w:0.20},{s:_mtfS,w:0.15},{s:_pptS2,w:0.15},{s:_rzTdS,w:0.05}].filter(c=>c.s!==null);
     const _effW2   = _effParts2.reduce((a,c)=>a+c.w,0)||1;
     const _effScore2 = _effParts2.length ? _effParts2.reduce((a,c)=>a+c.s*c.w,0)/_effW2 : null;
@@ -3668,54 +3685,36 @@ async function loadPlayerProfile(pid) {
     // Opportunity & Usage:
     //   — Opportunity cluster (65%): carry share 22% · snap% 18% · RZ carry share 12% · touch share 8% · 3rd-down snap% 5%
     //   — Usage cluster     (35%): rush yds/g 15% · touches/g 12% · RZ carries 8%
-    // Scales calibrated so avg top-32 RB ≈ 50:
-    //   carry share: floor 20, range 65 → avg 56% ≈ 55
-    //   snap%: direct → avg 62% ≈ 62 (ok; featured backs skew high)
-    //   RZ carry share: ceiling 70% → avg 38% ≈ 54
-    //   touch share: ceiling 60% → avg 31% ≈ 52
-    //   3rd-down snap%: ceiling 65% → avg 30% ≈ 46
-    //   rush yds/g: ceiling 120 → avg 60 ≈ 50
-    //   touches/g: ceiling 28 → avg 15 ≈ 54
-    //   RZ carries: ceiling 50 → avg 22 ≈ 44
-    const _cryS2   = Math.min(100, Math.max(0, (carryPct - 20) / 65 * 100));
-    const _snpS    = hasSnap               ? Math.min(100, snapPct)                                         : null;
-    const _rzCSs   = rzCarryShare !== null ? Math.min(100, Math.max(0, rzCarryShare / 70 * 100))            : null;
-    const _tshS2   = Math.min(100, touchSharePct / 60 * 100);
-    const _tdSnpS  = thirdDownSnapPct !== null ? Math.min(100, Math.max(0, thirdDownSnapPct / 65 * 100))    : null;
-    const _rushYdS = rushYdPg !== null     ? Math.min(100, Math.max(0, rushYdPg / 120 * 100))              : null;
-    const _tchS2   = Math.min(100, touchesPg / 28 * 100);
-    const _rzCrS   = rzCarries !== null    ? Math.min(100, rzCarries / 50 * 100)                            : null;
+    const _cryS2   = _rbScore(carryPct,         'carryPct');
+    const _snpS    = hasSnap ? _rbScore(snapPct, 'snapPct') : null;
+    const _rzCSs   = _rbScore(rzCarryShare,      'rzCarryShare');
+    const _tshS2   = _rbScore(touchSharePct,     'touchSharePct');
+    const _tdSnpS  = _rbScore(thirdDownSnapPct,  'thirdDownSnapPct');
+    const _rushYdS = _rbScore(rushYdPg,          'rushYdPg');
+    const _tchS2   = _rbScore(touchesPg,         'touchesPg');
+    const _rzCrS   = _rbScore(rzCarries,         'rzCarries');
     const _usageParts = [{s:_cryS2,w:0.22},{s:_snpS,w:0.18},{s:_rzCSs,w:0.12},{s:_tshS2,w:0.08},{s:_tdSnpS,w:0.05},{s:_rushYdS,w:0.15},{s:_tchS2,w:0.12},{s:_rzCrS,w:0.08}].filter(c=>c.s!==null);
     const _usageW    = _usageParts.reduce((a,c)=>a+c.w,0)||1;
     const _usageScore = _usageParts.length ? _usageParts.reduce((a,c)=>a+c.s*c.w,0)/_usageW : null;
 
     // Receiving: backfield tgt share 35% · tgt/g 30% · rec/g 20% · rec yds/g 15%
-    // Scales calibrated so avg top-32 RB ≈ 50:
-    //   BF tgt share: direct % → avg 50% = 50
-    //   tgt/g: ceiling 7 → avg 3.5 ≈ 50
-    //   rec/g: ceiling 5 → avg 2.5 = 50
-    //   rec yds/g: ceiling 44 → avg 22 = 50
-    const _bfTgtS  = bfTgtShare !== null   ? Math.min(100, bfTgtShare)                                      : null;
-    const _tgtPgS2 = Math.min(100, tgtPg / 7 * 100);
-    const _recPgS2 = recPg   !== null      ? Math.min(100, recPg   / 5  * 100)                              : null;
-    const _recYdS  = recYdPg !== null      ? Math.min(100, recYdPg / 44 * 100)                              : null;
+    const _bfTgtS  = _rbScore(bfTgtShare, 'bfTgtShare');
+    const _tgtPgS2 = _rbScore(tgtPg,      'tgtPg');
+    const _recPgS2 = _rbScore(recPg,      'recPg');
+    const _recYdS  = _rbScore(recYdPg,    'recYdPg');
     const _recParts  = [{s:_bfTgtS,w:0.35},{s:_tgtPgS2,w:0.30},{s:_recPgS2,w:0.20},{s:_recYdS,w:0.15}].filter(c=>c.s!==null);
     const _recW      = _recParts.reduce((a,c)=>a+c.w,0)||1;
     const _recScore  = _recParts.length ? _recParts.reduce((a,c)=>a+c.s*c.w,0)/_recW : null;
 
     // Physical (combine available):    speed score 30% · 40-yd dash 25% · time to LOS 20% · BMI 15% · height 5% · weight 5%
     // Physical (no combine data):      time to LOS 50% · BMI 30% · weight 12% · height 8%
-    // Scales calibrated so avg top-32 RB ≈ 50:
-    //   speed score: floor 80, range 45 → avg 103 ≈ 51
-    //   40-yd dash: inverted, range 0.9 → avg 4.49s ≈ 57
-    //   time to LOS: inverted, range 2.5 → avg 2.5s ≈ 60
-    //   BMI: floor 22, range 12 → avg 28.5 ≈ 54
-    const _ssS     = speedScore !== null   ? Math.min(100, Math.max(0, (speedScore - 80) / 45 * 100))      : null;
-    const _fortyS  = forty !== null        ? Math.min(100, Math.max(0, (5.0 - forty) / 0.9 * 100))         : null;
-    const _ttLosS  = avgTtLos !== null     ? Math.min(100, Math.max(0, (4.0 - avgTtLos) / 2.5 * 100))      : null;
-    const _bmiS    = bmi !== null          ? Math.min(100, Math.max(0, (bmi - 22) / 12 * 100))              : null;
-    const _htS     = heightPct !== null    ? heightPct                                                       : null;
-    const _wtS     = weightPct !== null    ? weightPct                                                       : null;
+    // height/weight use distribution percentile (0-100, 50th pct = 50) — no rbStats field needed.
+    const _ssS     = _rbScore(speedScore, 'speedScore');
+    const _fortyS  = _rbScore(forty,      'forty',        true);  // inverted: lower = better
+    const _ttLosS  = _rbScore(avgTtLos,   'avgTimeToLos', true);  // inverted: lower = better
+    const _bmiS    = _rbScore(bmi,        'bmi');
+    const _htS     = heightPct !== null ? heightPct : null;
+    const _wtS     = weightPct !== null ? weightPct : null;
     const _noCombine = _ssS === null && _fortyS === null;
     const _phyParts  = _noCombine
       ? [{s:_ttLosS,w:0.50},{s:_bmiS,w:0.30},{s:_wtS,w:0.12},{s:_htS,w:0.08}].filter(c=>c.s!==null)
@@ -3724,19 +3723,13 @@ async function loadPlayerProfile(pid) {
     const _phyScore  = _phyParts.length ? _phyParts.reduce((a,c)=>a+c.s*c.w,0)/_phyW : null;
 
     // Situation: run rate 25% · rush att/g 25% · run blocking 20% · offense rank 15% · off plays/g 10% · stacked box 5%
-    // Scales calibrated so avg top-32 RB ≈ 50:
-    //   run rate: floor 30, range 25 → avg 41% ≈ 44
-    //   rush att/g: floor 18, range 16 → avg 26 ≈ 50
-    //   run blocking: floor 3.0, range 2.4 → avg team YPC 4.2 ≈ 50
-    //   offense rank: (33-rank)/31 → avg rank 16.5 ≈ 53
-    //   off plays/g: floor 50, range 25 → avg 63 ≈ 52
-    //   stacked box: inverted, ceiling 50% → avg 25.4% ≈ 49
-    const _runRateS  = runRate      !== null ? Math.min(100, Math.max(0, (runRate - 30) / 25 * 100))        : null;
-    const _rushAttS  = Math.min(100, Math.max(0, (teamRushPg - 18) / 16 * 100));
-    const _blkS      = teamYpc      !== null ? Math.min(100, Math.max(0, (teamYpc - 3.0) / 2.4 * 100))      : null;
-    const _offRankS  = offRank      !== null ? Math.min(100, Math.max(0, (33 - offRank) / 31 * 100))        : null;
-    const _offPlsS   = offPlaysPg   !== null ? Math.min(100, Math.max(0, (offPlaysPg - 50) / 25 * 100))     : null;
-    const _stkBoxS   = stackedBoxPct !== null ? Math.min(100, Math.max(0, (50 - stackedBoxPct) / 50 * 100)) : null;
+    // Team metrics via _tmScore; stacked box is an RB metric (inv); offense rank is rank-based (kept linear).
+    const _runRateS  = _tmScore(runRate,      'runRate');
+    const _rushAttS  = _tmScore(teamRushPg,   'rushAttPg')  ?? Math.min(100, Math.max(0, (teamRushPg - 18) / 16 * 100));
+    const _blkS      = _tmScore(teamYpc,      'teamYpc');
+    const _offRankS  = offRank !== null ? Math.min(100, Math.max(0, (33 - offRank) / 31 * 100)) : null;
+    const _offPlsS   = _tmScore(offPlaysPg,   'offPlaysPg');
+    const _stkBoxS   = _rbScore(stackedBoxPct,'stackedBoxPct', true); // inv: lower stacked box = better
     const _sitParts2 = [{s:_runRateS,w:0.25},{s:_rushAttS,w:0.25},{s:_blkS,w:0.20},{s:_offRankS,w:0.15},{s:_offPlsS,w:0.10},{s:_stkBoxS,w:0.05}].filter(c=>c.s!==null);
     const _sitW2     = _sitParts2.reduce((a,c)=>a+c.w,0)||1;
     const _sitScore2 = _sitParts2.reduce((a,c)=>a+c.s*c.w,0)/_sitW2;
