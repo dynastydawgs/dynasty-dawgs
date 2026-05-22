@@ -3300,8 +3300,6 @@ async function loadPlayerProfile(pid) {
     const teamYpc    = teamCtx?.teamYpc    ?? null;
     const offRating  = teamCtx?.offRating  ?? null;
 
-    const avgTeamRushPg = teamRushPg; // alias used in touch-share calc below
-
     // ── Advanced RB stats lookup (needed before carryPct) ────────────────────
     const _advNorm   = n => (n ?? '').replace(/['.]/g, '').replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
     const _advSpNorm = _advNorm(sp?.name);
