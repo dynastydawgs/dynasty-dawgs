@@ -3681,15 +3681,15 @@ async function loadPlayerProfile(pid) {
 
     // ── Section grade scores (0–100) — one per section, based only on cards in that section ──
 
-    // Efficiency: YPC 25% · RYOE/att 20% · Success% 20% · MTF/att 15% · PPR pts/touch 15% · RZ TD rate 5%
+    // Efficiency: RYOE/att 28% · Success% 22% · YAC/carry 20% · MTF/att 15% · YPC 12% · RZ TD rate 3%
     // All sub-scores via _rbScore → avg player = 50 by construction, consistent with classifier labels.
     const _ypcS2   = _rbScore(ypc,          'ypc');
     const _ryoeS2  = _rbScore(ryoePerAtt,   'ryoePerAtt');
     const _succS   = _rbScore(successPct,   'successPct');
     const _mtfS    = _rbScore(adsMtfPerAtt, 'mtfPerAtt');
-    const _pptS2   = _rbScore(ptsPerTouch,  'ptsPerTouch');
+    const _yacS2   = _rbScore(yacPerCarry,  'yacPerCarry');
     const _rzTdS   = _rbScore(rzTdRate,     'rzTdRate');
-    const _effParts2 = [{s:_ypcS2,w:0.25},{s:_ryoeS2,w:0.20},{s:_succS,w:0.20},{s:_mtfS,w:0.15},{s:_pptS2,w:0.15},{s:_rzTdS,w:0.05}].filter(c=>c.s!==null);
+    const _effParts2 = [{s:_ryoeS2,w:0.28},{s:_succS,w:0.22},{s:_yacS2,w:0.20},{s:_mtfS,w:0.15},{s:_ypcS2,w:0.12},{s:_rzTdS,w:0.03}].filter(c=>c.s!==null);
     const _effW2   = _effParts2.reduce((a,c)=>a+c.w,0)||1;
     const _effScore2 = _effParts2.length ? _effParts2.reduce((a,c)=>a+c.s*c.w,0)/_effW2 : null;
 
