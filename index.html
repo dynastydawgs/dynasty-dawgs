@@ -3641,11 +3641,11 @@ async function loadPlayerProfile(pid) {
     const _tmScore = (val, field, inv = false) => _qs(val, teamStats?.[field], inv);
 
     // ── Player Scorecard — sub-scores (0-100) ───────────────────────────────
-    // Efficiency: YPC 40% · Pts/Touch 35% · First Down Rate 25%
-    const _ypcS  = _rbScore(ypc, 'ypc');
-    const _pptS  = _rbScore(ptsPerTouch, 'ptsPerTouch');
-    const _fdS   = rushFDRate !== null ? Math.min(100, Math.max(0, (rushFDRate - 10) / 20 * 100)) : null;
-    const _effParts = [{s:_ypcS,w:0.40},{s:_pptS,w:0.35},{s:_fdS,w:0.25}].filter(c=>c.s!==null);
+    // Efficiency: YPC 40% · Pts/Touch 35% · Success% 25%
+    const _ypcS  = _rbScore(ypc,        'ypc');
+    const _pptS  = _rbScore(ptsPerTouch,'ptsPerTouch');
+    const _succS = _rbScore(successPct, 'successPct');
+    const _effParts = [{s:_ypcS,w:0.40},{s:_pptS,w:0.35},{s:_succS,w:0.25}].filter(c=>c.s!==null);
     const _effW     = _effParts.reduce((a,c)=>a+c.w,0)||1;
     const _effScore = _effParts.length ? _effParts.reduce((a,c)=>a+c.s*c.w,0)/_effW : null;
 
@@ -3685,7 +3685,6 @@ async function loadPlayerProfile(pid) {
     // All sub-scores via _rbScore → avg player = 50 by construction, consistent with classifier labels.
     const _ypcS2   = _rbScore(ypc,          'ypc');
     const _ryoeS2  = _rbScore(ryoePerAtt,   'ryoePerAtt');
-    const _succS   = _rbScore(successPct,   'successPct');
     const _mtfS    = _rbScore(adsMtfPerAtt, 'mtfPerAtt');
     const _yacS2   = _rbScore(yacPerCarry,  'yacPerCarry');
     const _rzTdS   = _rbScore(rzTdRate,     'rzTdRate');
@@ -3825,10 +3824,10 @@ async function loadPlayerProfile(pid) {
     };
 
     const _effDesc = _effScore === null ? 'No efficiency data available.'
-      : _effScore >= 83 ? 'Elite per-touch production — top-tier YPC and scoring.'
+      : _effScore >= 83 ? 'Elite efficiency — top-tier YPC and success rate.'
       : _effScore >= 70 ? 'Above-average efficiency — consistent per-carry value.'
       : _effScore >= 57 ? 'Average efficiency — league-typical production rate.'
-      : _effScore >= 43 ? 'Below-average efficiency — limited per-touch output.'
+      : _effScore >= 43 ? 'Below-average efficiency — limited per-carry output.'
       : 'Poor efficiency — struggling to create positive plays.';
 
     const _wklDesc = _wklScore >= 83 ? 'Dominant workload — elite carry share and snap rate.'
@@ -3848,7 +3847,7 @@ async function loadPlayerProfile(pid) {
           <div class="pp-proj-stats">
             ${ypc !== null ? `<span class="pp-proj-stat">${ypc} YPC</span>` : ''}
             ${ptsPerTouch ? `<span class="pp-proj-stat">${ptsPerTouch.toFixed(2)} pts/touch</span>` : ''}
-            ${rushFDRate !== null ? `<span class="pp-proj-stat">${rushFDRate}% 1st dn</span>` : ''}
+            ${successPct !== null ? `<span class="pp-proj-stat">${successPct}% success</span>` : ''}
           </div>
         </div>
         <div class="pp-outcome ${_toGradeClass(_wklScore)}">
@@ -4417,7 +4416,7 @@ async function loadPlayerProfile(pid) {
           <div class="pp-proj-stats">
             ${ypc !== null ? `<span class="pp-proj-stat">${ypc} YPC</span>` : ''}
             ${ptsPerTouch ? `<span class="pp-proj-stat">${ptsPerTouch.toFixed(2)} pts/touch</span>` : ''}
-            ${rushFDRate !== null ? `<span class="pp-proj-stat">${rushFDRate}% 1st dn</span>` : ''}
+            ${successPct !== null ? `<span class="pp-proj-stat">${successPct}% success</span>` : ''}
           </div>
         </div>
         <div class="pp-outcome ${_toGradeClass(_wklScore)}">
