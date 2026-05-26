@@ -2146,6 +2146,74 @@
   .proto-stat-right { display:flex; align-items:center; gap:8px; }
   .proto-stat-cls { font-size:10px; font-family:var(--mono); }
   .proto-stat-val { font-family:var(--mono); font-size:13px; color:var(--text); font-weight:600; }
+
+  /* ══ MASTER STATS TABLE ══════════════════════════════════════════════════ */
+  .ms-wrapper { max-width: 1440px; margin: 0 auto; padding: 32px 24px 60px; }
+  .ms-header { margin-bottom: 20px; }
+  .ms-kicker { font-family:var(--mono); font-size:9px; letter-spacing:0.2em; color:var(--text-dim); text-transform:uppercase; margin-bottom:4px; }
+  .ms-title  { font-family:var(--display); font-size:30px; letter-spacing:0.06em; color:var(--text); line-height:1; }
+  .ms-subtitle { font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:0.16em; text-transform:uppercase; margin-top:6px; }
+  .ms-controls { display:flex; align-items:center; gap:16px; margin:18px 0 14px; }
+  .ms-search-wrap { position:relative; }
+  .ms-search {
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    color:var(--text); font-family:var(--mono); font-size:11px; letter-spacing:0.06em;
+    padding:7px 12px 7px 30px; width:210px; outline:none; transition:border-color 0.2s;
+  }
+  .ms-search::placeholder { color:var(--text-dim); }
+  .ms-search:focus { border-color:var(--border-hover); }
+  .ms-search-icon { position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:13px; color:var(--text-dim); pointer-events:none; line-height:1; }
+  .ms-count { font-family:var(--mono); font-size:10px; color:var(--text-dim); letter-spacing:0.12em; }
+  .ms-table-wrap { overflow-x:auto; border-radius:var(--radius-lg); border:1px solid var(--border); background:var(--surface); }
+  .ms-table { width:100%; border-collapse:collapse; font-size:11px; }
+  /* Group header */
+  .ms-table .ms-group-row th {
+    font-family:var(--mono); font-size:8px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--text-dim); padding:9px 10px 4px;
+    background:var(--surface); text-align:center; white-space:nowrap; border-bottom:none;
+  }
+  .ms-table .ms-group-row th:first-child { text-align:left; }
+  /* Col headers */
+  .ms-table .ms-col-row th {
+    font-family:var(--mono); font-size:9px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--text-muted); padding:4px 10px 9px;
+    background:var(--surface); border-bottom:1px solid var(--border);
+    white-space:nowrap; cursor:pointer; user-select:none; text-align:right; transition:color 0.15s;
+  }
+  .ms-table .ms-col-row th:first-child { text-align:left; min-width:170px; position:sticky; left:0; z-index:2; }
+  .ms-table .ms-col-row th:hover { color:var(--text); }
+  .ms-table .ms-col-row th.ms-sorted { color:var(--accent); }
+  .ms-table .ms-col-row th.ms-sorted-asc::after  { content:' ↑'; }
+  .ms-table .ms-col-row th.ms-sorted-desc::after { content:' ↓'; }
+  .ms-grp-div { border-left:1px solid rgba(100,160,255,0.10) !important; }
+  /* Body rows */
+  .ms-table tbody tr { border-bottom:1px solid rgba(100,160,255,0.07); transition:background 0.12s; }
+  .ms-table tbody tr:last-child { border-bottom:none; }
+  .ms-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.012); }
+  .ms-table tbody tr:hover { background:rgba(100,160,255,0.045); }
+  .ms-table tbody td {
+    padding:7px 10px; font-family:var(--mono); font-size:11px;
+    color:var(--text-muted); text-align:right; white-space:nowrap;
+  }
+  .ms-table tbody td:first-child {
+    text-align:left; position:sticky; left:0; z-index:1;
+    background:var(--surface);
+  }
+  .ms-table tbody tr:nth-child(even) td:first-child { background:#111d2e; }
+  .ms-table tbody tr:hover td:first-child { background:#162338; }
+  /* Player cell */
+  .ms-player-cell { display:flex; align-items:center; gap:8px; }
+  .ms-thumb {
+    width:28px; height:28px; border-radius:50%; object-fit:cover; object-position:top center;
+    flex-shrink:0; border:1px solid var(--border); background:var(--surface2);
+  }
+  .ms-pname { font-family:var(--sans); font-size:12px; font-weight:500; color:var(--text); letter-spacing:0; white-space:nowrap; }
+  /* Percentile colors */
+  td.ms-elite { color:#2dd6a8 !important; font-weight:700; }
+  td.ms-good  { color:#f5c842 !important; }
+  td.ms-avg   { color:var(--text) !important; }
+  td.ms-poor  { color:var(--text-dim) !important; }
+  td.ms-na    { color:var(--text-dim) !important; opacity:0.35; }
 </style>
 </head>
 <body>
@@ -2160,6 +2228,7 @@
       <button class="topnav-tab" onclick="switchMainView('prototype', this)">Prototype</button>
       <button class="topnav-tab" onclick="switchMainView('prototype2', this)">Prototype 2</button>
       <button class="topnav-tab" onclick="switchMainView('prototype3', this)">Prototype 3</button>
+      <button class="topnav-tab" onclick="switchMainView('masterstats', this)">Master Stats</button>
     </div>
   </div>
 </nav>
@@ -2707,6 +2776,31 @@
 
     </section>
   </div><!-- /mainview-prototype3 -->
+
+  <!-- ── MASTER STATS ── -->
+  <div class="main-view" id="mainview-masterstats" style="display:none;">
+    <div class="ms-wrapper">
+      <div class="ms-header">
+        <div class="ms-kicker">Dynasty Dawgs</div>
+        <div class="ms-title">RB MASTER STATS</div>
+        <div class="ms-subtitle">2025 Season &nbsp;·&nbsp; Advanced Metrics &nbsp;·&nbsp; Sortable</div>
+      </div>
+      <div class="ms-controls">
+        <div class="ms-search-wrap">
+          <span class="ms-search-icon">⌕</span>
+          <input class="ms-search" id="ms-search" type="text" placeholder="Filter players…"
+            oninput="msFilter(this.value)" autocomplete="off" spellcheck="false">
+        </div>
+        <span class="ms-count" id="ms-count"></span>
+      </div>
+      <div class="ms-table-wrap">
+        <table class="ms-table">
+          <thead id="ms-thead"></thead>
+          <tbody id="ms-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /mainview-masterstats -->
 
   <footer class="footer">
     <span class="footer-brand">DYNASTYDAWGS</span>
@@ -9002,7 +9096,7 @@ function togglePgb(el) {
 function switchMainView(view, btn) {
   document.querySelectorAll('.topnav-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  const views = ['league', 'profiles', 'model', 'prototype', 'prototype2', 'prototype3'];
+  const views = ['league', 'profiles', 'model', 'prototype', 'prototype2', 'prototype3', 'masterstats'];
   views.forEach(v => {
     const el = document.getElementById(`mainview-${v}`);
     if (el) el.style.display = v === view ? '' : 'none';
@@ -9011,7 +9105,238 @@ function switchMainView(view, btn) {
     setTimeout(() => document.getElementById('pp-search')?.focus(), 50);
   }
   if (view === 'model') { renderModelBuilding(); }
+  if (view === 'masterstats') { initMasterStats(); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 19  MASTER STATS TABLE — sortable RB advanced stats, Databallr-style
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Column definitions: id, label, group, field (null=custom), fmt, higherBetter (null=no color), groupStart
+const MS_COLS = [
+  { id:'player',       label:'PLAYER',   group:'PROFILE',     field:null,               fmt:null,    hb:null,  gs:false },
+  { id:'team',         label:'TEAM',     group:'PROFILE',     field:'team',              fmt:'str',   hb:null,  gs:false },
+  { id:'games',        label:'G',        group:'PROFILE',     field:'games',             fmt:'int',   hb:null,  gs:false },
+  { id:'att',          label:'ATT',      group:'PROFILE',     field:'att',               fmt:'int',   hb:true,  gs:false },
+  { id:'successPct',   label:'SUCCESS%', group:'EFFICIENCY',  field:'successPct',        fmt:'pct1',  hb:true,  gs:true  },
+  { id:'yacPerCarry',  label:'YAC/CAR',  group:'EFFICIENCY',  field:'yacPerCarry',       fmt:'dec2',  hb:true,  gs:false },
+  { id:'mtfPerAtt',    label:'MTF/ATT',  group:'EFFICIENCY',  field:'mtfPerAtt',         fmt:'dec3',  hb:true,  gs:false },
+  { id:'ryoePerAtt',   label:'RYOE/ATT', group:'EFFICIENCY',  field:'ryoePerAtt',        fmt:'dec3',  hb:true,  gs:false },
+  { id:'carryShare',   label:'CAR SHR',  group:'OPPORTUNITY', field:'carryShare',        fmt:'pct1',  hb:true,  gs:true  },
+  { id:'thirdDown',    label:'3D SNP%',  group:'OPPORTUNITY', field:'thirdDownSnapPct',  fmt:'pct1',  hb:true,  gs:false },
+  { id:'bfTgtShare',   label:'BF TGT%',  group:'OPPORTUNITY', field:'bfTgtShare',        fmt:'pct1',  hb:true,  gs:false },
+  { id:'rzCarryShare', label:'RZ SHR',   group:'RED ZONE',    field:'rzCarryShare',      fmt:'pct1',  hb:true,  gs:true  },
+  { id:'rzCarries',    label:'RZ ATT',   group:'RED ZONE',    field:'rzCarries',         fmt:'int',   hb:true,  gs:false },
+  { id:'rzTdRate',     label:'RZ TD%',   group:'RED ZONE',    field:'rzTdRate',          fmt:'pct1',  hb:true,  gs:false },
+  { id:'rzTDs',        label:'RZ TDs',   group:'RED ZONE',    field:'rzTDs',             fmt:'int',   hb:true,  gs:false },
+  { id:'forty',        label:'40 YD',    group:'PHYSICAL',    field:'forty',             fmt:'dec2',  hb:false, gs:true  },
+];
+
+let msData     = null;
+let msSortCol  = 'att';
+let msSortAsc  = false;
+let msFilterStr = '';
+let msInited   = false;
+
+// Same normaliser as the rest of the app uses for advstatsDB / ryoeDB lookups
+function _msNorm(n) {
+  return (n ?? '').replace(/['.]/g, '').replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// Build name → Sleeper PID map (RBs only) so we can show headshots
+function _msBuildThumbMap() {
+  const map = {};
+  for (const [pid, p] of Object.entries(sleeperPlayers)) {
+    if (p.position !== 'RB') continue;
+    if (p.name) map[_msNorm(p.name)] = pid;
+  }
+  return map;
+}
+
+function _msFmt(val, fmt) {
+  if (val == null || val === '' || (typeof val === 'number' && isNaN(val))) return '—';
+  switch (fmt) {
+    case 'int':  return Math.round(val).toString();
+    case 'dec2': return parseFloat(val).toFixed(2);
+    case 'dec3': return parseFloat(val).toFixed(3);
+    case 'pct1': return parseFloat(val).toFixed(1) + '%';
+    case 'str':  return String(val);
+    default: return String(val);
+  }
+}
+
+function _msPctClass(pct) {
+  if (pct == null) return 'ms-na';
+  if (pct >= 80)   return 'ms-elite';
+  if (pct >= 60)   return 'ms-good';
+  if (pct >= 40)   return 'ms-avg';
+  return 'ms-poor';
+}
+
+function _msPercentile(sortedVals, val, higherIsBetter) {
+  if (val == null || isNaN(val)) return null;
+  const below = sortedVals.filter(v => v < val).length;
+  const pct = (below / Math.max(sortedVals.length - 1, 1)) * 100;
+  return higherIsBetter ? pct : 100 - pct;
+}
+
+async function initMasterStats() {
+  if (msInited) { _msRender(); return; }
+
+  const tbody = document.getElementById('ms-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:40px;color:var(--text-dim);font-family:var(--mono);font-size:11px;letter-spacing:0.12em;">LOADING…</td></tr>';
+
+  // Reuse the same optional-files loader the player profiles use
+  await _loadOptionalDataFiles();
+
+  // Build ryoeDB lookup keyed by normalised name
+  const normRyoe = {};
+  for (const [k, v] of Object.entries(ryoeDB)) normRyoe[_msNorm(k)] = v;
+
+  const thumbMap = _msBuildThumbMap();
+
+  // Merge advstatsDB (primary) + ryoeDB; skip historical entries with no carries
+  const rows = [];
+  for (const [name, adv] of Object.entries(advstatsDB)) {
+    if (!adv.att || adv.att < 50) continue;
+    const nk   = _msNorm(name);
+    const ryoe = normRyoe[nk] ?? null;
+    const pid  = thumbMap[nk] ?? null;
+    rows.push({
+      name,
+      pid,
+      team:             ryoe?.team              ?? '—',
+      games:            adv.games               ?? null,
+      att:              adv.att                 ?? null,
+      successPct:       adv.successPct          ?? null,
+      yacPerCarry:      adv.yacPerCarry         ?? null,
+      mtfPerAtt:        adv.mtfPerAtt           ?? null,
+      ryoePerAtt:       ryoe?.ryoePerAtt        ?? null,
+      carryShare:       adv.carryShare          ?? null,
+      thirdDownSnapPct: adv.thirdDownSnapPct    ?? null,
+      bfTgtShare:       adv.bfTgtShare          ?? null,
+      rzCarryShare:     adv.rzCarryShare        ?? null,
+      rzCarries:        adv.rzCarries           ?? null,
+      rzTdRate:         adv.rzTdRate            ?? null,
+      rzTDs:            adv.rzTDs              ?? null,
+      forty:            adv.forty               ?? null,
+    });
+  }
+
+  // Pre-compute sorted value arrays for each percentile-coloured column
+  const pctSorted = {};
+  for (const col of MS_COLS) {
+    if (!col.field || col.fmt === 'str' || col.hb === null) continue;
+    pctSorted[col.id] = rows
+      .map(r => r[col.field])
+      .filter(v => v != null && !isNaN(v))
+      .sort((a, b) => a - b);
+  }
+
+  // Attach per-row percentile map
+  rows.forEach(row => {
+    row._pct = {};
+    for (const col of MS_COLS) {
+      if (!col.field || col.fmt === 'str' || col.hb === null) continue;
+      row._pct[col.id] = _msPercentile(pctSorted[col.id], row[col.field], col.hb);
+    }
+  });
+
+  msData   = rows;
+  msInited = true;
+  _msRenderHead();
+  _msRender();
+}
+
+function _msRenderHead() {
+  const thead = document.getElementById('ms-thead');
+  if (!thead) return;
+
+  // Build group spans
+  const groups = [];
+  let lastGroup = null;
+  for (const col of MS_COLS) {
+    if (col.group !== lastGroup) { groups.push({ label: col.group, count: 1, gs: col.gs }); lastGroup = col.group; }
+    else groups[groups.length - 1].count++;
+  }
+  const groupRow = groups.map((g, i) =>
+    `<th colspan="${g.count}"${i > 0 ? ' class="ms-grp-div"' : ''}>${g.label}</th>`
+  ).join('');
+
+  const colRow = MS_COLS.map(col => {
+    const sorted = msSortCol === col.id;
+    const cls = [
+      col.gs ? 'ms-grp-div' : '',
+      sorted ? `ms-sorted ms-sorted-${msSortAsc ? 'asc' : 'desc'}` : ''
+    ].filter(Boolean).join(' ');
+    return `<th class="${cls}" onclick="msSort('${col.id}')">${col.label}</th>`;
+  }).join('');
+
+  thead.innerHTML = `<tr class="ms-group-row">${groupRow}</tr><tr class="ms-col-row">${colRow}</tr>`;
+}
+
+function _msRender() {
+  if (!msData) return;
+  const col   = MS_COLS.find(c => c.id === msSortCol);
+  const field = col?.field;
+
+  // Filter
+  const q = _msNorm(msFilterStr);
+  const filtered = q ? msData.filter(r => _msNorm(r.name).includes(q)) : msData;
+
+  // Sort
+  const sorted = [...filtered].sort((a, b) => {
+    const MISSING = msSortAsc ? Infinity : -Infinity;
+    const av = field != null ? (a[field] ?? MISSING) : 0;
+    const bv = field != null ? (b[field] ?? MISSING) : 0;
+    return msSortAsc ? av - bv : bv - av;
+  });
+
+  const countEl = document.getElementById('ms-count');
+  if (countEl) countEl.textContent = `${sorted.length} PLAYER${sorted.length !== 1 ? 'S' : ''}`;
+
+  const tbody = document.getElementById('ms-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = sorted.map(row => {
+    const thumb = row.pid
+      ? `<img class="ms-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${row.pid}.jpg" onerror="this.style.opacity=.12" alt="">`
+      : `<span class="ms-thumb" style="display:inline-block;"></span>`;
+
+    const cells = MS_COLS.map(col => {
+      const gd = col.gs ? ' ms-grp-div' : '';
+      if (col.id === 'player') {
+        return `<td><div class="ms-player-cell">${thumb}<span class="ms-pname">${row.name}</span></div></td>`;
+      }
+      if (col.id === 'team') {
+        return `<td class="${gd}" style="color:var(--text-muted);letter-spacing:0.09em;">${row.team}</td>`;
+      }
+      // Plain count columns (no percentile color)
+      if (col.hb === null) {
+        const v = row[col.field];
+        return `<td class="${gd}">${v != null ? _msFmt(v, col.fmt) : '—'}</td>`;
+      }
+      // Percentile-coloured
+      const pct = row._pct[col.id];
+      return `<td class="${(gd + ' ' + _msPctClass(pct)).trim()}">${_msFmt(row[col.field], col.fmt)}</td>`;
+    }).join('');
+
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  _msRenderHead(); // refresh sort indicators
+}
+
+function msSort(colId) {
+  if (msSortCol === colId) { msSortAsc = !msSortAsc; }
+  else { msSortCol = colId; msSortAsc = colId === 'forty'; } // 40yd: lower=better → default asc
+  _msRender();
+}
+
+function msFilter(q) {
+  msFilterStr = q.trim();
+  _msRender();
 }
 
 // Profile tabs (Overview / Historic Comps / Similar Players) —
