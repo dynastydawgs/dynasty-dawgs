@@ -757,7 +757,7 @@ async function main() {
                 successByGsis[gsis].n++;
               }
               if (!isQb) {
-                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rzTDs: 0, rushYds: 0, tgts: 0, rec: 0, recYds: 0, gameIds: new Set(), team: null };
+                if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rzTDs: 0, rushYds: 0, tgts: 0, rec: 0, recYds: 0, gameIds: new Set(), team: null, carriesByTeam: {}, rzCarriesByTeam: {}, gameIdsByTeam: {} };
                 workloadByGsis[gsis].carries++;
                 if (inRz) {
                   workloadByGsis[gsis].rzCarries++;
@@ -766,6 +766,13 @@ async function main() {
                 workloadByGsis[gsis].rushYds += ryI >= 0 ? (parseFloat(v[ryI]) || 0) : 0;
                 if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
                 if (pteam && !workloadByGsis[gsis].team) workloadByGsis[gsis].team = pteam;
+                // Per-team tracking — fixes carry share for mid-season trades
+                if (pteam) {
+                  workloadByGsis[gsis].carriesByTeam[pteam] = (workloadByGsis[gsis].carriesByTeam[pteam] ?? 0) + 1;
+                  if (inRz) workloadByGsis[gsis].rzCarriesByTeam[pteam] = (workloadByGsis[gsis].rzCarriesByTeam[pteam] ?? 0) + 1;
+                  if (!workloadByGsis[gsis].gameIdsByTeam[pteam]) workloadByGsis[gsis].gameIdsByTeam[pteam] = new Set();
+                  if (gameId) workloadByGsis[gsis].gameIdsByTeam[pteam].add(gameId);
+                }
               }
             }
           }
@@ -779,7 +786,7 @@ async function main() {
               teamRbTgtsPerGame[gameId][pteam] = (teamRbTgtsPerGame[gameId][pteam] ?? 0) + 1;
             }
             if (gsis) {
-              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rzTDs: 0, rushYds: 0, tgts: 0, rec: 0, recYds: 0, gameIds: new Set(), team: null };
+              if (!workloadByGsis[gsis]) workloadByGsis[gsis] = { carries: 0, rzCarries: 0, rzTDs: 0, rushYds: 0, tgts: 0, rec: 0, recYds: 0, gameIds: new Set(), team: null, carriesByTeam: {}, rzCarriesByTeam: {}, gameIdsByTeam: {} };
               workloadByGsis[gsis].tgts++;
               if (gameId) workloadByGsis[gsis].gameIds.add(gameId);
               if (pteam && !workloadByGsis[gsis].team) workloadByGsis[gsis].team = pteam;
@@ -854,24 +861,61 @@ async function main() {
       const nk = gsisToNormName[gsis];
       if (!nk) continue;
 
-      // Overall carry share (min 20 carries)
+      // Overall carry share — use per-team data so mid-season trades don't inflate the %.
+      // For each team the player carried for, compute that team's carry share during those
+      // same games. Use the team with the most carries as the primary number.
       if (d.carries >= 20) {
-        const teamCarries = [...d.gameIds].reduce((sum, gid) =>
-          sum + (teamCarriesPerGame[gid]?.[d.team] ?? 0), 0);
-        if (teamCarries >= 1) {
-          carryShareMap[nk] = Math.round(d.carries / teamCarries * 1000) / 10;
-          if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+        const teamEntries = Object.entries(d.carriesByTeam ?? {})
+          .sort((a, b) => b[1] - a[1]); // descending by player carries
+        for (const [team, playerCarries] of teamEntries) {
+          if (playerCarries < 20) continue;
+          const gameIds = d.gameIdsByTeam?.[team] ?? d.gameIds;
+          const teamCarries = [...gameIds].reduce((sum, gid) =>
+            sum + (teamCarriesPerGame[gid]?.[team] ?? 0), 0);
+          if (teamCarries >= 1) {
+            carryShareMap[nk] = Math.round(playerCarries / teamCarries * 1000) / 10;
+            if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+            break; // primary team only
+          }
+        }
+        // Fallback: single-team players won't have carriesByTeam populated yet (old data)
+        if (!carryShareMap[nk]) {
+          const teamCarries = [...d.gameIds].reduce((sum, gid) =>
+            sum + (teamCarriesPerGame[gid]?.[d.team] ?? 0), 0);
+          if (teamCarries >= 1) {
+            carryShareMap[nk] = Math.round(d.carries / teamCarries * 1000) / 10;
+            if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+          }
         }
       }
 
-      // RZ carry share + RZ TD rate (min 8 RZ carries — starters average ~20-35/season)
+      // RZ carry share — same per-team approach
       if ((d.rzCarries ?? 0) >= 8) {
-        const teamRzCarries = [...d.gameIds].reduce((sum, gid) =>
-          sum + (teamRzCarriesPerGame[gid]?.[d.team] ?? 0), 0);
-        if (teamRzCarries >= 1) {
-          rzCarryShareMap[nk] = Math.round(d.rzCarries / teamRzCarries * 1000) / 10;
-          rzCarriesMap[nk]    = d.rzCarries;
-          if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+        const rzTeamEntries = Object.entries(d.rzCarriesByTeam ?? {})
+          .sort((a, b) => b[1] - a[1]);
+        let rzDone = false;
+        for (const [team, playerRzCarries] of rzTeamEntries) {
+          if (playerRzCarries < 8) continue;
+          const gameIds = d.gameIdsByTeam?.[team] ?? d.gameIds;
+          const teamRzCarries = [...gameIds].reduce((sum, gid) =>
+            sum + (teamRzCarriesPerGame[gid]?.[team] ?? 0), 0);
+          if (teamRzCarries >= 1) {
+            rzCarryShareMap[nk] = Math.round(playerRzCarries / teamRzCarries * 1000) / 10;
+            rzCarriesMap[nk]    = d.rzCarries;
+            if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+            rzDone = true;
+            break;
+          }
+        }
+        // Fallback
+        if (!rzDone) {
+          const teamRzCarries = [...d.gameIds].reduce((sum, gid) =>
+            sum + (teamRzCarriesPerGame[gid]?.[d.team] ?? 0), 0);
+          if (teamRzCarries >= 1) {
+            rzCarryShareMap[nk] = Math.round(d.rzCarries / teamRzCarries * 1000) / 10;
+            rzCarriesMap[nk]    = d.rzCarries;
+            if (!normToDisplay[nk]) normToDisplay[nk] = gsisToNormName[gsis];
+          }
         }
       }
     }
