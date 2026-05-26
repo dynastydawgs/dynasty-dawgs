@@ -2208,12 +2208,24 @@
     flex-shrink:0; border:1px solid var(--border); background:var(--surface2);
   }
   .ms-pname { font-family:var(--sans); font-size:12px; font-weight:500; color:var(--text); letter-spacing:0; white-space:nowrap; }
-  /* Percentile colors */
-  td.ms-elite { color:#2dd6a8 !important; font-weight:700; }
+  /* Percentile colors — green → gold → normal → orange → red */
+  td.ms-elite { color:#2dd6a8 !important; }
   td.ms-good  { color:#f5c842 !important; }
   td.ms-avg   { color:var(--text) !important; }
-  td.ms-poor  { color:var(--text-dim) !important; }
+  td.ms-below { color:#f59e42 !important; }
+  td.ms-poor  { color:#ff5c72 !important; }
   td.ms-na    { color:var(--text-dim) !important; opacity:0.35; }
+  /* Two-line value + percentile rank inside each stat cell */
+  .ms-val {
+    display:block; font-family:var(--mono); font-size:14px; font-weight:700;
+    line-height:1; letter-spacing:-0.01em;
+  }
+  .ms-pct-rank {
+    display:block; font-family:var(--mono); font-size:9px; font-weight:500;
+    margin-top:3px; opacity:0.6; letter-spacing:0.06em;
+  }
+  /* Widen rows to accommodate two-line cells */
+  .ms-table tbody td { padding:8px 10px; }
 </style>
 </head>
 <body>
@@ -9168,10 +9180,11 @@ function _msFmt(val, fmt) {
 
 function _msPctClass(pct) {
   if (pct == null) return 'ms-na';
-  if (pct >= 80)   return 'ms-elite';
-  if (pct >= 60)   return 'ms-good';
-  if (pct >= 40)   return 'ms-avg';
-  return 'ms-poor';
+  if (pct >= 80)   return 'ms-elite';  // green
+  if (pct >= 60)   return 'ms-good';   // gold
+  if (pct >= 40)   return 'ms-avg';    // white
+  if (pct >= 20)   return 'ms-below';  // orange
+  return 'ms-poor';                    // red
 }
 
 function _msPercentile(sortedVals, val, higherIsBetter) {
@@ -9312,14 +9325,16 @@ function _msRender() {
       if (col.id === 'team') {
         return `<td class="${gd}" style="color:var(--text-muted);letter-spacing:0.09em;">${row.team}</td>`;
       }
-      // Plain count columns (no percentile color)
+      // Plain count columns (no percentile color) — just show value, no rank
       if (col.hb === null) {
         const v = row[col.field];
-        return `<td class="${gd}">${v != null ? _msFmt(v, col.fmt) : '—'}</td>`;
+        return `<td class="${gd}"><span class="ms-val" style="font-size:13px;">${v != null ? _msFmt(v, col.fmt) : '—'}</span></td>`;
       }
-      // Percentile-coloured
+      // Percentile-coloured — big value + small rank below
       const pct = row._pct[col.id];
-      return `<td class="${(gd + ' ' + _msPctClass(pct)).trim()}">${_msFmt(row[col.field], col.fmt)}</td>`;
+      const rank = pct != null ? Math.round(pct) : null;
+      const rankLabel = rank != null ? `<span class="ms-pct-rank">${rank}</span>` : '';
+      return `<td class="${(gd + ' ' + _msPctClass(pct)).trim()}"><span class="ms-val">${_msFmt(row[col.field], col.fmt)}</span>${rankLabel}</td>`;
     }).join('');
 
     return `<tr>${cells}</tr>`;
