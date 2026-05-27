@@ -1127,47 +1127,39 @@ async function main() {
     }
     console.log(`  WR route metrics: ${Object.keys(wrAdvMap).length} WRs with ≥50 routes`);
 
-    // b) Fetch NGS receiving — season-level separation, cushion, YAC above expectation
-    try {
-      const ngsRes = await fetch(
-        `https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv`
-      );
-      if (ngsRes.ok) {
-        const ngsLines = (await ngsRes.text()).split('\n').filter(l => l.trim());
-        const ngsHdrs  = parseCSVLine(ngsLines[0]);
-        const [nNameI, nGsisI, nSeasI, nWkI, nTgtI, nSepI, nCushI, nYacI, nAirI] =
-          ['player_display_name','player_gsis_id','season','week','targets',
-           'avg_separation','avg_cushion','avg_yac_above_expectation',
-           'percent_share_of_intended_air_yards']
-          .map(h => ngsHdrs.indexOf(h));
-        let ngsCount = 0;
-        for (const line of ngsLines.slice(1)) {
-          const v    = parseCSVLine(line);
-          const seas = nSeasI >= 0 ? parseInt(v[nSeasI], 10) : 0;
-          const wk   = nWkI   >= 0 ? parseInt(v[nWkI],   10) : -1;
-          if (seas !== recentYr || wk !== 0) continue; // week 0 = season aggregate
-          const tgts = nTgtI >= 0 ? parseInt(v[nTgtI], 10) : 0;
+    // b) Fetch NGS receiving — season-level separation, cushion, YAC above expectation.
+    // Files are year-specific gzipped CSVs: ngs_${year}_receiving.csv.gz
+    // Fall back to recentYr-1 if the current year isn't published yet (e.g. early off-season).
+    let ngsCount = 0;
+    for (const ngsYr of [recentYr, recentYr - 1]) {
+      try {
+        const ngsUrl  = `https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_${ngsYr}_receiving.csv.gz`;
+        const ngsRows = await fetchGzipCSV(ngsUrl);
+        for (const row of ngsRows) {
+          // week 0 = full-season aggregate; skip individual game/week rows
+          const wk   = parseInt(row.week ?? -1, 10);
+          if (wk !== 0) continue;
+          const tgts = parseInt(row.targets ?? 0, 10);
           if (tgts < 25) continue;
-          const gsis = nGsisI >= 0 ? v[nGsisI]?.trim() : null;
+          const gsis = row.player_gsis_id?.trim() ?? row.player_id?.trim();
           const nk   = gsis ? gsisToNormName[gsis] : null;
           if (!nk) continue;
           if (!wrAdvMap[nk]) wrAdvMap[nk] = {};
-          const sep  = nSepI  >= 0 ? parseFloat(v[nSepI])  : NaN;
-          const cush = nCushI >= 0 ? parseFloat(v[nCushI]) : NaN;
-          const yacE = nYacI  >= 0 ? parseFloat(v[nYacI])  : NaN;
-          const airS = nAirI  >= 0 ? parseFloat(v[nAirI])  : NaN;
+          const sep  = parseFloat(row.avg_separation);
+          const cush = parseFloat(row.avg_cushion);
+          const yacE = parseFloat(row.avg_yac_above_expectation);
+          const airS = parseFloat(row.percent_share_of_intended_air_yards);
           if (!isNaN(sep))  wrAdvMap[nk].avgSeparation  = Math.round(sep  * 10) / 10;
           if (!isNaN(cush)) wrAdvMap[nk].avgCushion     = Math.round(cush * 10) / 10;
           if (!isNaN(yacE)) wrAdvMap[nk].avgYacAboveExp = Math.round(yacE * 10) / 10;
           if (!isNaN(airS)) wrAdvMap[nk].ngsAirYdShare  = Math.round(airS * 10) / 10;
-          if (!normToDisplay[nk] && nNameI >= 0) normToDisplay[nk] = v[nNameI]?.trim();
+          if (!normToDisplay[nk] && row.player_display_name) normToDisplay[nk] = row.player_display_name.trim();
           ngsCount++;
         }
-        console.log(`  NGS receiving: ${ngsCount} WRs with ≥25 targets (${recentYr} season)`);
-      } else {
-        console.warn(`  ⚠️  NGS receiving HTTP ${ngsRes.status}`);
-      }
-    } catch(e) { console.warn('\n  ⚠️  NGS receiving fetch failed:', e.message); }
+        console.log(`  NGS receiving: ${ngsCount} WRs with ≥25 targets (${ngsYr} season)`);
+        break; // success — don't fall back further
+      } catch(e) { console.warn(`  ⚠️  NGS receiving (${ngsYr}) failed: ${e.message}`); }
+    }
 
     // c) Merge wrAdvMap into advstatsDB
     for (const [nk, data] of Object.entries(wrAdvMap)) {
