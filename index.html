@@ -8310,12 +8310,12 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       </div>`;
     }
 
+    // ── Momentum box (YoY) — always computed for established players ─────────
     let momBox;
     if (careerStage.stage === 'sophomore') {
-      // Replace flat "0.0 PPG/yr" with actual rookie-year surge trajectory
+      // Sophomores have only one prior season — surge IS the momentum signal
       momBox = _surgeBox(surgeData, surgeAdj);
       if (!momBox) {
-        // Fallback: no weekly data (e.g. prewarm or API unavailable)
         const curPpg    = hasOwn ? (ownPpr / typGames).toFixed(1) : '—';
         const rookiePpg = seasonHistory.length >= 1 ? seasonHistory[0].ppg.toFixed(1) : null;
         const histSub   = rookiePpg ? `${rookiePpg} → ${curPpg} PPG` : `rookie → ${curPpg} PPG`;
@@ -8325,14 +8325,17 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           <div class="pp-factor-sub">${histSub}</div>
         </div>`;
       }
-    } else if (careerStage.stage === 'rookie' && surgeData) {
-      // Rookie mid-season: show live surge as a signal box (informational only, no adj)
-      momBox = _surgeBox(surgeData, 0);
-    } else if (['ascending', 'prime', 'declining', 'cliff'].includes(careerStage.stage) && surgeData) {
-      // Established players: show surge overlay on top of YoY momentum
-      // (surgeAdj already baked into medianPpr above if conditions were met)
-      momBox = _surgeBox(surgeData, surgeAdj);
+    } else if (careerStage.stage === 'rookie') {
+      // Rookies: show live surge signal if available, otherwise empty placeholder
+      momBox = surgeData
+        ? _surgeBox(surgeData, 0)
+        : `<div class="pp-factor">
+            <div class="pp-factor-lbl">Season Surge</div>
+            <div class="pp-factor-val" style="color:var(--text-dim);">—</div>
+            <div class="pp-factor-sub">mid-season signal unavailable</div>
+          </div>`;
     } else if (seasonHistory.length >= 2) {
+      // Established players: YoY multi-season momentum
       const displayDelta = avgDeltaPpg !== null ? avgDeltaPpg : (seasonHistory[seasonHistory.length - 1].ppg - seasonHistory[0].ppg);
       const momCol    = displayDelta >= 0.5 ? 'var(--green)' : displayDelta <= -0.5 ? 'var(--red)' : 'var(--text-muted)';
       const momArrow  = displayDelta >= 0.5 ? '↑' : displayDelta <= -0.5 ? '↓' : '→';
@@ -8344,8 +8347,6 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         <div class="pp-factor-sub">${histSub}</div>
       </div>`;
     } else if (seasonHistory.length === 1) {
-      // One season on record — no trend yet, but show their established baseline
-      // rather than "no prior seasons" (which is misleading if they did play).
       const soloPpg = seasonHistory[0].ppg.toFixed(1);
       momBox = `<div class="pp-factor">
         <div class="pp-factor-lbl">Momentum (1yr)</div>
@@ -8359,6 +8360,13 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         <div class="pp-factor-sub">no prior seasons</div>
       </div>`;
     }
+
+    // ── Surge box — separate box shown alongside YoY for established players ──
+    // Rookies/sophs use surge as their primary momentum slot above; established
+    // players get it as a 4th factor box next to the YoY momentum box.
+    const surgeBoxHtml = (['ascending','prime','declining','cliff'].includes(careerStage.stage) && surgeData)
+      ? (_surgeBox(surgeData, surgeAdj) ?? '')
+      : '';
 
     // Cache results so league projections can pull exact profile numbers.
     // Also persisted to localStorage via scheduleProjectionCacheSave so these
@@ -8421,6 +8429,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         </div>
         ${ageBox}
         ${momBox}
+        ${surgeBoxHtml}
       </div>
       <div class="pp-model-note">// ${modelNote}</div>`;
 
