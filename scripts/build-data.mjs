@@ -1128,38 +1128,34 @@ async function main() {
     console.log(`  WR route metrics: ${Object.keys(wrAdvMap).length} WRs with ≥50 routes`);
 
     // b) Fetch NGS receiving — season-level separation, cushion, YAC above expectation.
-    // Files are year-specific gzipped CSVs: ngs_${year}_receiving.csv.gz
-    // Fall back to recentYr-1 if the current year isn't published yet (e.g. early off-season).
+    // Mirrors Step 5d (RB RYOE): combined multi-year ngs_receiving.csv.gz, filter by season + week 0.
     let ngsCount = 0;
-    for (const ngsYr of [recentYr, recentYr - 1]) {
-      try {
-        const ngsUrl  = `https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_${ngsYr}_receiving.csv.gz`;
-        const ngsRows = await fetchGzipCSV(ngsUrl);
-        for (const row of ngsRows) {
-          // week 0 = full-season aggregate; skip individual game/week rows
-          const wk   = parseInt(row.week ?? -1, 10);
-          if (wk !== 0) continue;
-          const tgts = parseInt(row.targets ?? 0, 10);
-          if (tgts < 25) continue;
-          const gsis = row.player_gsis_id?.trim() ?? row.player_id?.trim();
-          const nk   = gsis ? gsisToNormName[gsis] : null;
-          if (!nk) continue;
-          if (!wrAdvMap[nk]) wrAdvMap[nk] = {};
-          const sep  = parseFloat(row.avg_separation);
-          const cush = parseFloat(row.avg_cushion);
-          const yacE = parseFloat(row.avg_yac_above_expectation);
-          const airS = parseFloat(row.percent_share_of_intended_air_yards);
-          if (!isNaN(sep))  wrAdvMap[nk].avgSeparation  = Math.round(sep  * 10) / 10;
-          if (!isNaN(cush)) wrAdvMap[nk].avgCushion     = Math.round(cush * 10) / 10;
-          if (!isNaN(yacE)) wrAdvMap[nk].avgYacAboveExp = Math.round(yacE * 10) / 10;
-          if (!isNaN(airS)) wrAdvMap[nk].ngsAirYdShare  = Math.round(airS * 10) / 10;
-          if (!normToDisplay[nk] && row.player_display_name) normToDisplay[nk] = row.player_display_name.trim();
-          ngsCount++;
-        }
-        console.log(`  NGS receiving: ${ngsCount} WRs with ≥25 targets (${ngsYr} season)`);
-        break; // success — don't fall back further
-      } catch(e) { console.warn(`  ⚠️  NGS receiving (${ngsYr}) failed: ${e.message}`); }
-    }
+    try {
+      const ngsRows = await fetchGzipCSV(
+        'https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv.gz'
+      );
+      const ngsYear = String(recentYr);
+      for (const row of ngsRows) {
+        if (row.season !== ngsYear || row.week !== '0') continue; // week 0 = season aggregate
+        const tgts = parseFloat(row.targets ?? 0);
+        if (tgts < 25) continue;
+        const gsis = row.player_gsis_id?.trim() ?? row.player_id?.trim();
+        const nk   = gsis ? gsisToNormName[gsis] : null;
+        if (!nk) continue;
+        if (!wrAdvMap[nk]) wrAdvMap[nk] = {};
+        const sep  = parseFloat(row.avg_separation);
+        const cush = parseFloat(row.avg_cushion);
+        const yacE = parseFloat(row.avg_yac_above_expectation);
+        const airS = parseFloat(row.percent_share_of_intended_air_yards);
+        if (!isNaN(sep))  wrAdvMap[nk].avgSeparation  = Math.round(sep  * 10) / 10;
+        if (!isNaN(cush)) wrAdvMap[nk].avgCushion     = Math.round(cush * 10) / 10;
+        if (!isNaN(yacE)) wrAdvMap[nk].avgYacAboveExp = Math.round(yacE * 10) / 10;
+        if (!isNaN(airS)) wrAdvMap[nk].ngsAirYdShare  = Math.round(airS * 10) / 10;
+        if (!normToDisplay[nk] && row.player_display_name) normToDisplay[nk] = row.player_display_name.trim();
+        ngsCount++;
+      }
+      console.log(`  NGS receiving: ${ngsCount} WRs with ≥25 targets (${ngsYear} season)`);
+    } catch(e) { console.warn('\n  ⚠️  NGS receiving fetch failed:', e.message); }
 
     // c) Merge wrAdvMap into advstatsDB
     for (const [nk, data] of Object.entries(wrAdvMap)) {
