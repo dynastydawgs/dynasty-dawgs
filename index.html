@@ -8505,16 +8505,31 @@ async function fetchWeeklyPPR(pid, season) {
 
 // ── computeSurgeMomentum — trajectory = 2nd-half PPG − 1st-half PPG ─────────
 // First half: weeks 1-8.  Second half: weeks 9+.
-// Skips bye weeks / inactive weeks (no pts AND gp=0).
-// Requires ≥ 2 active games in each half; returns null otherwise.
+// A week only counts if the player actually produced points — this correctly
+// skips DNPs and injury-shortened appearances even when Sleeper marks gp=1.
+// If pts_ppr is missing/zero we reconstruct PPR from raw stat fields as a
+// fallback (handles API responses that omit the pre-computed total).
+// Requires ≥ 2 scoring games in each half; returns null otherwise.
 function computeSurgeMomentum(rows) {
   if (!Array.isArray(rows) || !rows.length) return null;
   const first = [], second = [];
   for (const r of rows) {
-    const wk     = +(r.week ?? r.wk ?? 0);
-    const pts    = +(r.pts_ppr ?? 0);
-    const active = (+(r.gp ?? r.gms_active ?? 0)) > 0 || pts > 0;
-    if (!wk || !active) continue;
+    const wk = +(r.week ?? r.wk ?? 0);
+    if (!wk) continue;
+    // Prefer Sleeper's pre-computed pts_ppr; fall back to raw stat math
+    let pts = +(r.pts_ppr ?? 0);
+    if (pts === 0) {
+      const rec    = +(r.rec      ?? 0);
+      const recYd  = +(r.rec_yd   ?? r.rec_yds  ?? 0);
+      const recTd  = +(r.rec_td   ?? 0);
+      const rushYd = +(r.rush_yd  ?? r.rush_yds ?? 0);
+      const rushTd = +(r.rush_td  ?? 0);
+      const fumLst = +(r.fum_lost ?? 0);
+      pts = rec * 0.5 + recYd * 0.1 + recTd * 6 + rushYd * 0.1 + rushTd * 6 - fumLst * 2;
+    }
+    // Skip any week without real production — covers DNPs, byes, IR weeks
+    // where the roster flag (gp) may still be set to 1 by Sleeper
+    if (pts <= 0) continue;
     (wk <= 8 ? first : second).push(pts);
   }
   if (first.length < 2 || second.length < 2) return null;
