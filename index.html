@@ -2515,6 +2515,238 @@
     text-transform:uppercase; color:rgba(255,255,255,0.32); margin-bottom:3px; }
   .bp-fs-mv { font-family:var(--display); font-size:15px; font-weight:800; color:#fff; flex-shrink:0; margin-left:10px; }
   .bp-fs-ms { font-size:9px; color:rgba(255,255,255,0.32); }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     BLUEPRINT — FULL COLOR ART OVERHAUL
+     Sports-card aesthetic: deep colored panels, scanning light beams,
+     diagonal texture headers, high-contrast white text, bold borders.
+     ═══════════════════════════════════════════════════════════════════════ */
+  @keyframes bp-beam   { 0%{transform:translateX(-120%);opacity:0} 25%{opacity:1} 75%{opacity:1} 100%{transform:translateX(120%);opacity:0} }
+  @keyframes bp-flare  { 0%,100%{opacity:0.35} 50%{opacity:0.75} }
+  @keyframes bp-shimmer{ 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+  @keyframes bp-pop-in { from{opacity:0;transform:scale(0.88)} to{opacity:1;transform:scale(1)} }
+  @keyframes bp-wipe-r { from{clip-path:inset(0 100% 0 0)} to{clip-path:inset(0 0% 0 0)} }
+
+  /* ── Card canvas ── */
+  .bp-card {
+    background: radial-gradient(ellipse at 30% 0%, #0e1f3a 0%, #06090e 55%, #070c14 100%) !important;
+  }
+  .bp-hero { border-bottom: 1px solid rgba(255,255,255,0.1) !important; }
+
+  /* ── Metric strip: colored chip tops ── */
+  .bp-metric-val { font-size:24px!important; font-weight:900!important; letter-spacing:-0.01em!important; }
+  .bp-metric-label { font-size:8.5px!important; letter-spacing:0.22em!important; color:rgba(255,255,255,0.38)!important; }
+  .bp-metric-sub   { color:rgba(255,255,255,0.42)!important; font-size:10px!important; }
+
+  /* ── PANEL: sports-card treatment ── */
+  .bp-panel {
+    background: color-mix(in srgb, var(--bpa, #334155) 9%, #070b14) !important;
+    border: 1px solid color-mix(in srgb, var(--bpa, #334155) 18%, transparent) !important;
+    border-top: 2px solid color-mix(in srgb, var(--bpa, #334155) 60%, transparent) !important;
+    border-left: 3px solid color-mix(in srgb, var(--bpa, #334155) 65%, transparent) !important;
+    border-radius: 14px !important;
+    padding: 15px 16px !important;
+    overflow: hidden !important;
+    position: relative;
+  }
+  /* Scanning light beam across the top edge */
+  .bp-panel::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 50%; height: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--bpa, #fff) 50%, transparent 100%);
+    transform: translateX(-120%);
+    animation: bp-beam 5s ease-in-out infinite;
+    pointer-events: none; z-index: 4;
+  }
+
+  /* ── PANEL HEADER: bold sports-card nameplate ── */
+  /* All panel titles: use negative margin to break out of 15px/16px padding */
+  .bp-panel-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 16px !important;
+    /* Pull header to panel edges (matches padding: 15px 16px on .bp-panel) */
+    margin: -15px -16px 14px -16px !important;
+    /* Colored gradient + diagonal stripe texture (sports-card nameplate) */
+    background:
+      repeating-linear-gradient(
+        -55deg,
+        transparent,
+        transparent 8px,
+        rgba(255,255,255,0.02) 8px,
+        rgba(255,255,255,0.02) 9px
+      ),
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--bpa, #334155) 32%, #0c1220) 0%,
+        color-mix(in srgb, var(--bpa, #334155) 10%, #0c1220) 62%,
+        #0c1220 100%
+      ) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--bpa, #334155) 22%, transparent) !important;
+    color: #fff !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2em !important;
+  }
+  /* Secondary titles inside a panel */
+  .bp-panel > .bp-panel-title + * ~ .bp-panel-title,
+  .bp-panel > .bp-panel-title ~ .bp-panel-title {
+    margin: 14px -16px 10px -16px !important;
+    background:
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--bpa, #334155) 18%, transparent) 0%,
+        transparent 70%
+      ) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--bpa, #334155) 14%, transparent) !important;
+    color: color-mix(in srgb, var(--bpa, #fff) 95%, #fff) !important;
+    font-size: 9px !important;
+  }
+  /* Bigger accent dot */
+  .bp-pdot { width:8px!important; height:8px!important; border-radius:50%!important; flex-shrink:0!important; }
+  /* Sub-label stays muted */
+  .bp-panel-sub { color: rgba(255,255,255,0.48) !important; font-weight:400!important;
+    letter-spacing:0.02em!important; font-size:9px!important; }
+
+  /* ── RADAR PANEL: stretch title to full width in flex container ── */
+  .bp-panel-radar { align-items: center !important; }
+  .bp-panel-radar > .bp-panel-title:first-child {
+    align-self: stretch !important;
+    justify-content: center !important;
+  }
+
+  /* ── Content text: high contrast ── */
+  .bp-cs-name, .bp-lineup-name, .bp-bsh-name, .bp-swing-name, .bp-roster-name {
+    color: rgba(255,255,255,0.92) !important;
+  }
+  .bp-cs-age, .bp-age-val, .bp-swing-age, .bp-roster-age {
+    color: rgba(255,255,255,0.75) !important;
+  }
+  .bp-cs-val, .bp-roster-val, .bp-picks-count {
+    color: rgba(255,255,255,0.55) !important;
+  }
+  .bp-bsh-reason, .bp-trade-desc, .bp-picks-year {
+    color: rgba(255,255,255,0.6) !important;
+  }
+  .bp-need-desc { color: rgba(255,255,255,0.7) !important; }
+  .bp-trade-section-label { color: rgba(255,255,255,0.48) !important; }
+  .bp-lineup-ppg { color: #fff !important; font-weight:700!important; }
+  .bp-age-delta  { font-weight: 700 !important; }
+  .bp-radar-leg-row span:last-child { color: #fff !important; font-weight:600!important; }
+  .bp-radar-leg-row span:first-child { color: rgba(255,255,255,0.5)!important; }
+
+  /* ── Bars: taller + brighter ── */
+  .bp-age-bar-wrap  { height:8px!important; border-radius:4px!important; background:rgba(255,255,255,0.08)!important; }
+  .bp-age-bar-fill  { border-radius:4px!important; }
+  .bp-const-bar     { height:16px!important; border-radius:7px!important; margin:12px 0 10px!important; box-shadow:0 2px 8px rgba(0,0,0,0.4)!important; }
+  .bp-cs-bar-wrap   { height:5px!important; background:rgba(255,255,255,0.08)!important; }
+  .bp-roster-bar-wrap { height:5px!important; background:rgba(255,255,255,0.08)!important; }
+  .bp-const-item    { font-size:10px!important; color:rgba(255,255,255,0.72)!important; }
+
+  /* ── Row interaction ── */
+  .bp-lineup-row, .bp-bsh-row, .bp-cornerstone-row, .bp-roster-row, .bp-swing-row, .bp-need-row {
+    border-radius: 5px; transition: background 0.14s;
+    border-bottom-color: rgba(255,255,255,0.06)!important;
+  }
+  .bp-lineup-row:hover, .bp-bsh-row:hover, .bp-cornerstone-row:hover,
+  .bp-roster-row:hover, .bp-swing-row:hover, .bp-need-row:hover {
+    background: rgba(255,255,255,0.055) !important;
+  }
+
+  /* ── Pick dots ── */
+  .bp-pick-dot { box-shadow: 0 2px 10px rgba(0,0,0,0.6)!important; width:22px!important; height:22px!important; font-size:9px!important; }
+
+  /* ── Trade / Need ── */
+  .bp-trade-action { font-size:9px!important; width:62px!important; }
+  .bp-need-pos { font-size:11px!important; font-weight:800!important; }
+
+  /* ── BSH tags: bigger ── */
+  .bp-bsh-tag { font-size:7.5px!important; padding:3px 5px!important; width:34px!important; border-radius:4px!important; }
+
+  /* ── Grade circles: glow on hover ── */
+  .bp-grade-circle:hover {
+    box-shadow: 0 0 18px currentColor !important;
+  }
+
+  /* ── Lineup total ── */
+  .bp-lineup-total { padding:10px 0 4px!important; margin-top:8px!important; }
+
+  /* ── Pos column headers in roster grid ── */
+  .bp-pos-col-header { font-size:11px!important; font-weight:800!important; margin-bottom:10px!important; }
+
+  /* ═══ FULLSCREEN panels — same art treatment ═════════════════════════ */
+  .bp-fs-p {
+    background: color-mix(in srgb, var(--bpa, #334155) 9%, #070b14) !important;
+    border: 1px solid color-mix(in srgb, var(--bpa, #334155) 18%, transparent) !important;
+    border-top: 2px solid color-mix(in srgb, var(--bpa, #334155) 60%, transparent) !important;
+    border-left: 3px solid color-mix(in srgb, var(--bpa, #334155) 65%, transparent) !important;
+    border-radius: 11px !important;
+    padding: 13px 15px !important;
+    overflow: hidden !important;
+    position: relative;
+  }
+  .bp-fs-p::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 50%; height: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--bpa, #fff) 50%, transparent 100%);
+    transform: translateX(-120%);
+    animation: bp-beam 5.8s ease-in-out infinite;
+    pointer-events: none; z-index: 4;
+  }
+  .bp-fs-pt {
+    display: flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    padding: 9px 15px !important;
+    /* Pull to edges of the 13px/15px padded container */
+    margin: -13px -15px 11px -15px !important;
+    background:
+      repeating-linear-gradient(-55deg, transparent, transparent 8px, rgba(255,255,255,0.02) 8px, rgba(255,255,255,0.02) 9px),
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--bpa, #334155) 32%, #0c1220) 0%,
+        color-mix(in srgb, var(--bpa, #334155) 10%, #0c1220) 62%,
+        #0c1220 100%
+      ) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--bpa, #334155) 22%, transparent) !important;
+    color: #fff !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2em !important;
+  }
+  .bp-fs-p > .bp-fs-pt ~ .bp-fs-pt {
+    margin: 12px -15px 8px -15px !important;
+    background:
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--bpa, #334155) 18%, transparent) 0%,
+        transparent 70%
+      ) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--bpa, #334155) 14%, transparent) !important;
+    color: color-mix(in srgb, var(--bpa, #fff) 95%, #fff) !important;
+    font-size: 8.5px !important;
+  }
+  .bp-fs-p.bp-panel-radar { align-items: center !important; }
+  .bp-fs-p.bp-panel-radar > .bp-fs-pt:first-child {
+    align-self: stretch !important;
+    justify-content: center !important;
+  }
+  .bp-fs-pt .bp-panel-sub { color:rgba(255,255,255,0.48)!important; font-weight:400!important; letter-spacing:0.02em!important; }
+
+  /* Fullscreen overlay richer bg */
+  .bp-fs-overlay {
+    background: radial-gradient(ellipse at 20% 10%, #0a1f40 0%, #04060e 55%) !important;
+  }
+  .bp-fs-scroll { background: transparent !important; }
+  .bp-fs-topbar {
+    background: rgba(10,18,35,0.95) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+  }
+  .bp-fs-tname { font-size:17px!important; text-shadow: 0 0 20px rgba(251,113,133,0.3); }
+  .bp-fs-hero { border: 1px solid rgba(255,255,255,0.1) !important; }
+  .bp-fs-mstrip { border: 1px solid rgba(255,255,255,0.09) !important; }
+
 </style>
 </head>
 <body>
