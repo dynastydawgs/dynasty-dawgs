@@ -5508,29 +5508,41 @@ async function loadPlayerProfile(pid) {
       </div>`;
   }
 
-  // ── Workload section (WRs) ──
+  // ── Advanced stats section (WRs) — Efficiency / Volume / Opportunity / Situation ──
   if (pos === 'WR' && hasStats) {
-    const tgts      = +(stats.rec_tgt  ?? 0);
-    const rec       = +(stats.rec      ?? 0);
-    const recYd     = +(stats.rec_yd   ?? 0);
-    const airYd     = +(stats.rec_air_yd ?? 0);
-    const offSnp    = +(stats.off_snp    ?? 0);
-    const tmOffSnp  = +(stats.tm_off_snp ?? 0);
-    const gp        = Math.max(1, actualGames);
+    const tgts     = +(stats.rec_tgt    ?? 0);
+    const rec      = +(stats.rec        ?? 0);
+    const recYd    = +(stats.rec_yd     ?? 0);
+    const recTd    = +(stats.rec_td     ?? 0);
+    const airYd    = +(stats.rec_air_yd ?? 0);
+    const offSnp   = +(stats.off_snp    ?? 0);
+    const tmOffSnp = +(stats.tm_off_snp ?? 0);
+    const rzTgt    = +(stats.rz_tgt     ?? 0);
+    const gp       = Math.max(1, actualGames);
 
-    // NFL average denominators
+    // NFL average benchmarks
     const avgTeamTgtPg   = 33.5;   // avg team pass targets/game
     const avgTeamAirYdPg = 215;    // avg team air yards/game
-    const avgSnapPct     = 72;     // avg starting WR snap share
+    const avgSnapPct     = 72;     // avg starting WR snap share %
     const avgTgtShare    = 18;     // avg WR1/2 target share %
     const avgAirYdShare  = 22;     // avg WR1/2 air yard share %
     const avgYdsTgt      = 8.5;    // avg yards per target
-    const avgCatchPct    = 65;     // avg catch % for WRs
-    const avgTgtPg       = 6.5;    // avg WR1/2 targets per game
+    const avgCatchPct    = 65;     // avg catch %
+    const avgTgtPg       = 6.5;    // avg WR1/2 targets/game
+    const avgRecPg       = 5.0;    // avg receptions/game
+    const avgRecYdPg     = 65;     // avg rec yards/game
+    const avgYdsRec      = 11.5;   // avg yards per reception
+    const avgTdRate      = 6.0;    // avg TD rate % per target
+    const avgAirYdPgRaw  = 65;     // avg raw air yards/game
+    const avgAdot        = 9.8;    // avg ADOT
+    const avgRzTgtPg     = 2.0;    // avg RZ targets/game
+    const avgRzTdRate    = 33;     // avg RZ TD conversion rate %
 
     // Per-game rates
-    const tgtPg      = tgts / gp;
-    const airYdPg    = airYd / gp;
+    const tgtPg   = tgts  / gp;
+    const recPg   = rec   / gp;
+    const airYdPg = airYd / gp;
+    const recYdPg = recYd / gp;
 
     // Derived shares & rates
     const hasSnap     = offSnp > 0 && tmOffSnp > 0;
@@ -5538,112 +5550,148 @@ async function loadPlayerProfile(pid) {
     const tgtSharePct = Math.round(tgtPg / avgTeamTgtPg * 1000) / 10;
     const airYdShare  = airYd > 0 ? Math.round(airYdPg / avgTeamAirYdPg * 1000) / 10 : null;
     const ydsTgt      = tgts > 0  ? Math.round(recYd / tgts * 10) / 10 : null;
-    const catchPct    = tgts > 0  ? Math.round(rec / tgts * 1000) / 10 : null;
-
-    // ADOT + Red Zone
-    const adot       = tgts > 0 && airYd > 0 ? Math.round(airYd / tgts * 10) / 10 : null;
-    const avgAdot    = 9.8;
-    const adotClass  = !adot           ? {label:'No Data',      color:'var(--text-dim)'}
-                     : adot >= 16     ? {label:'Deep Threat',  color:'var(--green)'  }
-                     : adot >= 12     ? {label:'Vertical',     color:'var(--green)'   }
-                     : adot >= 9      ? {label:'Balanced',     color:'var(--orange)' }
-                     : adot >= 6      ? {label:'Underneath',   color:'var(--red)' }
-                     :                  {label:'Screen Route', color:'var(--red)'    };
-    const rzTgt      = +(stats.rz_tgt ?? 0);
-    const recTd      = +(stats.rec_td  ?? 0);
-    const rzTgtPg    = rzTgt > 0 ? (rzTgt / gp).toFixed(1) : null;
-    const avgRzTgtPg = 2.0;
-    const rzWrClass  = !rzTgtPg           ? {label:'No Data',  color:'var(--text-dim)'}
-                     : +rzTgtPg >= 3.5   ? {label:'Elite',    color:'var(--green)'  }
-                     : +rzTgtPg >= 2.5   ? {label:'High',     color:'var(--green)'   }
-                     : +rzTgtPg >= 1.5   ? {label:'Average',  color:'var(--orange)' }
-                     : +rzTgtPg >= 0.8   ? {label:'Limited',  color:'var(--red)' }
-                     :                     {label:'Minimal',  color:'var(--red)'    };
+    const catchPct    = tgts > 0  ? Math.round(rec   / tgts * 1000) / 10 : null;
+    const ydsRec      = rec  > 0  ? Math.round(recYd / rec  * 10)  / 10 : null;
+    const tdRate      = tgts > 0  ? Math.round(recTd / tgts * 1000) / 10 : null;
+    const rzTgtPg     = rzTgt > 0 ? rzTgt / gp : null;
+    const rzTdRate    = rzTgt > 0 ? Math.round(recTd / rzTgt * 1000) / 10 : null;
+    const adot        = tgts > 0 && airYd > 0 ? Math.round(airYd / tgts * 10) / 10 : null;
 
     // ── Classifications ──
-    const snapClass   = !hasSnap        ? { label:'No Data',          color:'var(--text-dim)' }
-                      : snapPct >= 85   ? { label:'Every-Down',       color:'var(--green)'    }
-                      : snapPct >= 72   ? { label:'Full-Time',        color:'var(--green)'     }
-                      : snapPct >= 58   ? { label:'Average',          color:'var(--orange)'   }
-                      : snapPct >= 42   ? { label:'Rotational',       color:'var(--red)'   }
-                      :                   { label:'Minimal',          color:'var(--red)'      };
+    const snapClass = !hasSnap        ? { label:'No Data',        color:'var(--text-dim)' }
+                    : snapPct >= 85  ? { label:'Every-Down',     color:'var(--green)'    }
+                    : snapPct >= 72  ? { label:'Full-Time',      color:'var(--green)'    }
+                    : snapPct >= 58  ? { label:'Average',        color:'var(--orange)'   }
+                    : snapPct >= 42  ? { label:'Rotational',     color:'var(--red)'      }
+                    :                  { label:'Minimal',        color:'var(--red)'      };
 
-    const tgtShareClass = tgtSharePct >= 25 ? { label:'Alpha',          color:'var(--green)'  }
-                        : tgtSharePct >= 18 ? { label:'WR1',            color:'var(--green)'   }
-                        : tgtSharePct >= 12 ? { label:'WR2',            color:'var(--orange)' }
-                        : tgtSharePct >= 7  ? { label:'WR3/Flex',       color:'var(--red)' }
-                        :                     { label:'Depth',          color:'var(--red)'    };
+    const tgtShareClass = tgtSharePct >= 25 ? { label:'Alpha',    color:'var(--green)'  }
+                        : tgtSharePct >= 18 ? { label:'WR1',      color:'var(--green)'  }
+                        : tgtSharePct >= 12 ? { label:'WR2',      color:'var(--orange)' }
+                        : tgtSharePct >= 7  ? { label:'WR3/Flex', color:'var(--red)'    }
+                        :                     { label:'Depth',    color:'var(--red)'    };
 
-    const airYdClass  = !airYdShare         ? { label:'No Data',        color:'var(--text-dim)' }
-                      : airYdShare >= 30    ? { label:'Elite',          color:'var(--green)'    }
-                      : airYdShare >= 22    ? { label:'High',           color:'var(--green)'     }
-                      : airYdShare >= 14    ? { label:'Average',        color:'var(--orange)'   }
-                      : airYdShare >= 8     ? { label:'Limited',        color:'var(--red)'   }
-                      :                       { label:'Minimal',        color:'var(--red)'      };
+    const airYdClass = !airYdShare        ? { label:'No Data', color:'var(--text-dim)' }
+                     : airYdShare >= 30  ? { label:'Elite',   color:'var(--green)'    }
+                     : airYdShare >= 22  ? { label:'High',    color:'var(--green)'    }
+                     : airYdShare >= 14  ? { label:'Average', color:'var(--orange)'   }
+                     : airYdShare >= 8   ? { label:'Limited', color:'var(--red)'      }
+                     :                     { label:'Minimal', color:'var(--red)'      };
 
-    const ydsTgtClass = !ydsTgt             ? { label:'No Data',        color:'var(--text-dim)' }
-                      : ydsTgt >= 11        ? { label:'Deep Threat',    color:'var(--green)'    }
-                      : ydsTgt >= 9         ? { label:'Above Avg',      color:'var(--green)'     }
-                      : ydsTgt >= 7         ? { label:'Average',        color:'var(--orange)'   }
-                      : ydsTgt >= 5         ? { label:'Below Avg',      color:'var(--red)'   }
-                      :                       { label:'Low',            color:'var(--red)'      };
+    const catchClass = !catchPct          ? { label:'No Data',       color:'var(--text-dim)' }
+                     : catchPct >= 74   ? { label:'Elite Hands',   color:'var(--green)'    }
+                     : catchPct >= 65   ? { label:'Reliable',      color:'var(--green)'    }
+                     : catchPct >= 56   ? { label:'Average',       color:'var(--orange)'   }
+                     : catchPct >= 48   ? { label:'Inconsistent',  color:'var(--red)'      }
+                     :                    { label:'Drops Concern', color:'var(--red)'      };
 
-    const catchClass  = !catchPct           ? { label:'No Data',        color:'var(--text-dim)' }
-                      : catchPct >= 74      ? { label:'Elite Hands',    color:'var(--green)'    }
-                      : catchPct >= 65      ? { label:'Reliable',       color:'var(--green)'     }
-                      : catchPct >= 56      ? { label:'Average',        color:'var(--orange)'   }
-                      : catchPct >= 48      ? { label:'Inconsistent',   color:'var(--red)'   }
-                      :                       { label:'Drops Concern',  color:'var(--red)'      };
+    const ydsTgtClass = !ydsTgt           ? { label:'No Data',    color:'var(--text-dim)' }
+                      : ydsTgt >= 11    ? { label:'Deep Threat', color:'var(--green)'    }
+                      : ydsTgt >= 9     ? { label:'Above Avg',   color:'var(--green)'    }
+                      : ydsTgt >= 7     ? { label:'Average',     color:'var(--orange)'   }
+                      : ydsTgt >= 5     ? { label:'Below Avg',   color:'var(--red)'      }
+                      :                   { label:'Low',         color:'var(--red)'      };
 
-    const tgtPgClass  = tgtPg >= 9          ? { label:'Elite Volume',   color:'var(--green)'  }
-                      : tgtPg >= 7          ? { label:'WR1 Volume',     color:'var(--green)'   }
-                      : tgtPg >= 5          ? { label:'Average',        color:'var(--orange)' }
-                      : tgtPg >= 3          ? { label:'Low',            color:'var(--red)' }
-                      :                       { label:'Minimal',        color:'var(--red)'    };
+    const ydsRecClass = !ydsRec           ? { label:'No Data',   color:'var(--text-dim)' }
+                      : ydsRec >= 15    ? { label:'Explosive',  color:'var(--green)'    }
+                      : ydsRec >= 12    ? { label:'Above Avg',  color:'var(--green)'    }
+                      : ydsRec >= 9     ? { label:'Average',    color:'var(--orange)'   }
+                      : ydsRec >= 7     ? { label:'Below Avg',  color:'var(--red)'      }
+                      :                   { label:'Low',        color:'var(--red)'      };
 
-    // Role tag
-    const wrRoleTag   = tgtSharePct >= 25 && (airYdShare ?? 0) >= 25
-                        ? { label:'Alpha Receiver',      color:'var(--green)'  }
-                      : tgtSharePct >= 25
-                        ? { label:'Team WR1',            color:'var(--green)'  }
-                      : tgtSharePct >= 18 && (airYdShare ?? 0) >= 20
-                        ? { label:'Big-Play WR1',        color:'var(--green)'   }
-                      : tgtSharePct >= 18
-                        ? { label:'Solid WR1',           color:'var(--green)'   }
-                      : tgtSharePct >= 12 && (airYdShare ?? 0) >= 18
-                        ? { label:'WR2 Deep Threat',     color:'var(--orange)' }
-                      : tgtSharePct >= 12
-                        ? { label:'WR2 / Flex',          color:'var(--orange)' }
-                      : (catchPct ?? 0) >= 68 && tgtSharePct >= 8
-                        ? { label:'Slot / Possession',   color:'var(--red)' }
-                      :   { label:'Depth / Rotational',  color:'var(--red)' };
+    const tdRateClass = !tdRate           ? { label:'No Data',   color:'var(--text-dim)' }
+                      : tdRate >= 12    ? { label:'Elite',      color:'var(--green)'    }
+                      : tdRate >= 8     ? { label:'Above Avg',  color:'var(--green)'    }
+                      : tdRate >= 5     ? { label:'Average',    color:'var(--orange)'   }
+                      : tdRate >= 3     ? { label:'Below Avg',  color:'var(--red)'      }
+                      :                   { label:'Low',        color:'var(--red)'      };
+
+    const tgtPgClass = tgtPg >= 9        ? { label:'Elite Volume', color:'var(--green)'  }
+                     : tgtPg >= 7       ? { label:'WR1 Volume',   color:'var(--green)'  }
+                     : tgtPg >= 5       ? { label:'Average',      color:'var(--orange)' }
+                     : tgtPg >= 3       ? { label:'Low',          color:'var(--red)'    }
+                     :                    { label:'Minimal',      color:'var(--red)'    };
+
+    const recPgClass = recPg >= 7        ? { label:'Elite Volume', color:'var(--green)'  }
+                     : recPg >= 5.5     ? { label:'WR1 Volume',   color:'var(--green)'  }
+                     : recPg >= 4       ? { label:'Average',      color:'var(--orange)' }
+                     : recPg >= 2.5     ? { label:'Low',          color:'var(--red)'    }
+                     :                    { label:'Minimal',      color:'var(--red)'    };
+
+    const recYdPgClass = recYdPg >= 100  ? { label:'Elite',     color:'var(--green)'  }
+                       : recYdPg >= 75  ? { label:'Above Avg', color:'var(--green)'  }
+                       : recYdPg >= 55  ? { label:'Average',   color:'var(--orange)' }
+                       : recYdPg >= 35  ? { label:'Below Avg', color:'var(--red)'    }
+                       :                  { label:'Low',       color:'var(--red)'    };
+
+    const airYdPgClass = airYdPg >= 100  ? { label:'Elite',     color:'var(--green)'  }
+                       : airYdPg >= 75  ? { label:'Above Avg', color:'var(--green)'  }
+                       : airYdPg >= 50  ? { label:'Average',   color:'var(--orange)' }
+                       : airYdPg >= 30  ? { label:'Below Avg', color:'var(--red)'    }
+                       :                  { label:'Low',       color:'var(--red)'    };
+
+    const adotClass = !adot              ? { label:'No Data',    color:'var(--text-dim)' }
+                    : adot >= 16       ? { label:'Deep Threat', color:'var(--green)'    }
+                    : adot >= 12       ? { label:'Vertical',    color:'var(--green)'    }
+                    : adot >= 9        ? { label:'Balanced',    color:'var(--orange)'   }
+                    : adot >= 6        ? { label:'Underneath',  color:'var(--red)'      }
+                    :                    { label:'Screen Route', color:'var(--red)'     };
+
+    const rzTgtPgClass = !rzTgtPg           ? { label:'No Data', color:'var(--text-dim)' }
+                       : rzTgtPg >= 3.5   ? { label:'Elite',   color:'var(--green)'    }
+                       : rzTgtPg >= 2.5   ? { label:'High',    color:'var(--green)'    }
+                       : rzTgtPg >= 1.5   ? { label:'Average', color:'var(--orange)'   }
+                       : rzTgtPg >= 0.8   ? { label:'Limited', color:'var(--red)'      }
+                       :                    { label:'Minimal', color:'var(--red)'      };
+
+    const rzTdRateClass = !rzTdRate          ? { label:'No Data', color:'var(--text-dim)' }
+                        : rzTdRate >= 50   ? { label:'Elite',   color:'var(--green)'    }
+                        : rzTdRate >= 33   ? { label:'Good',    color:'var(--green)'    }
+                        : rzTdRate >= 20   ? { label:'Average', color:'var(--orange)'   }
+                        : rzTdRate >= 10   ? { label:'Low',     color:'var(--red)'      }
+                        :                    { label:'Poor',    color:'var(--red)'      };
+
+    // Role tag (top of section)
+    const wrRoleTag = tgtSharePct >= 25 && (airYdShare ?? 0) >= 25
+                      ? { label:'Alpha Receiver',    color:'var(--green)'  }
+                    : tgtSharePct >= 25
+                      ? { label:'Team WR1',          color:'var(--green)'  }
+                    : tgtSharePct >= 18 && (airYdShare ?? 0) >= 20
+                      ? { label:'Big-Play WR1',      color:'var(--green)'  }
+                    : tgtSharePct >= 18
+                      ? { label:'Solid WR1',         color:'var(--green)'  }
+                    : tgtSharePct >= 12 && (airYdShare ?? 0) >= 18
+                      ? { label:'WR2 Deep Threat',   color:'var(--orange)' }
+                    : tgtSharePct >= 12
+                      ? { label:'WR2 / Flex',        color:'var(--orange)' }
+                    : (catchPct ?? 0) >= 68 && tgtSharePct >= 8
+                      ? { label:'Slot / Possession', color:'var(--red)'    }
+                    :   { label:'Depth / Rotational', color:'var(--red)'   };
 
     // ── Bar helpers ──
     const mkBar = (pct, maxPct, avgPct, color, benchLabel = 'MED') => {
       const fillW  = Math.min(pct / maxPct * 100, 100).toFixed(1);
-      const showAvg = avgPct != null;
-      const avgPos  = showAvg ? Math.min(avgPct / maxPct * 100, 100).toFixed(1) : 0;
+      const avgPos = Math.min(avgPct / maxPct * 100, 100).toFixed(1);
       return `
         <div class="pp-wl-track">
-          <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
-          ${showAvg ? `<div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>` : ''}
-          <div class="pp-wl-dot"      style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
+          <div class="pp-wl-fill"    style="width:${fillW}%;background:${color};"></div>
+          <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
+          <div class="pp-wl-dot"     style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
         </div>
         <div class="pp-wl-scale">
           <span>0%</span>
-          ${showAvg ? `<span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgPct}%</span>` : ''}
+          <span class="pp-wl-avg-label" style="left:${avgPos}%;">${benchLabel} ${avgPct}%</span>
           <span>${maxPct}%</span>
         </div>`;
     };
-    // Raw-value bar (for non-percentage metrics like yds/tgt, tgt/game)
     const mkBarVal = (val, maxVal, avgVal, color, unit, benchLabel = 'MED') => {
       const fillW  = Math.min(val / maxVal * 100, 100).toFixed(1);
       const avgPos = Math.min(avgVal / maxVal * 100, 100).toFixed(1);
       return `
         <div class="pp-wl-track">
-          <div class="pp-wl-fill"     style="width:${fillW}%;background:${color};"></div>
+          <div class="pp-wl-fill"    style="width:${fillW}%;background:${color};"></div>
           <div class="pp-wl-avg-tick" style="left:${avgPos}%;"></div>
-          <div class="pp-wl-dot"      style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
+          <div class="pp-wl-dot"     style="left:${fillW}%;background:${color};box-shadow:0 0 6px ${color};"></div>
         </div>
         <div class="pp-wl-scale">
           <span>0</span>
@@ -5651,7 +5699,6 @@ async function loadPlayerProfile(pid) {
           <span>${maxVal}${unit}</span>
         </div>`;
     };
-
     const noDataCard = (label) => `
       <div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
         <div class="pp-wl-card-header"><span class="pp-wl-card-label">${label}</span></div>
@@ -5665,54 +5712,8 @@ async function loadPlayerProfile(pid) {
           <span class="pp-wl-role-tag" style="color:${wrRoleTag.color};border-color:${wrRoleTag.color};background:${wrRoleTag.color}18;">${wrRoleTag.label}</span>
         </div>
 
-        <div class="pp-wl-row-label">Opportunity</div>
+        <div class="pp-wl-row-label">Efficiency</div>
         <div class="pp-wl-cards">
-          ${hasSnap
-            ? `<div class="pp-wl-card" style="border-left-color:${snapClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Snap %</span>
-                   <span class="pp-wl-card-cls" style="color:${snapClass.color};">${snapClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${snapClass.color};">${snapPct}<span>%</span></div>
-                 ${mkBar(snapPct, 100, avgSnapPct, snapClass.color)}
-                 <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total · bench: top 32 RBs by carries</div>
-               </div>`
-            : noDataCard('Snap %')}
-          <div class="pp-wl-card" style="border-left-color:${tgtShareClass.color};">
-            <div class="pp-wl-card-header">
-              <span class="pp-wl-card-label">Target Share</span>
-              <span class="pp-wl-card-cls" style="color:${tgtShareClass.color};">${tgtShareClass.label}</span>
-            </div>
-            <div class="pp-wl-card-val" style="color:${tgtShareClass.color};">${tgtSharePct}<span>%</span></div>
-            ${mkBar(tgtSharePct, 35, avgTgtShare, tgtShareClass.color)}
-            <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g · ${tgts} total</div>
-          </div>
-          ${airYdShare !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${airYdClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Air Yard Share</span>
-                   <span class="pp-wl-card-cls" style="color:${airYdClass.color};">${airYdClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${airYdClass.color};">${airYdShare}<span>%</span></div>
-                 ${mkBar(airYdShare, 45, avgAirYdShare, airYdClass.color)}
-                 <div class="pp-wl-card-sub">${airYdPg.toFixed(0)} air yds/g · ${airYd} total</div>
-               </div>`
-            : noDataCard('Air Yard Share')}
-        </div>
-
-        <div class="pp-wl-row-label" style="margin-top:14px;">Efficiency</div>
-        <div class="pp-wl-cards">
-          ${ydsTgt !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${ydsTgtClass.color};">
-                 <div class="pp-wl-card-header">
-                   <span class="pp-wl-card-label">Yards / Target</span>
-                   <span class="pp-wl-card-cls" style="color:${ydsTgtClass.color};">${ydsTgtClass.label}</span>
-                 </div>
-                 <div class="pp-wl-card-val" style="color:${ydsTgtClass.color};">${ydsTgt}<span> yds</span></div>
-                 ${mkBarVal(ydsTgt, 16, avgYdsTgt, ydsTgtClass.color, ' yds')}
-                 <div class="pp-wl-card-sub">${recYd} yds on ${tgts} tgt</div>
-               </div>`
-            : noDataCard('Yards / Target')}
           ${catchPct !== null
             ? `<div class="pp-wl-card" style="border-left-color:${catchClass.color};">
                  <div class="pp-wl-card-header">
@@ -5724,6 +5725,43 @@ async function loadPlayerProfile(pid) {
                  <div class="pp-wl-card-sub">${rec} rec on ${tgts} tgt</div>
                </div>`
             : noDataCard('Catch %')}
+          ${ydsTgt !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${ydsTgtClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Yards / Target</span>
+                   <span class="pp-wl-card-cls" style="color:${ydsTgtClass.color};">${ydsTgtClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${ydsTgtClass.color};">${ydsTgt}<span> yds</span></div>
+                 ${mkBarVal(ydsTgt, 16, avgYdsTgt, ydsTgtClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${recYd} yds on ${tgts} tgt</div>
+               </div>`
+            : noDataCard('Yards / Target')}
+          ${ydsRec !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${ydsRecClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Yards / Rec</span>
+                   <span class="pp-wl-card-cls" style="color:${ydsRecClass.color};">${ydsRecClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${ydsRecClass.color};">${ydsRec}<span> yds</span></div>
+                 ${mkBarVal(ydsRec, 20, avgYdsRec, ydsRecClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${recYd} yds on ${rec} rec</div>
+               </div>`
+            : noDataCard('Yards / Rec')}
+          ${tdRate !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${tdRateClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">TD Rate</span>
+                   <span class="pp-wl-card-cls" style="color:${tdRateClass.color};">${tdRateClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${tdRateClass.color};">${tdRate}<span>%</span></div>
+                 ${mkBar(tdRate, 20, avgTdRate, tdRateClass.color)}
+                 <div class="pp-wl-card-sub">${recTd} TDs on ${tgts} tgt</div>
+               </div>`
+            : noDataCard('TD Rate')}
+        </div>
+
+        <div class="pp-wl-row-label" style="margin-top:14px;">Volume</div>
+        <div class="pp-wl-cards">
           <div class="pp-wl-card" style="border-left-color:${tgtPgClass.color};">
             <div class="pp-wl-card-header">
               <span class="pp-wl-card-label">Targets / Game</span>
@@ -5731,12 +5769,72 @@ async function loadPlayerProfile(pid) {
             </div>
             <div class="pp-wl-card-val" style="color:${tgtPgClass.color};">${tgtPg.toFixed(1)}<span>/g</span></div>
             ${mkBarVal(tgtPg, 13, avgTgtPg, tgtPgClass.color, '/g')}
-            <div class="pp-wl-card-sub">${tgts} total tgt · ${gp} games</div>
+            <div class="pp-wl-card-sub">${tgts} total · ${gp} games</div>
           </div>
+          <div class="pp-wl-card" style="border-left-color:${recPgClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Receptions / Game</span>
+              <span class="pp-wl-card-cls" style="color:${recPgClass.color};">${recPgClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${recPgClass.color};">${recPg.toFixed(1)}<span>/g</span></div>
+            ${mkBarVal(recPg, 11, avgRecPg, recPgClass.color, '/g')}
+            <div class="pp-wl-card-sub">${rec} total · ${gp} games</div>
+          </div>
+          <div class="pp-wl-card" style="border-left-color:${recYdPgClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Rec Yards / Game</span>
+              <span class="pp-wl-card-cls" style="color:${recYdPgClass.color};">${recYdPgClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${recYdPgClass.color};">${recYdPg.toFixed(0)}<span> yds</span></div>
+            ${mkBarVal(recYdPg, 160, avgRecYdPg, recYdPgClass.color, ' yds')}
+            <div class="pp-wl-card-sub">${recYd} total · ${gp} games</div>
+          </div>
+          ${airYd > 0
+            ? `<div class="pp-wl-card" style="border-left-color:${airYdPgClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Air Yards / Game</span>
+                   <span class="pp-wl-card-cls" style="color:${airYdPgClass.color};">${airYdPgClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${airYdPgClass.color};">${airYdPg.toFixed(0)}<span> yds</span></div>
+                 ${mkBarVal(airYdPg, 175, avgAirYdPgRaw, airYdPgClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${airYd} total · ${gp} games</div>
+               </div>`
+            : noDataCard('Air Yards / Game')}
         </div>
 
-        <div class="pp-wl-row-label" style="margin-top:14px;">Route Profile &amp; Red Zone</div>
+        <div class="pp-wl-row-label" style="margin-top:14px;">Opportunity</div>
         <div class="pp-wl-cards">
+          <div class="pp-wl-card" style="border-left-color:${tgtShareClass.color};">
+            <div class="pp-wl-card-header">
+              <span class="pp-wl-card-label">Target Share</span>
+              <span class="pp-wl-card-cls" style="color:${tgtShareClass.color};">${tgtShareClass.label}</span>
+            </div>
+            <div class="pp-wl-card-val" style="color:${tgtShareClass.color};">${tgtSharePct}<span>%</span></div>
+            ${mkBar(tgtSharePct, 35, avgTgtShare, tgtShareClass.color)}
+            <div class="pp-wl-card-sub">${tgtPg.toFixed(1)} tgt/g vs ${avgTeamTgtPg} team avg</div>
+          </div>
+          ${airYdShare !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${airYdClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Air Yard Share</span>
+                   <span class="pp-wl-card-cls" style="color:${airYdClass.color};">${airYdClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${airYdClass.color};">${airYdShare}<span>%</span></div>
+                 ${mkBar(airYdShare, 45, avgAirYdShare, airYdClass.color)}
+                 <div class="pp-wl-card-sub">${airYdPg.toFixed(0)} air yds/g vs ${avgTeamAirYdPg} team avg</div>
+               </div>`
+            : noDataCard('Air Yard Share')}
+          ${hasSnap
+            ? `<div class="pp-wl-card" style="border-left-color:${snapClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Snap %</span>
+                   <span class="pp-wl-card-cls" style="color:${snapClass.color};">${snapClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${snapClass.color};">${snapPct}<span>%</span></div>
+                 ${mkBar(snapPct, 100, avgSnapPct, snapClass.color)}
+                 <div class="pp-wl-card-sub">${(offSnp/gp).toFixed(0)} snaps/g · ${offSnp} total snaps</div>
+               </div>`
+            : noDataCard('Snap %')}
           ${adot !== null
             ? `<div class="pp-wl-card" style="border-left-color:${adotClass.color};">
                  <div class="pp-wl-card-header">
@@ -5745,23 +5843,37 @@ async function loadPlayerProfile(pid) {
                  </div>
                  <div class="pp-wl-card-val" style="color:${adotClass.color};">${adot}<span> yds</span></div>
                  ${mkBarVal(adot, 22, avgAdot, adotClass.color, ' yds')}
-                 <div class="pp-wl-card-sub">${airYd} total air yds on ${tgts} tgts</div>
+                 <div class="pp-wl-card-sub">${airYd} total air yds · ${tgts} tgts</div>
                </div>`
             : noDataCard('Avg Depth of Tgt')}
+        </div>
+
+        <div class="pp-wl-row-label" style="margin-top:14px;">Situation</div>
+        <div class="pp-wl-cards">
           ${rzTgtPg !== null
-            ? `<div class="pp-wl-card" style="border-left-color:${rzWrClass.color};">
+            ? `<div class="pp-wl-card" style="border-left-color:${rzTgtPgClass.color};">
                  <div class="pp-wl-card-header">
                    <span class="pp-wl-card-label">RZ Targets / Game</span>
-                   <span class="pp-wl-card-cls" style="color:${rzWrClass.color};">${rzWrClass.label}</span>
+                   <span class="pp-wl-card-cls" style="color:${rzTgtPgClass.color};">${rzTgtPgClass.label}</span>
                  </div>
-                 <div class="pp-wl-card-val" style="color:${rzWrClass.color};">${rzTgtPg}<span>/g</span></div>
-                 ${mkBarVal(+rzTgtPg, 6, avgRzTgtPg, rzWrClass.color, '/g')}
+                 <div class="pp-wl-card-val" style="color:${rzTgtPgClass.color};">${rzTgtPg.toFixed(1)}<span>/g</span></div>
+                 ${mkBarVal(rzTgtPg, 6, avgRzTgtPg, rzTgtPgClass.color, '/g')}
                  <div class="pp-wl-card-sub">${rzTgt} total RZ tgts · ${recTd} rec TDs</div>
                </div>`
             : noDataCard('RZ Targets / Game')}
+          ${rzTdRate !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${rzTdRateClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">RZ TD Rate</span>
+                   <span class="pp-wl-card-cls" style="color:${rzTdRateClass.color};">${rzTdRateClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${rzTdRateClass.color};">${rzTdRate}<span>%</span></div>
+                 ${mkBar(rzTdRate, 80, avgRzTdRate, rzTdRateClass.color)}
+                 <div class="pp-wl-card-sub">${recTd} TDs on ${rzTgt} RZ tgts</div>
+               </div>`
+            : noDataCard('RZ TD Rate')}
         </div>
         ${injCardHTML}
-
       </div>`;
     outlookHTML = workloadHTML;
   }
