@@ -11922,6 +11922,19 @@ function _mbWeightsHtml(pos) {
     ['Ascending/soph negative signal',   '40% of value',   'lo'],
   ].map(([l,v,c]) => `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val ${c}">${v}</span></div>`).join('');
 
+  // ── Season Surge momentum ──
+  const surgeWeight = { QB: 0.55, RB: 0.65, TE: 0.40, WR: 0.18 }[pos] ?? 0.35;
+  const surgeRows = [
+    ['Applies to',              'Sophomores (adj) · Rookies (signal only)', 'dim'],
+    ['Definition',              '2nd-half PPG − 1st-half PPG · wk 1–8 vs 9+', 'dim'],
+    [`Position weight (${pos})`, `${surgeWeight}×`, surgeWeight >= 0.55 ? 'hi' : surgeWeight >= 0.40 ? 'mid' : 'lo'],
+    ['PPG → pts multiplier',    '2.5×', 'mid'],
+    ['Hard cap',                '±18 pts on median', 'lo'],
+    ['Min games per half',      '2 active games required each', 'dim'],
+    ['WR rationale',            'Research shows no statistically sig. effect', 'dim'],
+    ['RB/QB rationale',         'Moderate effect — scheme consistency signal', 'mid'],
+  ].map(([l,v,c]) => `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val ${c}">${v}</span></div>`).join('');
+
   // ── Spike regression ──
   const isQb = pos === 'QB';
   const spikeRows = [
@@ -12033,8 +12046,12 @@ function _mbWeightsHtml(pos) {
         ${blendRows}
       </div>
       <div class="mb-wt-block">
-        <div class="mb-wt-block-title">Momentum Signal</div>
+        <div class="mb-wt-block-title">Momentum Signal (YoY)</div>
         ${momRows}
+      </div>
+      <div class="mb-wt-block">
+        <div class="mb-wt-block-title">Season Surge (Rookie → Soph)</div>
+        ${surgeRows}
       </div>
       <div class="mb-wt-block">
         <div class="mb-wt-block-title">Spike-Year Regression</div>
