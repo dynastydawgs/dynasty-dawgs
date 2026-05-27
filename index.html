@@ -7301,13 +7301,13 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       if (el) el.innerHTML = msg + '<br><small style="color:var(--text-dim);">Saved locally — instant next time.</small>';
     });
 
-    // ── Season Surge — fetch weekly splits for rookie/sophomore players ─────────
-    // For sophomores: rookie-year weekly data (statSeason = their most recent played yr).
-    // For rookies mid-season: current year weekly data as a live in-season signal.
+    // ── Season Surge — fetch weekly splits for all career stages ─────────────
+    // Rookies/sophomores: current or most-recent season weekly data.
+    // All other stages: most recent season weekly data as a within-season signal.
     // headless prewarm skips the fetch to avoid 150+ extra API calls.
     let surgeData = null;
     let surgeAdj  = 0;
-    if (!headless && ['rookie', 'sophomore'].includes(careerStage.stage) && pid) {
+    if (!headless && pid) {
       const surgeYear  = statSeason ?? String(new Date().getFullYear());
       const weeklyRows = await fetchWeeklyPPR(pid, surgeYear).catch(() => null);
       surgeData = computeSurgeMomentum(weeklyRows);
@@ -7763,15 +7763,25 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         }
       }
 
-      // ── Season Surge adjustment (sophomores only) ────────────────────────────
-      // Trajectory (2nd-half PPG − 1st-half PPG from rookie year) modestly shifts
-      // the sophomore base. Position weights from article research:
-      //   RB/QB: moderate signal · TE: small · WR: negligible
-      // Caps at ±18 pts so surge can't dominate the projection (~1 PPG max swing).
-      if (careerStage.stage === 'sophomore' && surgeData?.trajectory != null) {
-        const sw = { QB: 0.55, RB: 0.65, TE: 0.40, WR: 0.18 }[pos] ?? 0.35;
-        surgeAdj = Math.max(-18, Math.min(18, Math.round(surgeData.trajectory * sw * 2.5)));
-        if (surgeAdj !== 0) medianPpr = Math.round(medianPpr + surgeAdj);
+      // ── Season Surge adjustment (all career stages) ──────────────────────────
+      // Trajectory (2nd-half PPG − 1st-half PPG) shifts the projection base.
+      // Stage weights: sophomore is strongest signal; prime is weakest.
+      // Position weights: RB/QB moderate · WR small-but-real · TE smaller.
+      // Higher stages require 10+ active games total to be meaningful.
+      {
+        const _surgeStageWt  = { sophomore:1.0, ascending:0.55, prime:0.30, declining:0.55, cliff:0.45 };
+        const _surgePosWt    = { QB:0.55, RB:0.65, TE:0.40, WR:0.30 };
+        const _surgeStageCap = { sophomore:18, ascending:14, prime:10, declining:14, cliff:12 };
+        const _sw   = _surgeStageWt[careerStage.stage] ?? 0;
+        const _pw   = _surgePosWt[pos] ?? 0.35;
+        const _cap  = _surgeStageCap[careerStage.stage] ?? 10;
+        // Rookies/sophs need fewer games; established players need a full data picture
+        const _minGames = ['rookie', 'sophomore'].includes(careerStage.stage) ? 4 : 10;
+        if (_sw > 0 && surgeData?.trajectory != null
+            && (surgeData.firstGames + surgeData.secondGames) >= _minGames) {
+          surgeAdj = Math.max(-_cap, Math.min(_cap, Math.round(surgeData.trajectory * _sw * _pw * 2.5)));
+          if (surgeAdj !== 0) medianPpr = Math.round(medianPpr + surgeAdj);
+        }
       }
 
       // ── Prime / ascending proven-producer floor ──────────────────────────────
@@ -8290,11 +8300,13 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       const col   = traj >= 3 ? 'var(--green)' : traj >= 1 ? 'var(--accent)' : traj >= -1 ? 'var(--text-muted)' : 'var(--red)';
       const arrow = traj >= 1 ? '↑' : traj <= -1 ? '↓' : '→';
       const sign  = traj > 0 ? '+' : '';
-      const adjNote = adj !== 0 ? ` · proj ${adj > 0 ? '+' : ''}${adj}pts` : '';
+      const adjLine = adj !== 0
+        ? `<br><span style="color:${adj > 0 ? 'var(--green)' : 'var(--red)'}">${adj > 0 ? '+' : ''}${adj} pts applied to projection</span>`
+        : '';
       return `<div class="pp-factor">
         <div class="pp-factor-lbl">Season Surge</div>
-        <div class="pp-factor-val" style="color:${col};">${sign}${traj.toFixed(1)} ${arrow}</div>
-        <div class="pp-factor-sub">${sd.firstPPG.toFixed(1)} → ${sd.secondPPG.toFixed(1)} PPG · wk 1–8 vs 9+${adjNote}</div>
+        <div class="pp-factor-val" style="color:${col};">${sign}${traj.toFixed(1)} PPG ${arrow}</div>
+        <div class="pp-factor-sub">Wks 1–8: ${sd.firstPPG.toFixed(1)} PPG → Wks 9+: ${sd.secondPPG.toFixed(1)} PPG${adjLine}</div>
       </div>`;
     }
 
@@ -8316,6 +8328,10 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     } else if (careerStage.stage === 'rookie' && surgeData) {
       // Rookie mid-season: show live surge as a signal box (informational only, no adj)
       momBox = _surgeBox(surgeData, 0);
+    } else if (['ascending', 'prime', 'declining', 'cliff'].includes(careerStage.stage) && surgeData) {
+      // Established players: show surge overlay on top of YoY momentum
+      // (surgeAdj already baked into medianPpr above if conditions were met)
+      momBox = _surgeBox(surgeData, surgeAdj);
     } else if (seasonHistory.length >= 2) {
       const displayDelta = avgDeltaPpg !== null ? avgDeltaPpg : (seasonHistory[seasonHistory.length - 1].ppg - seasonHistory[0].ppg);
       const momCol    = displayDelta >= 0.5 ? 'var(--green)' : displayDelta <= -0.5 ? 'var(--red)' : 'var(--text-muted)';
@@ -11923,17 +11939,24 @@ function _mbWeightsHtml(pos) {
   ].map(([l,v,c]) => `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val ${c}">${v}</span></div>`).join('');
 
   // ── Season Surge momentum ──
-  const surgeWeight = { QB: 0.55, RB: 0.65, TE: 0.40, WR: 0.18 }[pos] ?? 0.35;
+  const _surgeStageWts = { sophomore:1.0, ascending:0.55, prime:0.30, declining:0.55, cliff:0.45 };
+  const _surgePosWts   = { QB:0.55, RB:0.65, TE:0.40, WR:0.30 };
+  const _surgeCaps     = { sophomore:'±18', ascending:'±14', prime:'±10', declining:'±14', cliff:'±12' };
+  const surgeWeight    = _surgePosWts[pos] ?? 0.35;
+  const surgeStageRows = Object.entries(_surgeStageWts).map(([stage, sw]) => {
+    const cap    = _surgeCaps[stage];
+    const minGms = ['rookie','sophomore'].includes(stage) ? '4 gms' : '10 gms';
+    const cls    = sw >= 0.80 ? 'hi' : sw >= 0.45 ? 'mid' : 'lo';
+    return `<div class="mb-wt-row"><span class="mb-wt-label">${stage.charAt(0).toUpperCase()+stage.slice(1)}</span><span class="mb-wt-val ${cls}">${sw}× · ${cap} · min ${minGms}</span></div>`;
+  }).join('');
   const surgeRows = [
-    ['Applies to',              'Sophomores (adj) · Rookies (signal only)', 'dim'],
-    ['Definition',              '2nd-half PPG − 1st-half PPG · wk 1–8 vs 9+', 'dim'],
-    [`Position weight (${pos})`, `${surgeWeight}×`, surgeWeight >= 0.55 ? 'hi' : surgeWeight >= 0.40 ? 'mid' : 'lo'],
-    ['PPG → pts multiplier',    '2.5×', 'mid'],
-    ['Hard cap',                '±18 pts on median', 'lo'],
-    ['Min games per half',      '2 active games required each', 'dim'],
-    ['WR rationale',            'Research shows no statistically sig. effect', 'dim'],
-    ['RB/QB rationale',         'Moderate effect — scheme consistency signal', 'mid'],
-  ].map(([l,v,c]) => `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val ${c}">${v}</span></div>`).join('');
+    ['Applies to',               'All stages · Rookies = signal only', 'dim'],
+    ['Definition',               '2nd-half PPG − 1st-half PPG · wk 1–8 vs 9+', 'dim'],
+    [`Position weight (${pos})`,  `${surgeWeight}×`, surgeWeight >= 0.55 ? 'hi' : surgeWeight >= 0.30 ? 'mid' : 'lo'],
+    ['PPG → pts multiplier',     '2.5×', 'mid'],
+  ].map(([l,v,c]) => `<div class="mb-wt-row"><span class="mb-wt-label">${l}</span><span class="mb-wt-val ${c}">${v}</span></div>`).join('')
+    + `<div class="mb-wt-row" style="margin-top:6px;"><span class="mb-wt-label" style="font-weight:600;">Stage weights &amp; caps</span></div>`
+    + surgeStageRows;
 
   // ── Spike regression ──
   const isQb = pos === 'QB';
@@ -12050,7 +12073,7 @@ function _mbWeightsHtml(pos) {
         ${momRows}
       </div>
       <div class="mb-wt-block">
-        <div class="mb-wt-block-title">Season Surge (Rookie → Soph)</div>
+        <div class="mb-wt-block-title">Season Surge (All Stages)</div>
         ${surgeRows}
       </div>
       <div class="mb-wt-block">
