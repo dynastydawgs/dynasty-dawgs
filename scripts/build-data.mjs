@@ -697,6 +697,9 @@ async function main() {
     const teamRzCarriesPerGame = {}; // gameId → { posteam → RZ rush attempts (yardline_100 ≤ 20) }
     const teamRbTgtsPerGame    = {}; // gameId → { posteam → total RB targets } (backfield tgt share denom)
     const teamThirdDownPlaysPerGame = {}; // gameId → { posteam → 3rd-down play count } (denominator for snap%)
+    const passPlaysMap         = new Map(); // `${gameId}_${playId}` → { receiverGsis, completedPass, yardsGained }
+    const teamPassPlaysPerGame = {};        // gameId → { posteam → count } (WR route participation denominator)
+    const wrRoutesByGsis       = {};        // gsis_id → { routesRun, tgts, recYds, routeCounts, gameIds }
     const thirdDownMap         = new Map(); // game_id → Set<play_id (int)> for REG 3rd-down plays
     try {
       const pbpRes = await fetch(
@@ -795,15 +798,33 @@ async function main() {
                 workloadByGsis[gsis].recYds += ydsI >= 0 ? (parseFloat(v[ydsI]) || 0) : 0;
               }
             }
+            // Build passPlaysMap for WR route computation in participation pass (Step 3b)
+            if (gameId && pidI >= 0) {
+              const playIdNum = parseInt(v[pidI], 10);
+              if (!isNaN(playIdNum)) {
+                passPlaysMap.set(`${gameId}_${playIdNum}`, {
+                  receiverGsis:  gsis ?? null,
+                  completedPass: cpI >= 0 ? v[cpI] : '0',
+                  yardsGained:   ydsI >= 0 ? (parseFloat(v[ydsI]) || 0) : 0,
+                });
+              }
+            }
+            // Track team pass plays per game (route participation denominator)
+            if (gameId && pteam) {
+              if (!teamPassPlaysPerGame[gameId]) teamPassPlaysPerGame[gameId] = {};
+              teamPassPlaysPerGame[gameId][pteam] = (teamPassPlaysPerGame[gameId][pteam] ?? 0) + 1;
+            }
           }
         }
         console.log(`  PBP: ${Object.keys(successByGsis).length} players w/ success rate, ${Object.keys(workloadByGsis).length} w/ workload`);
       }
     } catch(e) { console.warn('\n  ⚠️  PBP fetch failed:', e.message); }
 
-    // ── 3b. Participation → 3rd-down snaps on field per GSIS (RBs only) ────────
-    // pbp_participation has one row per play with offense_players as space-separated GSIS IDs.
-    // Join to PBP via game_id + play_id to filter REG 3rd-down plays only.
+    // ── 3b. Participation → RB 3rd-down snaps + WR route tracking (single pass) ──
+    // pbp_participation has one row per play with offense_players as semicolon-separated GSIS IDs.
+    // One fetch handles both: RB 3rd-down snap% AND WR routes run on pass plays.
+    // RBs: join via thirdDownMap (PBP-derived 3rd-down play set).
+    // WRs: join via passPlaysMap (PBP-derived REG pass play set built above).
     const thirdDownSnapsByGsis  = {};  // gsis_id → count of REG 3rd-down snaps on field
     const thirdDownGamesByGsis  = {};  // gsis_id → Set<gameId> games appeared in on 3rd down
     try {
@@ -814,29 +835,54 @@ async function main() {
         const lines = (await partRes.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
         // nflverse participation uses 'nflverse_game_id' in some releases, 'game_id' in others
-        const pgidI = ['nflverse_game_id', 'game_id'].reduce((found, col) => found >= 0 ? found : hdrs.indexOf(col), -1);
-        const ppidI = hdrs.indexOf('play_id');
-        const offI  = hdrs.indexOf('offense_players');
+        const pgidI  = ['nflverse_game_id', 'game_id'].reduce((found, col) => found >= 0 ? found : hdrs.indexOf(col), -1);
+        const ppidI  = hdrs.indexOf('play_id');
+        const offI   = hdrs.indexOf('offense_players');
+        const routeI = hdrs.indexOf('route');  // targeted receiver's route type
         if (pgidI >= 0 && ppidI >= 0 && offI >= 0) {
           for (const line of lines.slice(1)) {
             const v      = parseCSVLine(line);
             const gameId = v[pgidI]?.trim();
             const pid    = parseInt(v[ppidI], 10);
             if (!gameId || isNaN(pid)) continue;
-            if (!thirdDownMap.has(gameId)) continue;
-            if (!thirdDownMap.get(gameId).has(pid)) continue;
+
+            const isThirdDown = thirdDownMap.has(gameId) && thirdDownMap.get(gameId).has(pid);
+            const mapKey      = `${gameId}_${pid}`;
+            const passPlay    = passPlaysMap.get(mapKey);  // null if not a REG pass play
+            if (!isThirdDown && !passPlay) continue;       // skip if neither condition applies
+
             const players = (v[offI] ?? '').trim().split(';').filter(Boolean);
+            const route   = routeI >= 0 ? (v[routeI] ?? '').trim().toUpperCase() : '';
+
             for (const gsis of players) {
-              if (gsisToPos[gsis] !== 'RB') continue;
-              thirdDownSnapsByGsis[gsis] = (thirdDownSnapsByGsis[gsis] ?? 0) + 1;
-              if (!thirdDownGamesByGsis[gsis]) thirdDownGamesByGsis[gsis] = new Set();
-              thirdDownGamesByGsis[gsis].add(gameId);
+              const posG = gsisToPos[gsis];
+
+              // RB: 3rd-down snap tracking
+              if (posG === 'RB' && isThirdDown) {
+                thirdDownSnapsByGsis[gsis] = (thirdDownSnapsByGsis[gsis] ?? 0) + 1;
+                if (!thirdDownGamesByGsis[gsis]) thirdDownGamesByGsis[gsis] = new Set();
+                thirdDownGamesByGsis[gsis].add(gameId);
+              }
+
+              // WR: route tracking on REG pass plays
+              if (posG === 'WR' && passPlay) {
+                if (!wrRoutesByGsis[gsis]) wrRoutesByGsis[gsis] = { routesRun: 0, tgts: 0, recYds: 0, routeCounts: {}, gameIds: new Set() };
+                wrRoutesByGsis[gsis].routesRun++;
+                wrRoutesByGsis[gsis].gameIds.add(gameId);
+                if (gsis === passPlay.receiverGsis) {
+                  wrRoutesByGsis[gsis].tgts++;
+                  if (passPlay.completedPass === '1') wrRoutesByGsis[gsis].recYds += passPlay.yardsGained;
+                  if (route && route !== 'NA') {
+                    wrRoutesByGsis[gsis].routeCounts[route] = (wrRoutesByGsis[gsis].routeCounts[route] ?? 0) + 1;
+                  }
+                }
+              }
             }
           }
         } else {
           console.warn(`  ⚠️  Participation: missing required columns. Headers: ${hdrs.join(', ')}`);
         }
-        console.log(`  3rd-down snaps: ${Object.keys(thirdDownSnapsByGsis).length} RBs tracked (${thirdDownMap.size} games, ${[...thirdDownMap.values()].reduce((s,v)=>s+v.size,0)} plays)`);
+        console.log(`  3rd-down snaps: ${Object.keys(thirdDownSnapsByGsis).length} RBs · WR routes: ${Object.keys(wrRoutesByGsis).length} WRs tracked`);
       } else {
         console.warn(`  ⚠️  Participation fetch returned ${partRes.status}`);
       }
@@ -1050,6 +1096,85 @@ async function main() {
       const displayName = normToDisplay[nk] ?? nk;
       advstatsDB[displayName] = entry;
       advstatsCount++;
+    }
+
+    // ── 5g. WR route efficiency + NGS separation ──────────────────────────────
+    // a) Build WR route metrics from participation + PBP data
+    const wrAdvMap = {};
+    for (const [gsis, d] of Object.entries(wrRoutesByGsis)) {
+      if (d.routesRun < 50) continue;
+      const nk = gsisToNormName[gsis];
+      if (!nk) continue;
+      const team    = workloadByGsis[gsis]?.team ?? null;
+      const gameIds = [...d.gameIds];
+      const teamPassPlays = team
+        ? gameIds.reduce((s, gid) => s + (teamPassPlaysPerGame[gid]?.[team] ?? 0), 0)
+        : 0;
+      const routePartRate = teamPassPlays > 0
+        ? Math.round(d.routesRun / teamPassPlays * 1000) / 10 : null;
+      const tgtsPerRoute  = d.routesRun > 0
+        ? Math.round(d.tgts / d.routesRun * 1000) / 10 : null;
+      const yprr          = d.routesRun > 0
+        ? Math.round(d.recYds / d.routesRun * 100) / 100 : null;
+      let routeDist = null;
+      if (d.tgts >= 10) {
+        routeDist = {};
+        for (const [rt, cnt] of Object.entries(d.routeCounts)) {
+          routeDist[rt] = Math.round(cnt / d.tgts * 1000) / 10;
+        }
+      }
+      wrAdvMap[nk] = { routesRun: d.routesRun, routePartRate, tgtsPerRoute, yprr, routeDist };
+    }
+    console.log(`  WR route metrics: ${Object.keys(wrAdvMap).length} WRs with ≥50 routes`);
+
+    // b) Fetch NGS receiving — season-level separation, cushion, YAC above expectation
+    try {
+      const ngsRes = await fetch(
+        `https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv`
+      );
+      if (ngsRes.ok) {
+        const ngsLines = (await ngsRes.text()).split('\n').filter(l => l.trim());
+        const ngsHdrs  = parseCSVLine(ngsLines[0]);
+        const [nNameI, nGsisI, nSeasI, nWkI, nTgtI, nSepI, nCushI, nYacI, nAirI] =
+          ['player_display_name','player_gsis_id','season','week','targets',
+           'avg_separation','avg_cushion','avg_yac_above_expectation',
+           'percent_share_of_intended_air_yards']
+          .map(h => ngsHdrs.indexOf(h));
+        let ngsCount = 0;
+        for (const line of ngsLines.slice(1)) {
+          const v    = parseCSVLine(line);
+          const seas = nSeasI >= 0 ? parseInt(v[nSeasI], 10) : 0;
+          const wk   = nWkI   >= 0 ? parseInt(v[nWkI],   10) : -1;
+          if (seas !== recentYr || wk !== 0) continue; // week 0 = season aggregate
+          const tgts = nTgtI >= 0 ? parseInt(v[nTgtI], 10) : 0;
+          if (tgts < 25) continue;
+          const gsis = nGsisI >= 0 ? v[nGsisI]?.trim() : null;
+          const nk   = gsis ? gsisToNormName[gsis] : null;
+          if (!nk) continue;
+          if (!wrAdvMap[nk]) wrAdvMap[nk] = {};
+          const sep  = nSepI  >= 0 ? parseFloat(v[nSepI])  : NaN;
+          const cush = nCushI >= 0 ? parseFloat(v[nCushI]) : NaN;
+          const yacE = nYacI  >= 0 ? parseFloat(v[nYacI])  : NaN;
+          const airS = nAirI  >= 0 ? parseFloat(v[nAirI])  : NaN;
+          if (!isNaN(sep))  wrAdvMap[nk].avgSeparation  = Math.round(sep  * 10) / 10;
+          if (!isNaN(cush)) wrAdvMap[nk].avgCushion     = Math.round(cush * 10) / 10;
+          if (!isNaN(yacE)) wrAdvMap[nk].avgYacAboveExp = Math.round(yacE * 10) / 10;
+          if (!isNaN(airS)) wrAdvMap[nk].ngsAirYdShare  = Math.round(airS * 10) / 10;
+          if (!normToDisplay[nk] && nNameI >= 0) normToDisplay[nk] = v[nNameI]?.trim();
+          ngsCount++;
+        }
+        console.log(`  NGS receiving: ${ngsCount} WRs with ≥25 targets (${recentYr} season)`);
+      } else {
+        console.warn(`  ⚠️  NGS receiving HTTP ${ngsRes.status}`);
+      }
+    } catch(e) { console.warn('\n  ⚠️  NGS receiving fetch failed:', e.message); }
+
+    // c) Merge wrAdvMap into advstatsDB
+    for (const [nk, data] of Object.entries(wrAdvMap)) {
+      if (!Object.keys(data).length) continue;
+      const displayName = normToDisplay[nk] ?? nk;
+      if (!advstatsDB[displayName]) advstatsDB[displayName] = {};
+      Object.assign(advstatsDB[displayName], data);
     }
 
     // ── 6. Snap counts + RB workload benchmarks ──────────────────────────────

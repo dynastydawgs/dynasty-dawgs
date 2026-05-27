@@ -5520,6 +5520,20 @@ async function loadPlayerProfile(pid) {
     const rzTgt    = +(stats.rz_tgt     ?? 0);
     const gp       = Math.max(1, actualGames);
 
+    // ── advstatsDB lookup for WR route & separation data (Step 5g) ──────────
+    const _wrNorm      = n => (n ?? '').replace(/['.]/g, '').replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const _wrAdvSpNorm  = _wrNorm(sp?.name);
+    const _wrAdvKey     = Object.keys(advstatsDB).find(k => _wrNorm(k) === _wrAdvSpNorm);
+    const _wrAdvEntry   = _wrAdvKey ? advstatsDB[_wrAdvKey] : null;
+    const routePartRate  = _wrAdvEntry?.routePartRate  ?? null; // % of team pass plays with WR on route
+    const tgtsPerRoute   = _wrAdvEntry?.tgtsPerRoute   ?? null; // targets / routes run × 100
+    const yprr           = _wrAdvEntry?.yprr           ?? null; // rec yds / routes run
+    const routesRun      = _wrAdvEntry?.routesRun      ?? null;
+    const routeDist      = _wrAdvEntry?.routeDist      ?? null; // { SLANT: 18.2, GO: 12.1, … }
+    const avgSeparation  = _wrAdvEntry?.avgSeparation  ?? null; // NGS avg separation (ft)
+    const avgCushion     = _wrAdvEntry?.avgCushion     ?? null; // NGS pre-snap cushion (yds)
+    const avgYacAboveExp = _wrAdvEntry?.avgYacAboveExp ?? null; // NGS YAC above expectation
+
     // NFL average benchmarks
     const avgTeamTgtPg   = 33.5;   // avg team pass targets/game
     const avgTeamAirYdPg = 215;    // avg team air yards/game
@@ -5650,6 +5664,71 @@ async function loadPlayerProfile(pid) {
                         : rzTdRate >= 20   ? { label:'Average', color:'var(--orange)'   }
                         : rzTdRate >= 10   ? { label:'Low',     color:'var(--red)'      }
                         :                    { label:'Poor',    color:'var(--red)'      };
+
+    // Route & Separation classifications (from advstatsDB Step 5g + NGS)
+    const routePartClass = !routePartRate         ? { label:'No Data',    color:'var(--text-dim)' }
+                         : routePartRate >= 90   ? { label:'Every Route', color:'var(--green)'    }
+                         : routePartRate >= 80   ? { label:'High',        color:'var(--green)'    }
+                         : routePartRate >= 65   ? { label:'Average',     color:'var(--orange)'   }
+                         : routePartRate >= 50   ? { label:'Partial',     color:'var(--red)'      }
+                         :                         { label:'Limited',     color:'var(--red)'      };
+
+    const tgtsPerRouteClass = !tgtsPerRoute         ? { label:'No Data', color:'var(--text-dim)' }
+                            : tgtsPerRoute >= 25   ? { label:'Elite',   color:'var(--green)'    }
+                            : tgtsPerRoute >= 20   ? { label:'Good',    color:'var(--green)'    }
+                            : tgtsPerRoute >= 14   ? { label:'Average', color:'var(--orange)'   }
+                            : tgtsPerRoute >= 9    ? { label:'Low',     color:'var(--red)'      }
+                            :                        { label:'Minimal', color:'var(--red)'      };
+
+    const yprrClass = !yprr              ? { label:'No Data',   color:'var(--text-dim)' }
+                    : yprr >= 3.5       ? { label:'Elite',     color:'var(--green)'    }
+                    : yprr >= 2.5       ? { label:'Above Avg', color:'var(--green)'    }
+                    : yprr >= 1.8       ? { label:'Average',   color:'var(--orange)'   }
+                    : yprr >= 1.2       ? { label:'Below Avg', color:'var(--red)'      }
+                    :                     { label:'Low',       color:'var(--red)'      };
+
+    const sepClass = !avgSeparation           ? { label:'No Data',   color:'var(--text-dim)' }
+                   : avgSeparation >= 3.0    ? { label:'Elite',     color:'var(--green)'    }
+                   : avgSeparation >= 2.5    ? { label:'Good',      color:'var(--green)'    }
+                   : avgSeparation >= 2.0    ? { label:'Average',   color:'var(--orange)'   }
+                   : avgSeparation >= 1.5    ? { label:'Below Avg', color:'var(--red)'      }
+                   :                           { label:'Contested', color:'var(--red)'      };
+
+    const cushClass = !avgCushion             ? { label:'No Data',       color:'var(--text-dim)' }
+                    : avgCushion >= 7        ? { label:'High',          color:'var(--green)'    }
+                    : avgCushion >= 5        ? { label:'Average',       color:'var(--orange)'   }
+                    : avgCushion >= 3        ? { label:'Low',           color:'var(--red)'      }
+                    :                          { label:'Press Coverage', color:'var(--red)'      };
+
+    const yacExpClass = !avgYacAboveExp             ? { label:'No Data',   color:'var(--text-dim)' }
+                      : avgYacAboveExp >= 1.5       ? { label:'Elite',     color:'var(--green)'    }
+                      : avgYacAboveExp >= 0.5       ? { label:'Above Avg', color:'var(--green)'    }
+                      : avgYacAboveExp >= -0.5      ? { label:'Average',   color:'var(--orange)'   }
+                      :                               { label:'Below Avg', color:'var(--red)'      };
+
+    // Pre-compute route mix card HTML (avoids nested template literal depth issues)
+    let routeMixCardHTML = '';
+    if (routeDist && Object.keys(routeDist).length >= 3) {
+      const _rmSorted = Object.entries(routeDist).sort((a,b) => b[1] - a[1]).slice(0, 5);
+      const _rmBars   = _rmSorted.map(([rt, pct]) => {
+        const _rmW = Math.min(pct / 35 * 100, 100).toFixed(1);
+        return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <span style="font-size:9px;color:var(--text-dim);width:82px;text-align:right;letter-spacing:0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${rt}</span>
+          <div style="flex:1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+            <div style="width:${_rmW}%;height:100%;background:var(--accent);border-radius:3px;"></div>
+          </div>
+          <span style="font-size:9px;color:var(--text-muted);width:30px;">${pct}%</span>
+        </div>`;
+      }).join('');
+      routeMixCardHTML = `<div class="pp-wl-card" style="border-left-color:var(--accent);">
+        <div class="pp-wl-card-header">
+          <span class="pp-wl-card-label">Targeted Route Mix</span>
+          <span class="pp-wl-card-cls" style="color:var(--text-dim);">% of tgts</span>
+        </div>
+        <div style="margin-top:8px;">${_rmBars}</div>
+        <div class="pp-wl-card-sub" style="margin-top:4px;">Top routes by target frequency</div>
+      </div>`;
+    }
 
     // Role tag (top of section)
     const wrRoleTag = tgtSharePct >= 25 && (airYdShare ?? 0) >= 25
@@ -5873,6 +5952,81 @@ async function loadPlayerProfile(pid) {
                </div>`
             : noDataCard('RZ TD Rate')}
         </div>
+
+        ${_wrAdvEntry && (routePartRate !== null || tgtsPerRoute !== null || yprr !== null || avgSeparation !== null || avgCushion !== null || avgYacAboveExp !== null) ? `
+        <div class="pp-wl-row-label" style="margin-top:14px;">Route &amp; Separation <span style="font-size:9px;color:var(--text-dim);letter-spacing:0;font-family:var(--sans);text-transform:none;margin-left:4px;">nflverse PBP + NGS</span></div>
+        <div class="pp-wl-cards">
+          ${routePartRate !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${routePartClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Route Participation</span>
+                   <span class="pp-wl-card-cls" style="color:${routePartClass.color};">${routePartClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${routePartClass.color};">${routePartRate}<span>%</span></div>
+                 ${mkBar(routePartRate, 100, 72, routePartClass.color)}
+                 <div class="pp-wl-card-sub">${routesRun ?? '—'} routes · ${gp} games</div>
+               </div>`
+            : noDataCard('Route Participation')}
+          ${tgtsPerRoute !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${tgtsPerRouteClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Targets / Route</span>
+                   <span class="pp-wl-card-cls" style="color:${tgtsPerRouteClass.color};">${tgtsPerRouteClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${tgtsPerRouteClass.color};">${tgtsPerRoute}<span>%</span></div>
+                 ${mkBar(tgtsPerRoute, 40, 16, tgtsPerRouteClass.color)}
+                 <div class="pp-wl-card-sub">1 tgt per ${tgtsPerRoute > 0 ? (100 / tgtsPerRoute).toFixed(1) : '—'} routes</div>
+               </div>`
+            : noDataCard('Targets / Route')}
+          ${yprr !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${yprrClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Yards / Route Run</span>
+                   <span class="pp-wl-card-cls" style="color:${yprrClass.color};">${yprrClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${yprrClass.color};">${yprr}<span> yds</span></div>
+                 ${mkBarVal(yprr, 5.0, 1.9, yprrClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">${routesRun ?? '—'} routes run</div>
+               </div>`
+            : noDataCard('Yards / Route Run')}
+          ${avgSeparation !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${sepClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Avg Separation</span>
+                   <span class="pp-wl-card-cls" style="color:${sepClass.color};">${sepClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${sepClass.color};">${avgSeparation}<span> ft</span></div>
+                 ${mkBarVal(avgSeparation, 5.0, 2.4, sepClass.color, ' ft')}
+                 <div class="pp-wl-card-sub">NGS avg at target / catch point</div>
+               </div>`
+            : noDataCard('Avg Separation')}
+        </div>
+        <div class="pp-wl-cards" style="margin-top:6px;">
+          ${avgCushion !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${cushClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">Pre-Snap Cushion</span>
+                   <span class="pp-wl-card-cls" style="color:${cushClass.color};">${cushClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${cushClass.color};">${avgCushion}<span> yds</span></div>
+                 ${mkBarVal(avgCushion, 12, 6.0, cushClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">Avg DB alignment at snap</div>
+               </div>`
+            : noDataCard('Pre-Snap Cushion')}
+          ${avgYacAboveExp !== null
+            ? `<div class="pp-wl-card" style="border-left-color:${yacExpClass.color};">
+                 <div class="pp-wl-card-header">
+                   <span class="pp-wl-card-label">YAC Above Expected</span>
+                   <span class="pp-wl-card-cls" style="color:${yacExpClass.color};">${yacExpClass.label}</span>
+                 </div>
+                 <div class="pp-wl-card-val" style="color:${yacExpClass.color};">${avgYacAboveExp >= 0 ? '+' : ''}${avgYacAboveExp}<span> yds</span></div>
+                 ${mkBarVal(Math.max(0, avgYacAboveExp + 2.5), 5.5, 2.5, yacExpClass.color, ' yds')}
+                 <div class="pp-wl-card-sub">NGS YAC vs. model expectation</div>
+               </div>`
+            : noDataCard('YAC Above Expected')}
+          ${routeMixCardHTML}
+        </div>` : ''}
+
         ${injCardHTML}
       </div>`;
     outlookHTML = workloadHTML;
