@@ -7770,7 +7770,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       // Higher stages require 10+ active games total to be meaningful.
       {
         const _surgeStageWt  = { sophomore:1.0, ascending:0.55, prime:0.30, declining:0.55, cliff:0.45 };
-        const _surgePosWt    = { QB:0.55, RB:0.65, TE:0.40, WR:0.30 };
+        const _surgePosWt    = { QB:0.55, RB:0.65, TE:0.40, WR:0.45 };
         const _surgeStageCap = { sophomore:18, ascending:14, prime:10, declining:14, cliff:12 };
         const _sw   = _surgeStageWt[careerStage.stage] ?? 0;
         const _pw   = _surgePosWt[pos] ?? 0.35;
@@ -11940,7 +11940,7 @@ function _mbWeightsHtml(pos) {
 
   // ── Season Surge momentum ──
   const _surgeStageWts = { sophomore:1.0, ascending:0.55, prime:0.30, declining:0.55, cliff:0.45 };
-  const _surgePosWts   = { QB:0.55, RB:0.65, TE:0.40, WR:0.30 };
+  const _surgePosWts   = { QB:0.55, RB:0.65, TE:0.40, WR:0.45 };
   const _surgeCaps     = { sophomore:'±18', ascending:'±14', prime:'±10', declining:'±14', cliff:'±12' };
   const surgeWeight    = _surgePosWts[pos] ?? 0.35;
   const surgeStageRows = Object.entries(_surgeStageWts).map(([stage, sw]) => {
