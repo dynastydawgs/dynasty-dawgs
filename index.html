@@ -7301,6 +7301,18 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       if (el) el.innerHTML = msg + '<br><small style="color:var(--text-dim);">Saved locally — instant next time.</small>';
     });
 
+    // ── Season Surge — fetch weekly splits for rookie/sophomore players ─────────
+    // For sophomores: rookie-year weekly data (statSeason = their most recent played yr).
+    // For rookies mid-season: current year weekly data as a live in-season signal.
+    // headless prewarm skips the fetch to avoid 150+ extra API calls.
+    let surgeData = null;
+    let surgeAdj  = 0;
+    if (!headless && ['rookie', 'sophomore'].includes(careerStage.stage) && pid) {
+      const surgeYear  = statSeason ?? String(new Date().getFullYear());
+      const weeklyRows = await fetchWeeklyPPR(pid, surgeYear).catch(() => null);
+      surgeData = computeSurgeMomentum(weeklyRows);
+    }
+
     // Accumulate this RB into the carry share pool (rush_att = touches − receptions).
     if (pos === 'RB' && liveTouches > 0 && liveGamesPlayed > 0) {
       _rbCarryPool[pid] = {
@@ -7749,6 +7761,17 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           sophEliteBoostPpr = Math.round(medianPpr * boostPct);
           medianPpr        += sophEliteBoostPpr;
         }
+      }
+
+      // ── Season Surge adjustment (sophomores only) ────────────────────────────
+      // Trajectory (2nd-half PPG − 1st-half PPG from rookie year) modestly shifts
+      // the sophomore base. Position weights from article research:
+      //   RB/QB: moderate signal · TE: small · WR: negligible
+      // Caps at ±18 pts so surge can't dominate the projection (~1 PPG max swing).
+      if (careerStage.stage === 'sophomore' && surgeData?.trajectory != null) {
+        const sw = { QB: 0.55, RB: 0.65, TE: 0.40, WR: 0.18 }[pos] ?? 0.35;
+        surgeAdj = Math.max(-18, Math.min(18, Math.round(surgeData.trajectory * sw * 2.5)));
+        if (surgeAdj !== 0) medianPpr = Math.round(medianPpr + surgeAdj);
       }
 
       // ── Prime / ascending proven-producer floor ──────────────────────────────
@@ -8206,7 +8229,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     const fadeForNote  = hasOwn ? (yearsExp >= 5 ? 0.40 : yearsExp >= 3 ? 0.65 : 1.0) : 1.0;
     const effBoostPct  = Math.round(rawBoostPct * fadeForNote);
     const tierShort    = draftDisplayStr(round, pick, yearsExp, fcVal ?? 0);
-    const trajNote     = momentumAdj !== 0 ? ` · traj ${momentumAdj > 0 ? '+' : ''}${momentumAdj}pts (${seasonHistory.length}yr)` : '';
+    const trajNote     = momentumAdj !== 0 ? ` · traj ${momentumAdj > 0 ? '+' : ''}${momentumAdj}pts (${seasonHistory.length}yr)` : surgeAdj !== 0 ? ` · surge ${surgeAdj > 0 ? '+' : ''}${surgeAdj}pts (${surgeData?.trajectory?.toFixed(1)} traj)` : '';
     const fadeNote     = hasOwn && fadeForNote < 1 ? ` (${Math.round(fadeForNote*100)}% cap wt)` : '';
     const compWtPct    = Math.round(0.35 * fadeForNote * 100);
     const modelNote    = `${pos} · ${tierShort} · yr ${targetCarYr} · ${compCount} comps · tier boost ${effBoostPct>=0?'+':''}${effBoostPct}%${fadeNote} · age Δ${ageFactor>=1?'+':''}${((ageFactor-1)*100).toFixed(0)}%${trajNote} · ${hasOwn?`own ${wasExtrapolated?`${gamesUsed}g→rate`:`${ownSeasons.length}yr`} blend ${100-compWtPct}%`:'comp-only'} · db: ${Object.keys(careerDB).length} players`;
@@ -8260,17 +8283,39 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     </div>`;
 
     // Momentum box
+    // Shared surge box renderer — used for both rookies (signal only) and sophomores (+ adj)
+    function _surgeBox(sd, adj) {
+      if (!sd) return null;
+      const traj = sd.trajectory;
+      const col   = traj >= 3 ? 'var(--green)' : traj >= 1 ? 'var(--accent)' : traj >= -1 ? 'var(--text-muted)' : 'var(--red)';
+      const arrow = traj >= 1 ? '↑' : traj <= -1 ? '↓' : '→';
+      const sign  = traj > 0 ? '+' : '';
+      const adjNote = adj !== 0 ? ` · proj ${adj > 0 ? '+' : ''}${adj}pts` : '';
+      return `<div class="pp-factor">
+        <div class="pp-factor-lbl">Season Surge</div>
+        <div class="pp-factor-val" style="color:${col};">${sign}${traj.toFixed(1)} ${arrow}</div>
+        <div class="pp-factor-sub">${sd.firstPPG.toFixed(1)} → ${sd.secondPPG.toFixed(1)} PPG · wk 1–8 vs 9+${adjNote}</div>
+      </div>`;
+    }
+
     let momBox;
     if (careerStage.stage === 'sophomore') {
-      // Sophomores have one season — no trend yet, show neutral baseline
-      const curPpg    = hasOwn ? (ownPpr / typGames).toFixed(1) : '—';
-      const rookiePpg = seasonHistory.length >= 1 ? seasonHistory[0].ppg.toFixed(1) : null;
-      const histSub   = rookiePpg ? `${rookiePpg} → ${curPpg} PPG` : `rookie → ${curPpg} PPG`;
-      momBox = `<div class="pp-factor">
-        <div class="pp-factor-lbl">Momentum (2yr)</div>
-        <div class="pp-factor-val" style="color:var(--text-muted);">→ 0.0 PPG/yr</div>
-        <div class="pp-factor-sub">${histSub}</div>
-      </div>`;
+      // Replace flat "0.0 PPG/yr" with actual rookie-year surge trajectory
+      momBox = _surgeBox(surgeData, surgeAdj);
+      if (!momBox) {
+        // Fallback: no weekly data (e.g. prewarm or API unavailable)
+        const curPpg    = hasOwn ? (ownPpr / typGames).toFixed(1) : '—';
+        const rookiePpg = seasonHistory.length >= 1 ? seasonHistory[0].ppg.toFixed(1) : null;
+        const histSub   = rookiePpg ? `${rookiePpg} → ${curPpg} PPG` : `rookie → ${curPpg} PPG`;
+        momBox = `<div class="pp-factor">
+          <div class="pp-factor-lbl">Season Surge</div>
+          <div class="pp-factor-val" style="color:var(--text-muted);">— no data</div>
+          <div class="pp-factor-sub">${histSub}</div>
+        </div>`;
+      }
+    } else if (careerStage.stage === 'rookie' && surgeData) {
+      // Rookie mid-season: show live surge as a signal box (informational only, no adj)
+      momBox = _surgeBox(surgeData, 0);
     } else if (seasonHistory.length >= 2) {
       const displayDelta = avgDeltaPpg !== null ? avgDeltaPpg : (seasonHistory[seasonHistory.length - 1].ppg - seasonHistory[0].ppg);
       const momCol    = displayDelta >= 0.5 ? 'var(--green)' : displayDelta <= -0.5 ? 'var(--red)' : 'var(--text-muted)';
@@ -8418,6 +8463,55 @@ async function fetchSleeperStats(pid, season) {
     const hasData = s && Object.values(s).some(v => typeof v === 'number' && v > 0);
     return hasData ? s : null;
   } catch { return null; }
+}
+
+// ── fetchWeeklyPPR — player's weekly PPR stats for surge momentum ────────────
+// Returns an array of weekly rows: [{ week, pts_ppr, gp, ... }, ...]
+// Cached in memory so repeated profile opens for the same player are instant.
+const _weeklyPprCache = {};
+async function fetchWeeklyPPR(pid, season) {
+  const key = `${pid}_${season}`;
+  if (_weeklyPprCache[key]) return _weeklyPprCache[key];
+  try {
+    const url = `https://api.sleeper.app/stats/nfl/player/${pid}?season_type=regular&season=${season}&grouping=week`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const raw = await res.json();
+    if (!raw) return null;
+    // Sleeper returns either an array or an object keyed by week number — normalise to array
+    const rows = Array.isArray(raw)
+      ? raw
+      : Object.entries(raw).map(([wk, s]) => ({ week: +wk, ...(s?.stats ?? s) }));
+    _weeklyPprCache[key] = rows;
+    return rows;
+  } catch { return null; }
+}
+
+// ── computeSurgeMomentum — trajectory = 2nd-half PPG − 1st-half PPG ─────────
+// First half: weeks 1-8.  Second half: weeks 9+.
+// Skips bye weeks / inactive weeks (no pts AND gp=0).
+// Requires ≥ 2 active games in each half; returns null otherwise.
+function computeSurgeMomentum(rows) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const first = [], second = [];
+  for (const r of rows) {
+    const wk     = +(r.week ?? r.wk ?? 0);
+    const pts    = +(r.pts_ppr ?? 0);
+    const active = (+(r.gp ?? r.gms_active ?? 0)) > 0 || pts > 0;
+    if (!wk || !active) continue;
+    (wk <= 8 ? first : second).push(pts);
+  }
+  if (first.length < 2 || second.length < 2) return null;
+  const avg   = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const fPPG  = avg(first);
+  const sPPG  = avg(second);
+  return {
+    firstPPG:   +fPPG.toFixed(2),
+    secondPPG:  +sPPG.toFixed(2),
+    trajectory: +(sPPG - fPPG).toFixed(2),
+    firstGames: first.length,
+    secondGames: second.length,
+  };
 }
 
 // ── fetchEspnDraftInfo ──
