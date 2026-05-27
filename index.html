@@ -5778,11 +5778,11 @@ async function loadPlayerProfile(pid) {
           <span>${maxVal}${unit}</span>
         </div>`;
     };
-    const noDataCard = (label) => `
+    const noDataCard = (label, sub = 'Not in Sleeper data') => `
       <div class="pp-wl-card" style="border-left-color:var(--border);opacity:0.5;">
         <div class="pp-wl-card-header"><span class="pp-wl-card-label">${label}</span></div>
         <div class="pp-wl-card-val" style="color:var(--text-dim);">—</div>
-        <div class="pp-wl-card-sub">Not in Sleeper data</div>
+        <div class="pp-wl-card-sub">${sub}</div>
       </div>`;
 
     workloadHTML = `
@@ -5999,7 +5999,7 @@ async function loadPlayerProfile(pid) {
                  ${mkBarVal(avgSeparation, 5.0, 2.4, sepClass.color, ' ft')}
                  <div class="pp-wl-card-sub">NGS avg at target / catch point</div>
                </div>`
-            : noDataCard('Avg Separation')}
+            : noDataCard('Avg Separation', 'NGS — ≥25 targets required')}
         </div>
         <div class="pp-wl-cards" style="margin-top:6px;">
           ${avgCushion !== null
@@ -6012,7 +6012,7 @@ async function loadPlayerProfile(pid) {
                  ${mkBarVal(avgCushion, 12, 6.0, cushClass.color, ' yds')}
                  <div class="pp-wl-card-sub">Avg DB alignment at snap</div>
                </div>`
-            : noDataCard('Pre-Snap Cushion')}
+            : noDataCard('Pre-Snap Cushion', 'NGS — ≥25 targets required')}
           ${avgYacAboveExp !== null
             ? `<div class="pp-wl-card" style="border-left-color:${yacExpClass.color};">
                  <div class="pp-wl-card-header">
@@ -6023,7 +6023,7 @@ async function loadPlayerProfile(pid) {
                  ${mkBarVal(Math.max(0, avgYacAboveExp + 2.5), 5.5, 2.5, yacExpClass.color, ' yds')}
                  <div class="pp-wl-card-sub">NGS YAC vs. model expectation</div>
                </div>`
-            : noDataCard('YAC Above Expected')}
+            : noDataCard('YAC Above Expected', 'NGS — ≥25 targets required')}
           ${routeMixCardHTML}
         </div>` : ''}
 
@@ -7848,12 +7848,18 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
               : s)
           : momentumWindow;
 
-        // Average season-over-season PPG delta (starter seasons only)
+        // Recency-weighted season-over-season PPG delta — later deltas carry more weight.
+        // Linear scale: delta at position i gets weight (i+1), so in a 3yr window the
+        // most recent delta (yr2→yr3) gets 2× the weight of the prior delta (yr1→yr2).
+        // This prevents a mid-window dip from masking a genuine recent recovery, while
+        // still using all available history for noise reduction.
         const deltas = [];
         for (let i = 1; i < deltaWindow.length; i++) {
           deltas.push(deltaWindow[i].ppg - deltaWindow[i - 1].ppg);
         }
-        avgDeltaPpg = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+        const _dWts  = deltas.map((_, i) => i + 1);
+        const _dWSum = _dWts.reduce((a, b) => a + b, 0);
+        avgDeltaPpg  = deltas.reduce((sum, d, i) => sum + d * _dWts[i], 0) / _dWSum;
 
         // What the age curve predicts in PPG terms
         const ageCurveDeltaPpg = (ageFactor - 1) * currentPpg;
@@ -10125,7 +10131,10 @@ function computeBaseProjection(pid, pos, age, yearsExp, draftRound, draftPick) {
       const ppgSeries = winsorized.map(s => s.ppg);
       const deltas = [];
       for (let i = 1; i < ppgSeries.length; i++) deltas.push(ppgSeries[i] - ppgSeries[i-1]);
-      avgDeltaPpg = deltas.reduce((a,b)=>a+b,0) / deltas.length;
+      // Recency-weighted: most recent delta gets highest weight (mirrors runProjection path)
+      const _dhWts  = deltas.map((_, i) => i + 1);
+      const _dhWSum = _dhWts.reduce((a, b) => a + b, 0);
+      avgDeltaPpg   = deltas.reduce((sum, d, i) => sum + d * _dhWts[i], 0) / _dhWSum;
 
       const ageCurveDelta = (ageFactor - 1) * currentPpg;
       const excessPpg     = avgDeltaPpg - ageCurveDelta;
