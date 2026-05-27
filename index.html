@@ -1510,6 +1510,8 @@
   .lc-nav-btn.nb-projections:hover { background: rgba(245,158,66,0.08);  box-shadow: 0 0 24px rgba(245,158,66,0.22);  }
   .lc-nav-btn.nb-analysis    { color: #a78bfa;       border-color: rgba(167,139,250,0.35); }
   .lc-nav-btn.nb-analysis:hover    { background: rgba(167,139,250,0.08); box-shadow: 0 0 24px rgba(167,139,250,0.22); }
+  .lc-nav-btn.nb-blueprint  { color: #fb7185;       border-color: rgba(251,113,133,0.35); }
+  .lc-nav-btn.nb-blueprint:hover   { background: rgba(251,113,133,0.08); box-shadow: 0 0 24px rgba(251,113,133,0.22); }
 
   /* Sub-page header */
   .lc-subpage-header {
@@ -1591,6 +1593,11 @@
     --fc-color:   #a78bfa;
     --fc-glow:    rgba(167,139,250,0.18); --fc-glow-hi: rgba(167,139,250,0.38);
     --fc-bg:      rgba(167,139,250,0.06); --fc-bg-hi:   rgba(167,139,250,0.11);
+  }
+  .fc-blueprint {
+    --fc-color:   #fb7185;
+    --fc-glow:    rgba(251,113,133,0.18); --fc-glow-hi: rgba(251,113,133,0.38);
+    --fc-bg:      rgba(251,113,133,0.06); --fc-bg-hi:   rgba(251,113,133,0.11);
   }
 
   /* ── PLAYOFF SIMULATION ── */
@@ -2227,6 +2234,106 @@
   .ms-pct-rank.ms-na    { display:none; }
   /* Two-line rows need a touch more padding */
   .ms-table tbody td { padding:8px 10px; }
+
+  /* ── Team Blueprint ──────────────────────────────────────────────────────── */
+  .bp-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; display:flex; flex-direction:column; gap:14px; }
+
+  /* Header */
+  .bp-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+  .bp-header-left { flex:1; min-width:0; }
+  .bp-team-name { font-size:20px; font-weight:700; color:var(--text); margin-bottom:8px; letter-spacing:0.01em; font-family:var(--display); }
+  .bp-meta-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .bp-phase-badge { font-family:var(--mono); font-size:9px; letter-spacing:0.14em; padding:3px 10px; border-radius:99px; border:1px solid; font-weight:600; text-transform:uppercase; }
+  .bp-archetype-val { font-family:var(--mono); font-size:9px; letter-spacing:0.1em; color:var(--accent); text-transform:uppercase; }
+  .bp-archetype-win { font-family:var(--mono); font-size:9px; letter-spacing:0.1em; color:var(--text-muted); text-transform:uppercase; }
+  .bp-phase-sub { font-size:11px; color:var(--text-dim); margin-bottom:4px; }
+  .bp-record { font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:0.06em; }
+
+  /* Overall grade ring */
+  .bp-grade-ring { width:76px; height:76px; border-radius:50%; border:2.5px solid var(--grade-color,var(--accent)); display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; background:rgba(255,255,255,0.02); }
+  .bp-grade-num { font-family:var(--display); font-size:21px; font-weight:700; line-height:1; }
+  .bp-grade-label { font-family:var(--mono); font-size:7px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-dim); margin-top:2px; }
+
+  /* Layout */
+  .bp-row-split { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:640px) { .bp-row-split { grid-template-columns:1fr; } }
+  .bp-panel { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:14px; }
+  .bp-panel-radar { display:flex; flex-direction:column; align-items:center; }
+  .bp-panel-title { font-family:var(--mono); font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-dim); margin-bottom:12px; }
+  .bp-panel-sub { font-weight:400; text-transform:none; letter-spacing:0; font-family:var(--sans); font-size:9px; margin-left:6px; color:var(--text-dim); }
+
+  /* Positional grade circles */
+  .bp-grade-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .bp-grade-circle { width:50px; height:50px; border-radius:50%; border:2px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; }
+  .bp-grade-letter { font-family:var(--display); font-size:16px; font-weight:700; line-height:1.1; }
+  .bp-grade-pos { font-family:var(--mono); font-size:6.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-top:1px; }
+  .bp-grade-sub { font-size:9px; color:var(--text-dim); margin-top:8px; }
+
+  /* Value pie */
+  .bp-pie-row { display:flex; align-items:center; gap:14px; margin-top:6px; }
+  .bp-pie { width:68px; height:68px; border-radius:50%; flex-shrink:0; }
+  .bp-pie-legend { display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; font-size:10px; color:var(--text-muted); }
+
+  /* Radar legend */
+  .bp-radar-legend { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; justify-content:center; }
+  .bp-radar-leg-row { display:flex; gap:4px; font-family:var(--mono); font-size:9px; color:var(--text-dim); }
+
+  /* Cornerstones */
+  .bp-cornerstone-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); }
+  .bp-cornerstone-row:last-child { border-bottom:none; }
+  .bp-cs-pos { font-family:var(--mono); font-size:8px; font-weight:600; letter-spacing:0.06em; width:22px; flex-shrink:0; }
+  .bp-cs-name { flex:1; font-size:11px; color:var(--text); cursor:pointer; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-cs-name:hover { color:var(--accent); text-decoration:underline; }
+  .bp-cs-age { font-size:9px; width:40px; text-align:right; flex-shrink:0; }
+  .bp-cs-bar-wrap { width:56px; height:3px; background:var(--surface2); border-radius:2px; overflow:hidden; flex-shrink:0; }
+  .bp-cs-bar { height:100%; border-radius:2px; }
+  .bp-cs-val { font-family:var(--mono); font-size:8px; color:var(--text-dim); width:42px; text-align:right; flex-shrink:0; }
+
+  /* Draft capital picks */
+  .bp-picks-year-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); }
+  .bp-picks-year-row:last-child { border-bottom:none; }
+  .bp-picks-year { font-family:var(--mono); font-size:9px; color:var(--text-dim); width:32px; flex-shrink:0; }
+  .bp-picks-dots { display:flex; gap:4px; flex-wrap:wrap; flex:1; }
+  .bp-pick-dot { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:8px; font-weight:700; color:#0a0e1a; cursor:default; flex-shrink:0; }
+  .bp-picks-count { font-size:9px; color:var(--text-dim); white-space:nowrap; }
+
+  /* Swing players */
+  .bp-swing-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); }
+  .bp-swing-row:last-child { border-bottom:none; }
+  .bp-swing-icon { font-size:11px; width:14px; flex-shrink:0; font-weight:700; }
+  .bp-swing-name { flex:1; font-size:11px; color:var(--text); cursor:pointer; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-swing-name:hover { color:var(--accent); text-decoration:underline; }
+  .bp-swing-pos { font-family:var(--mono); font-size:8px; color:var(--text-dim); width:22px; flex-shrink:0; }
+  .bp-swing-tag { font-family:var(--mono); font-size:8px; letter-spacing:0.06em; font-weight:600; }
+  .bp-swing-age { font-size:9px; color:var(--text-dim); width:26px; text-align:right; flex-shrink:0; }
+
+  /* Needs */
+  .bp-need-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); font-size:11px; }
+  .bp-need-row:last-child { border-bottom:none; }
+  .bp-need-pos { font-family:var(--mono); font-size:10px; font-weight:700; width:24px; flex-shrink:0; }
+  .bp-need-desc { flex:1; color:var(--text-dim); font-size:10px; }
+
+  /* Roster grid */
+  .bp-roster-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  @media (max-width:700px) { .bp-roster-grid { grid-template-columns:1fr 1fr; } }
+  .bp-pos-col-header { font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .bp-roster-row { display:flex; align-items:center; gap:5px; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .bp-roster-starter { border-bottom:1px solid rgba(255,255,255,0.1) !important; padding-bottom:5px; margin-bottom:3px; }
+  .bp-roster-name { font-size:10px; color:var(--text); cursor:pointer; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-roster-name:hover { color:var(--accent); }
+  .bp-roster-age { font-size:9px; width:26px; text-align:right; flex-shrink:0; }
+  .bp-roster-bar-wrap { width:28px; height:3px; background:var(--surface2); border-radius:2px; overflow:hidden; flex-shrink:0; }
+  .bp-roster-bar { height:100%; border-radius:2px; opacity:0.75; }
+  .bp-roster-val { font-family:var(--mono); font-size:8px; color:var(--text-dim); width:34px; text-align:right; flex-shrink:0; }
+
+  /* Blueprint tab selector bar */
+  .bp-team-select-bar { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .bp-team-select { font-family:var(--mono); font-size:11px; letter-spacing:0.06em; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:7px 14px; border-radius:6px; cursor:pointer; outline:none; flex:1; max-width:320px; transition:border-color 0.15s; }
+  .bp-team-select:focus { border-color: #fb7185; }
+  .bp-tab-label { font-family:var(--mono); font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-dim); }
+  /* Blueprint row 1: radar + grades + pie — collapse to 1-col on small screens */
+  .bp-row1 { display:grid; grid-template-columns:auto 1fr 1fr; gap:12px; align-items:start; }
+  @media (max-width:700px) { .bp-row1 { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -2335,6 +2442,9 @@
           <button class="lc-nav-btn nb-analysis" onclick="openLeagueSection('analysis')">
             <span class="lc-nav-icon">📊</span>Team Breakdown
           </button>
+          <button class="lc-nav-btn nb-blueprint" onclick="openLeagueSection('blueprint')">
+            <span class="lc-nav-icon">🗺️</span>Team Blueprint
+          </button>
         </div>
       </div>
 
@@ -2348,6 +2458,7 @@
             <option value="breakdown">Team Snapshots</option>
             <option value="projections">Projections</option>
             <option value="analysis">Team Breakdown</option>
+            <option value="blueprint">Team Blueprint</option>
           </select>
           <div class="lc-subpage-league-name" id="lc-subpage-league-name"></div>
         </div>
@@ -2366,6 +2477,9 @@
         </div>
         <div class="lpanel" id="lpanel-analysis">
           <div id="analysis-content"><div class="ai-loading"><span class="spinner"></span>Loading…</div></div>
+        </div>
+        <div class="lpanel" id="lpanel-blueprint">
+          <div id="blueprint-content"><div class="ai-loading"><span class="spinner"></span>Loading…</div></div>
         </div>
       </div>
     </div>
@@ -2396,6 +2510,11 @@
           <div class="fc-icon">📊</div>
           <div class="fc-title">Team Breakdown</div>
           <div class="fc-desc">Position-by-position STR/DEP rankings and write-ups for every roster.</div>
+        </div>
+        <div class="feature-card fc-blueprint" onclick="goToLeagueTab('blueprint')">
+          <div class="fc-icon">🗺️</div>
+          <div class="fc-title">Team Blueprint</div>
+          <div class="fc-desc">Full strategic blueprint — phase, archetype, cornerstones, draft capital, swing players, and positional needs.</div>
         </div>
         <div class="feature-card fc-player" onclick="switchMainView('profiles', document.querySelector('.topnav-tab:last-child'))">
           <div class="fc-icon">🏈</div>
@@ -9802,6 +9921,7 @@ function openLeagueSection(tab) {
   else if (tab === 'power')  renderPowerRankings();
   else if (tab === 'projections') renderLeagueProjections();
   else if (tab === 'analysis')    renderLeagueAnalysis();
+  else if (tab === 'blueprint')   renderBlueprintTab();
 
   // Show sub-page, hide confirm
   document.getElementById('league-confirm').style.display  = 'none';
@@ -10736,6 +10856,8 @@ function _reRenderProjections() {
   const activePanel = document.querySelector('.lpanel.active')?.id;
   if (activePanel === 'lpanel-analysis') {
     renderLeagueAnalysis();
+  } else if (activePanel === 'lpanel-blueprint') {
+    renderBlueprintTab();
   } else if (activePanel === 'lpanel-projections') {
     // Preserve open state for Team Roster cards (lp-team-*) across re-renders.
     const openIds = [...document.querySelectorAll('.bd-team.open')]
@@ -11125,6 +11247,547 @@ async function renderLeagueAnalysis() {
       Sort by: ${analysisSortBtns}${searchBar}
     </div>
     ${renderAnalysisCards(sorted, leagueRankings)}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 19  TEAM BLUEPRINT
+// Full-page per-team strategic overview — phase, archetype, radar chart,
+// positional grades, value pie, cornerstones, draft capital, swing players,
+// positional needs, and full roster grid.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function _bpAge(birthDate) {
+  if (!birthDate) return null;
+  const born = new Date(birthDate);
+  if (isNaN(born)) return null;
+  return (Date.now() - born) / (365.25 * 24 * 3600 * 1000);
+}
+
+function _bpRankToGrade(rank, total) {
+  if (!total || total <= 1) return 'B';
+  const pct = (rank - 1) / (total - 1); // 0=best, 1=worst
+  if (pct <= 0.08) return 'A+';
+  if (pct <= 0.22) return 'A';
+  if (pct <= 0.42) return 'B';
+  if (pct <= 0.62) return 'C';
+  if (pct <= 0.82) return 'D';
+  return 'F';
+}
+
+function _bpGradeColor(grade) {
+  if (grade === 'A+') return 'var(--green)';
+  if (grade === 'A')  return 'var(--green)';
+  if (grade === 'B')  return 'var(--blue)';
+  if (grade === 'C')  return 'var(--accent)';
+  if (grade === 'D')  return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function _bpPhase(teamRow, allTeams) {
+  const rank = allTeams.findIndex(t => t.roster_id === teamRow.roster_id) + 1;
+  const total = allTeams.length || 1;
+  const valuePct   = (rank - 1) / Math.max(total - 1, 1); // 0=best, 1=worst
+  const pickRatio  = teamRow.totalValue > 0 ? teamRow.pickValue / teamRow.totalValue : 0;
+  const age        = teamRow.avgAge ?? 27;
+
+  if (valuePct < 0.30 && age < 27.5)                      return 'CONTENDING';
+  if (valuePct < 0.45 && age >= 27.5)                     return 'WIN NOW';
+  if (valuePct >= 0.60 && pickRatio >= 0.20)              return 'REBUILDING';
+  if (valuePct <= 0.65 && pickRatio >= 0.22 && age < 26.5) return 'RELOAD';
+  if (age >= 28.5 && valuePct >= 0.40)                    return 'AGING OUT';
+  return 'FRINGE';
+}
+
+function _bpPhaseStyle(phase) {
+  const map = {
+    'CONTENDING': { color:'var(--green)',  border:'rgba(45,214,168,0.5)',  bg:'rgba(45,214,168,0.1)'  },
+    'WIN NOW':    { color:'var(--orange)', border:'rgba(245,158,66,0.5)',  bg:'rgba(245,158,66,0.1)'  },
+    'RELOAD':     { color:'var(--blue)',   border:'rgba(56,196,232,0.5)',  bg:'rgba(56,196,232,0.1)'  },
+    'REBUILDING': { color:'var(--red)',    border:'rgba(239,68,68,0.5)',   bg:'rgba(239,68,68,0.1)'   },
+    'AGING OUT':  { color:'#94a3b8',       border:'rgba(148,163,184,0.4)', bg:'rgba(148,163,184,0.08)'},
+    'FRINGE':     { color:'var(--accent)', border:'rgba(245,200,66,0.45)', bg:'rgba(245,200,66,0.09)' },
+  };
+  return map[phase] ?? map['FRINGE'];
+}
+
+function _bpArchetype(teamRow, isSF) {
+  const pv = teamRow.playerValue || 1;
+  const qbR = teamRow.qbVal / pv;
+  const wrR = teamRow.wrVal / pv;
+  const rbR = teamRow.rbVal / pv;
+  const teR = teamRow.teVal / pv;
+  const pickR = teamRow.totalValue > 0 ? teamRow.pickValue / teamRow.totalValue : 0;
+
+  if (isSF && qbR > 0.35)    return 'QB-Heavy';
+  if (pickR > 0.32)           return 'Futures-Focused';
+  if (wrR > 0.42)             return 'WR-Dominant';
+  if (rbR > 0.30)             return 'RB-Committed';
+  if (teR > 0.18)             return 'TE Premium';
+  if (qbR > 0.30)             return 'QB-Heavy';
+  return 'Balanced Build';
+}
+
+function _bpWindowDesc(phase) {
+  const map = {
+    'CONTENDING': 'Championship window open',
+    'WIN NOW':    'Aging core, win now or reset',
+    'RELOAD':     'Young core, loaded with picks',
+    'REBUILDING': 'Tearing it down, building futures',
+    'AGING OUT':  'Aging roster without cap to compete',
+    'FRINGE':     'On the bubble — needs a spark',
+  };
+  return map[phase] ?? '';
+}
+
+// Pentagon radar SVG — 5 axes: QB, WR, RB, TE, Picks
+function _bpRadarSVG(scores) {
+  // scores: { QB:0-100, WR:0-100, RB:0-100, TE:0-100, Picks:0-100 }
+  const cx = 90, cy = 90, r = 70;
+  const axes = ['QB','WR','RB','TE','Picks'];
+  const N = axes.length;
+  const toXY = (val, idx) => {
+    const angle = (Math.PI * 2 * idx / N) - Math.PI / 2;
+    const d = (val / 100) * r;
+    return { x: cx + d * Math.cos(angle), y: cy + d * Math.sin(angle) };
+  };
+  const outerPts = axes.map((_, i) => toXY(100, i));
+  const innerPts = axes.map((ax, i) => toXY(scores[ax] ?? 50, i));
+  const outerStr = outerPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const innerStr = innerPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+  // Grid rings at 25, 50, 75, 100
+  const rings = [25, 50, 75, 100].map(pct => {
+    const pts = axes.map((_, i) => toXY(pct, i));
+    return `<polygon points="${pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>`;
+  }).join('');
+
+  // Spoke lines
+  const spokes = outerPts.map(p => `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>`).join('');
+
+  // Axis labels
+  const labels = axes.map((ax, i) => {
+    const lp = toXY(120, i);
+    const textAnchor = lp.x < cx - 5 ? 'end' : lp.x > cx + 5 ? 'start' : 'middle';
+    return `<text x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}" text-anchor="${textAnchor}" dominant-baseline="middle" font-family="monospace" font-size="9" fill="rgba(255,255,255,0.45)" letter-spacing="0.06em">${ax}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 180 180" width="160" height="160" style="overflow:visible;">
+    ${rings}${spokes}
+    <polygon points="${outerStr}" fill="rgba(251,113,133,0.04)" stroke="rgba(251,113,133,0.2)" stroke-width="1"/>
+    <polygon points="${innerStr}" fill="rgba(251,113,133,0.22)" stroke="#fb7185" stroke-width="1.5"/>
+    ${labels}
+  </svg>`;
+}
+
+// Cornerstones: top players by FC value on this roster
+function _bpCornerstones(rosterId) {
+  const roster = rostersData?.find(r => r.roster_id === rosterId);
+  if (!roster) return [];
+  const pids = roster.players ?? [];
+  return pids
+    .map(pid => {
+      const fc = fcPlayerMap[pid];
+      const sp = sleeperPlayers[pid];
+      if (!fc || !fc.value) return null;
+      const age = _bpAge(sp?.birth_date);
+      return { pid, name: fc.name, pos: fc.position, value: fc.value, age };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+}
+
+// Swing players — Rising / Prove It / Cliff Risk
+function _bpSwingPlayers(rosterId) {
+  const roster = rostersData?.find(r => r.roster_id === rosterId);
+  if (!roster) return [];
+  const pids = roster.players ?? [];
+  const swings = [];
+  for (const pid of pids) {
+    const fc = fcPlayerMap[pid];
+    const sp = sleeperPlayers[pid];
+    if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) continue;
+    const age = _bpAge(sp?.birth_date);
+    if (age == null) continue;
+    if (age <= 23 && fc.value >= 2500)
+      swings.push({ pid, name: fc.name, pos: fc.position, age, tag: 'Rising Star', icon: '↑', color: 'var(--green)' });
+    else if (age >= 25 && age <= 28 && fc.value >= 1500 && fc.value <= 6000)
+      swings.push({ pid, name: fc.name, pos: fc.position, age, tag: 'Prove It', icon: '→', color: 'var(--accent)' });
+    else if (age > 29 && fc.value >= 2000)
+      swings.push({ pid, name: fc.name, pos: fc.position, age, tag: 'Cliff Risk', icon: '↓', color: 'var(--red)' });
+  }
+  // Cap at 6: prioritize by interest — Rising first, then Prove It, then Cliff
+  const order = ['Rising Star', 'Prove It', 'Cliff Risk'];
+  swings.sort((a, b) => order.indexOf(a.tag) - order.indexOf(b.tag) || b.value - a.value);
+  return swings.slice(0, 6);
+}
+
+// Positional needs: positions where team ranks in bottom 40% of league
+function _bpNeeds(rosterId, leagueRankings, total) {
+  const ranks = leagueRankings[rosterId];
+  if (!ranks || !total) return [];
+  const needs = [];
+  const threshold = 0.55; // bottom 45%
+  const posLabel = { QB:'QB', RB:'RB', WR:'WR', TE:'TE' };
+  const posDesc  = { QB:'Lacks starting-caliber QB depth', RB:'Thin at RB, needs more backfield value', WR:'WR room is below league average', TE:'TE position is a weakness' };
+  for (const pos of ['QB','RB','WR','TE']) {
+    const compRank = ranks[`${pos}Comp`];
+    if (!compRank) continue;
+    if ((compRank - 1) / Math.max(total - 1, 1) >= threshold)
+      needs.push({ pos: posLabel[pos], desc: posDesc[pos] });
+  }
+  return needs;
+}
+
+// Open a player profile by display name (used from blueprint player-name clicks)
+function searchAndOpenProfile(name) {
+  if (!name) return;
+  if (!ppPlayerIndex.length) ppPlayerIndex = buildPlayerIndex();
+  const lower = name.toLowerCase();
+  // Exact match first, then partial
+  let match = ppPlayerIndex.find(p => p.name.toLowerCase() === lower)
+            ?? ppPlayerIndex.find(p => p.name.toLowerCase().includes(lower));
+  if (!match) return;
+  loadPlayerProfile(match.pid);
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+
+let _blueprintRosterId = null;
+
+async function renderBlueprintTab() {
+  const container = document.getElementById('blueprint-content');
+  if (!container) return;
+  container.innerHTML = `<div class="ai-loading"><span class="spinner"></span>Computing projections…</div>`;
+
+  try {
+    await _buildAndRankLeagueData();
+  } catch(e) {
+    container.innerHTML = `<div class="ai-loading" style="color:var(--red);">Failed to load projections: ${e.message}</div>`;
+    return;
+  }
+  if (!leagueProjData.length) {
+    container.innerHTML = `<div class="ai-loading" style="color:var(--text-dim);">No roster data found.</div>`;
+    return;
+  }
+
+  const allTeams   = computeTeamValues();
+  const isSF       = (leagueData?.roster_positions ?? []).includes('SUPER_FLEX');
+  const userMap    = getUserMap();
+  const total      = allTeams.length;
+
+  // Default to first team (highest value) on first open
+  if (!_blueprintRosterId || !allTeams.find(t => t.roster_id === _blueprintRosterId)) {
+    _blueprintRosterId = allTeams[0]?.roster_id;
+  }
+
+  // Build dropdown options sorted by team name
+  const sortedByName = [...allTeams].sort((a, b) => a.name.localeCompare(b.name));
+  const options = sortedByName.map(t =>
+    `<option value="${t.roster_id}"${t.roster_id === _blueprintRosterId ? ' selected' : ''}>${t.name}</option>`
+  ).join('');
+
+  container.innerHTML = `
+    <div class="bp-team-select-bar">
+      <span class="bp-tab-label">Team</span>
+      <select class="bp-team-select" onchange="switchBlueprintTeam(+this.value)">
+        ${options}
+      </select>
+    </div>
+    <div id="bp-single-content"></div>`;
+
+  renderSingleTeamBlueprint(_blueprintRosterId, allTeams, isSF, total);
+}
+
+function switchBlueprintTeam(rosterId) {
+  _blueprintRosterId = rosterId;
+  const allTeams = computeTeamValues();
+  const isSF = (leagueData?.roster_positions ?? []).includes('SUPER_FLEX');
+  renderSingleTeamBlueprint(rosterId, allTeams, isSF, allTeams.length);
+}
+
+function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
+  const el = document.getElementById('bp-single-content');
+  if (!el) return;
+
+  const teamRow = allTeams.find(t => t.roster_id === rosterId);
+  if (!teamRow) { el.innerHTML = `<div class="ai-loading" style="color:var(--text-dim);">Team not found.</div>`; return; }
+
+  const ranks    = leagueRankings[rosterId] ?? {};
+  const phase    = _bpPhase(teamRow, allTeams);
+  const phStyle  = _bpPhaseStyle(phase);
+  const archetype = _bpArchetype(teamRow, isSF);
+  const windowDesc = _bpWindowDesc(phase);
+
+  // Overall grade: blend value rank + proj rank (60/40)
+  const valueRank = allTeams.findIndex(t => t.roster_id === rosterId) + 1;
+  const projRank  = ranks.overallRank ?? valueRank;
+  const blendedRankPct = ((valueRank * 0.6 + projRank * 0.4) - 1) / Math.max(total - 1, 1);
+  const overallGrade = _bpRankToGrade(Math.round(blendedRankPct * (total - 1) + 1), total);
+  const overallGradeColor = _bpGradeColor(overallGrade);
+
+  // Radar scores (0-100 = best)
+  const radarScore = ax => {
+    const r = ranks[`${ax}Comp`] ?? Math.ceil(total / 2);
+    return Math.round((1 - (r - 1) / Math.max(total - 1, 1)) * 100);
+  };
+  const pickValueRank = [...allTeams].sort((a,b) => b.pickValue - a.pickValue).findIndex(t => t.roster_id === rosterId) + 1;
+  const radarScores = {
+    QB:    radarScore('QB'),
+    WR:    radarScore('WR'),
+    RB:    radarScore('RB'),
+    TE:    radarScore('TE'),
+    Picks: Math.round((1 - (pickValueRank - 1) / Math.max(total - 1, 1)) * 100),
+  };
+
+  // Positional grade circles
+  const posGrades = ['QB','RB','WR','TE'].map(pos => {
+    const compRank = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
+    const grade = _bpRankToGrade(compRank, total);
+    const color = _bpGradeColor(grade);
+    return `<div class="bp-grade-circle" style="border-color:${color};color:${color};">
+      <span class="bp-grade-letter">${grade}</span>
+      <span class="bp-grade-pos">${pos}</span>
+    </div>`;
+  }).join('');
+
+  // Value pie via conic-gradient
+  const pv = teamRow.playerValue || 1;
+  const tv = teamRow.totalValue  || 1;
+  const qbP = teamRow.qbVal / tv * 100;
+  const rbP = teamRow.rbVal / tv * 100;
+  const wrP = teamRow.wrVal / tv * 100;
+  const teP = teamRow.teVal / tv * 100;
+  const pkP = teamRow.pickValue / tv * 100;
+  let deg = 0;
+  const seg = (pct, color) => {
+    const s = `${color} ${deg.toFixed(1)}deg ${(deg + pct * 3.6).toFixed(1)}deg`;
+    deg += pct * 3.6;
+    return s;
+  };
+  const pie = `conic-gradient(${seg(qbP,'#a78bfa')},${seg(rbP,'var(--green)')},${seg(wrP,'var(--blue)')},${seg(teP,'var(--orange)')},${seg(pkP,'#fb7185')})`;
+
+  const pieLegend = [
+    ['QB','#a78bfa', teamRow.qbVal],
+    ['RB','var(--green)', teamRow.rbVal],
+    ['WR','var(--blue)', teamRow.wrVal],
+    ['TE','var(--orange)', teamRow.teVal],
+    ['Picks','#fb7185', teamRow.pickValue],
+  ].map(([label, color, val]) => {
+    const pct = tv > 0 ? (val / tv * 100).toFixed(0) : '0';
+    return `<div style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span><span style="color:var(--text-muted);font-size:10px;">${label} <span style="color:var(--text-dim);">${pct}%</span></span></div>`;
+  }).join('');
+
+  // Cornerstones
+  const cornerstones = _bpCornerstones(rosterId);
+  const maxCsVal = cornerstones[0]?.value ?? 1;
+  const csRows = cornerstones.length ? cornerstones.map(p => {
+    const barW = Math.round(p.value / maxCsVal * 100);
+    const ageStr = p.age != null ? p.age.toFixed(0) : '?';
+    const posColors = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)', K:'var(--text-dim)' };
+    const posColor = posColors[p.pos] ?? 'var(--text-dim)';
+    return `<div class="bp-cornerstone-row">
+      <span class="bp-cs-pos" style="color:${posColor};">${p.pos}</span>
+      <span class="bp-cs-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')">
+        ${p.name ?? '—'}
+      </span>
+      <span class="bp-cs-age" style="color:${p.age && p.age < 26 ? 'var(--green)' : p.age && p.age > 29 ? 'var(--red)' : 'var(--text-dim)'};">${ageStr}</span>
+      <div class="bp-cs-bar-wrap"><div class="bp-cs-bar" style="width:${barW}%;background:${posColor};"></div></div>
+      <span class="bp-cs-val">${(p.value/1000).toFixed(1)}k</span>
+    </div>`;
+  }).join('') : `<div style="color:var(--text-dim);font-size:11px;padding:8px 0;">No rostered players with FC value.</div>`;
+
+  // Draft capital
+  const picks = teamRow.allPicks ?? [];
+  const picksByYear = {};
+  for (const p of picks) {
+    if (!picksByYear[p.season]) picksByYear[p.season] = [];
+    picksByYear[p.season].push(p);
+  }
+  const pickYears = Object.keys(picksByYear).sort();
+  const tierColors = { early:'#fbbf24', mid:'#94a3b8', late:'rgba(148,163,184,0.5)' };
+  const capitalRows = pickYears.length ? pickYears.map(yr => {
+    const dots = picksByYear[yr].map(p => {
+      const color = tierColors[p.tier] ?? 'rgba(148,163,184,0.4)';
+      return `<div class="bp-pick-dot" style="background:${color};" title="${p.label} (≈${p.value})">${p.round}</div>`;
+    }).join('');
+    return `<div class="bp-picks-year-row">
+      <span class="bp-picks-year">${String(yr).slice(2)}'</span>
+      <div class="bp-picks-dots">${dots}</div>
+      <span class="bp-picks-count">${picksByYear[yr].length}px</span>
+    </div>`;
+  }).join('') : `<div style="color:var(--text-dim);font-size:11px;padding:8px 0;">No future picks on record.</div>`;
+
+  // Swing players
+  const swings = _bpSwingPlayers(rosterId);
+  const swingRows = swings.length ? swings.map(s => {
+    const ageStr = s.age != null ? s.age.toFixed(0) : '?';
+    return `<div class="bp-swing-row">
+      <span class="bp-swing-icon" style="color:${s.color};">${s.icon}</span>
+      <span class="bp-swing-pos" style="color:${s.color};">${s.pos}</span>
+      <span class="bp-swing-name" onclick="searchAndOpenProfile('${(s.name||'').replace(/'/g,"\\'")}')">
+        ${s.name ?? '—'}
+      </span>
+      <span class="bp-swing-tag" style="color:${s.color};">${s.tag}</span>
+      <span class="bp-swing-age">${ageStr}</span>
+    </div>`;
+  }).join('') : `<div style="color:var(--text-dim);font-size:11px;padding:8px 0;">No notable swing players identified.</div>`;
+
+  // Needs
+  const needs = _bpNeeds(rosterId, leagueRankings, total);
+  const needRows = needs.length ? needs.map(n => {
+    const posColors = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' };
+    return `<div class="bp-need-row">
+      <span class="bp-need-pos" style="color:${posColors[n.pos] ?? 'var(--text-dim)'};">${n.pos}</span>
+      <span class="bp-need-desc">${n.desc}</span>
+    </div>`;
+  }).join('') : `<div style="color:var(--green);font-size:11px;padding:8px 0;">No glaring positional needs — well-rounded roster.</div>`;
+
+  // Roster grid by position
+  const roster = rostersData?.find(r => r.roster_id === rosterId);
+  const rPositions = (leagueData?.roster_positions ?? []);
+  // Count starter slots per position
+  const starterSlots = { QB:0, RB:0, WR:0, TE:0, SUPER_FLEX:0, FLEX:0 };
+  for (const slot of rPositions) {
+    if (slot === 'BN' || slot === 'IR') continue;
+    if (starterSlots[slot] != null) starterSlots[slot]++;
+  }
+  // Approximate starters per position (handle FLEX/SUPERFLEX as WR/RB bonus)
+  const qbStarters = starterSlots.QB + (isSF ? starterSlots.SUPER_FLEX : 0);
+  const rbStarters = starterSlots.RB + Math.floor(starterSlots.FLEX / 2);
+  const wrStarters = starterSlots.WR + Math.ceil(starterSlots.FLEX / 2) + (isSF ? 0 : starterSlots.SUPER_FLEX);
+  const teStarters = starterSlots.TE;
+
+  const posCols = ['QB','RB','WR','TE'].map(pos => {
+    const starters = { QB: qbStarters, RB: rbStarters, WR: wrStarters, TE: teStarters }[pos] ?? 1;
+    const posColors = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' };
+    const color = posColors[pos] ?? 'var(--text-dim)';
+    const players = (roster?.players ?? [])
+      .map(pid => {
+        const fc = fcPlayerMap[pid];
+        const sp = sleeperPlayers[pid];
+        if (!fc || fc.position !== pos) return null;
+        const age = _bpAge(sp?.birth_date);
+        return { pid, name: fc.name, value: fc.value, age };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.value - a.value);
+
+    const maxVal = players[0]?.value ?? 1;
+    const rows = players.map((p, i) => {
+      const barW = maxVal > 0 ? Math.round(p.value / maxVal * 100) : 0;
+      const ageStr = p.age != null ? p.age.toFixed(0) : '?';
+      const ageColor = p.age && p.age < 24 ? 'var(--green)' : p.age && p.age > 30 ? 'var(--red)' : 'var(--text-dim)';
+      const isStarter = i < starters;
+      return `<div class="bp-roster-row${isStarter ? ' bp-roster-starter' : ''}">
+        <span class="bp-roster-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')">
+          ${p.name ?? '—'}
+        </span>
+        <span class="bp-roster-age" style="color:${ageColor};">${ageStr}</span>
+        <div class="bp-roster-bar-wrap"><div class="bp-roster-bar" style="width:${barW}%;background:${color};"></div></div>
+        <span class="bp-roster-val">${(p.value/1000).toFixed(1)}k</span>
+      </div>`;
+    }).join('');
+
+    const posGrade = _bpRankToGrade(ranks[`${pos}Comp`] ?? Math.ceil(total/2), total);
+    return `<div>
+      <div class="bp-pos-col-header" style="color:${color};">
+        ${pos}
+        <span style="color:${_bpGradeColor(posGrade)};font-size:9px;">${posGrade}</span>
+      </div>
+      ${rows || '<div style="color:var(--text-dim);font-size:10px;padding:4px 0;">No players</div>'}
+    </div>`;
+  }).join('');
+
+  // Record
+  const w = teamRow.wins ?? 0, l = teamRow.losses ?? 0;
+  const rec = `${w}–${l}`;
+
+  el.innerHTML = `
+  <div class="bp-card">
+
+    <!-- Header -->
+    <div class="bp-header">
+      <div class="bp-header-left">
+        <div class="bp-team-name">${teamRow.name}</div>
+        <div class="bp-meta-row">
+          <span class="bp-phase-badge" style="color:${phStyle.color};border-color:${phStyle.border};background:${phStyle.bg};">${phase}</span>
+          <span class="bp-archetype-val">◆ ${archetype}</span>
+          <span class="bp-archetype-win">${windowDesc}</span>
+        </div>
+        <div class="bp-meta-row">
+          <span class="bp-record">${rec} · Avg Age ${(teamRow.avgAge ?? 0).toFixed(1)}</span>
+          <span class="bp-record">Proj Rank #${ranks.overallRank ?? '?'} · Value Rank #${valueRank}</span>
+        </div>
+      </div>
+      <div class="bp-grade-ring" style="--grade-color:${overallGradeColor};border-color:${overallGradeColor};">
+        <div class="bp-grade-num" style="color:${overallGradeColor};">${overallGrade}</div>
+        <div class="bp-grade-label">Overall</div>
+      </div>
+    </div>
+
+    <!-- Row 1: Radar + Grades + Value Pie -->
+    <div class="bp-row1">
+      <div class="bp-panel bp-panel-radar" style="min-width:180px;">
+        <div class="bp-panel-title">ROSTER RADAR</div>
+        ${_bpRadarSVG(radarScores)}
+        <div class="bp-radar-legend">
+          ${Object.entries(radarScores).map(([ax, sc]) => `<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:var(--text);margin-left:3px;">${sc}</span></div>`).join('')}
+        </div>
+      </div>
+
+      <div class="bp-panel">
+        <div class="bp-panel-title">POSITIONAL GRADES <span class="bp-panel-sub">by league rank</span></div>
+        <div class="bp-grade-row">${posGrades}</div>
+        <div class="bp-grade-sub">STR + DEP composite rank vs ${total} teams</div>
+      </div>
+
+      <div class="bp-panel">
+        <div class="bp-panel-title">VALUE BREAKDOWN</div>
+        <div class="bp-pie-row">
+          <div class="bp-pie" style="background:${pie};"></div>
+          <div class="bp-pie-legend">${pieLegend}</div>
+        </div>
+        <div style="margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--text-dim);">
+          Total: ${(teamRow.totalValue/1000).toFixed(1)}k &nbsp;|&nbsp; Players: ${(teamRow.playerValue/1000).toFixed(1)}k &nbsp;|&nbsp; Picks: ${(teamRow.pickValue/1000).toFixed(1)}k
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Cornerstones + Draft Capital -->
+    <div class="bp-row-split">
+      <div class="bp-panel">
+        <div class="bp-panel-title">CORNERSTONES <span class="bp-panel-sub">top assets by value</span></div>
+        ${csRows}
+      </div>
+      <div class="bp-panel">
+        <div class="bp-panel-title">DRAFT CAPITAL <span class="bp-panel-sub">future picks owned</span></div>
+        ${capitalRows}
+        <div style="margin-top:8px;font-size:9px;color:var(--text-dim);">Total pick value: ${(teamRow.pickValue/1000).toFixed(1)}k</div>
+      </div>
+    </div>
+
+    <!-- Row 3: Swing Players + Needs -->
+    <div class="bp-row-split">
+      <div class="bp-panel">
+        <div class="bp-panel-title">SWING PLAYERS <span class="bp-panel-sub">make-or-break contributors</span></div>
+        ${swingRows}
+      </div>
+      <div class="bp-panel">
+        <div class="bp-panel-title">POSITIONAL NEEDS <span class="bp-panel-sub">vs league average</span></div>
+        ${needRows}
+      </div>
+    </div>
+
+    <!-- Row 4: Roster Grid -->
+    <div class="bp-panel">
+      <div class="bp-panel-title">FULL ROSTER <span class="bp-panel-sub">sorted by FC value — line separates starters</span></div>
+      <div class="bp-roster-grid" style="margin-top:8px;">${posCols}</div>
+    </div>
+
+  </div>`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
