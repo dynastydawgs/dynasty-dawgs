@@ -2384,6 +2384,137 @@
   .bp-trade-item:last-child { border-bottom:none; }
   .bp-trade-action { font-family:var(--mono); font-size:8px; font-weight:700; letter-spacing:0.06em; width:58px; flex-shrink:0; }
   .bp-trade-desc { flex:1; font-size:10px; color:var(--text-dim); }
+
+  /* ── Blueprint: Enhanced Visuals & Fullscreen ───────────────────────────── */
+  @keyframes bp-slide-up  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+  @keyframes bp-glow-ring { 0%,100%{box-shadow:0 0 14px rgba(var(--gc-rgb,251,113,133),0.35)} 50%{box-shadow:0 0 32px rgba(var(--gc-rgb,251,113,133),0.65),0 0 6px rgba(var(--gc-rgb,251,113,133),0.4)} }
+  @keyframes bp-phase-flicker { 0%,100%{opacity:1} 50%{opacity:0.72} }
+  @keyframes bp-col-in    { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+  @keyframes bp-fs-appear { from{opacity:0} to{opacity:1} }
+  @keyframes bp-grade-pop { 0%{transform:scale(0.7);opacity:0} 70%{transform:scale(1.08)} 100%{transform:scale(1);opacity:1} }
+
+  /* Card container */
+  .bp-card { padding:0!important; gap:0!important; overflow:hidden!important;
+    background:linear-gradient(155deg,#0b1018 0%,#0f1828 55%,#090f1d 100%)!important;
+    border:1px solid rgba(255,255,255,0.09)!important; border-radius:18px!important;
+    animation:bp-slide-up 0.45s cubic-bezier(0.16,1,0.3,1); }
+
+  /* Hero bar */
+  .bp-hero { position:relative; padding:24px 28px 20px;
+    background:linear-gradient(118deg,#0e1828 0%,#141f38 100%);
+    border-bottom:1px solid rgba(255,255,255,0.07); overflow:hidden; }
+  .bp-hero::after { content:''; position:absolute; top:-70px; right:-70px;
+    width:230px; height:230px; border-radius:50%;
+    background:radial-gradient(circle,rgba(251,113,133,0.11) 0%,transparent 65%);
+    pointer-events:none; }
+
+  .bp-team-name { font-size:28px!important; font-weight:900!important;
+    letter-spacing:0.04em!important; text-transform:uppercase!important;
+    color:#fff!important; margin-bottom:10px!important; line-height:1!important; }
+
+  .bp-phase-badge { animation:bp-phase-flicker 4s ease-in-out infinite!important;
+    font-weight:700!important; }
+
+  .bp-archetype-val  { color:#fb7185!important; font-weight:600!important; font-size:9px!important; }
+  .bp-archetype-win  { color:rgba(255,255,255,0.38)!important; font-size:9px!important; }
+  .bp-record         { color:rgba(255,255,255,0.32)!important; }
+
+  /* Grade ring — bigger + animated glow */
+  .bp-grade-ring { width:92px!important; height:92px!important; border-width:3px!important;
+    animation:bp-glow-ring 3.2s ease-in-out infinite, bp-grade-pop 0.5s 0.15s both ease!important;
+    background:rgba(255,255,255,0.025)!important; }
+  .bp-grade-num   { font-size:28px!important; font-weight:900!important; }
+  .bp-grade-label { color:rgba(255,255,255,0.38)!important; letter-spacing:0.2em!important; }
+
+  /* Metrics strip — flush, colored top accent */
+  .bp-metrics-strip { display:flex!important; gap:0!important; flex-wrap:nowrap!important;
+    border-bottom:1px solid rgba(255,255,255,0.07)!important;
+    background:rgba(0,0,0,0.2)!important; }
+  .bp-metric-chip { flex:1; min-width:0; padding:15px 18px!important;
+    border-right:1px solid rgba(255,255,255,0.07)!important; border-radius:0!important;
+    background:transparent!important; border-top:3px solid transparent!important;
+    transition:background 0.2s; }
+  .bp-metric-chip:last-child  { border-right:none!important; }
+  .bp-metric-chip:hover       { background:rgba(255,255,255,0.028)!important; }
+  .bp-metric-label { color:rgba(255,255,255,0.34)!important; letter-spacing:0.2em!important; font-size:8px!important; }
+  .bp-metric-val   { font-size:20px!important; color:#fff!important; }
+  .bp-metric-sub   { color:rgba(255,255,255,0.36)!important; font-size:10px!important; }
+
+  /* Content wrapper */
+  .bp-content { padding:18px; display:flex; flex-direction:column; gap:14px; }
+
+  /* Panels — colored left-border accent via --bpa */
+  .bp-panel { background:rgba(255,255,255,0.026)!important;
+    border:1px solid rgba(255,255,255,0.07)!important;
+    border-left:3px solid var(--bpa,rgba(255,255,255,0.14))!important;
+    border-radius:12px!important; padding:15px 17px!important; transition:border-color 0.2s; }
+  .bp-panel-title { color:rgba(255,255,255,0.4)!important; letter-spacing:0.22em!important;
+    font-size:9.5px!important; margin-bottom:13px!important;
+    display:flex!important; align-items:center!important; gap:7px!important; }
+  .bp-panel-sub { color:rgba(255,255,255,0.28)!important; }
+  .bp-pdot { width:6px; height:6px; border-radius:50%; flex-shrink:0; display:inline-block; }
+
+  /* Grade circles — pop on hover */
+  .bp-grade-circle { transition:transform 0.18s, box-shadow 0.18s!important; cursor:default; }
+  .bp-grade-circle:hover { transform:scale(1.12)!important; box-shadow:0 0 14px currentColor!important; }
+  .bp-grade-letter { font-size:17px!important; font-weight:800!important; }
+
+  /* Fullscreen trigger button */
+  .bp-fs-btn { position:absolute; top:18px; right:18px; z-index:5;
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15);
+    color:rgba(255,255,255,0.6); border-radius:8px; padding:5px 13px;
+    font-size:9px; font-family:var(--mono); letter-spacing:0.12em;
+    cursor:pointer; text-transform:uppercase; transition:all 0.2s; }
+  .bp-fs-btn:hover { background:rgba(251,113,133,0.15); border-color:rgba(251,113,133,0.45); color:#fb7185; }
+
+  /* ── Fullscreen overlay ───────────────────────────────────────────────── */
+  .bp-fs-overlay { position:fixed; inset:0; z-index:9999;
+    background:rgba(4,7,16,0.96); backdrop-filter:blur(14px);
+    display:flex; flex-direction:column; animation:bp-fs-appear 0.28s ease; }
+  .bp-fs-topbar { display:flex; align-items:center; justify-content:space-between;
+    padding:11px 20px; background:rgba(255,255,255,0.03);
+    border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
+  .bp-fs-meta { display:flex; align-items:center; gap:14px; }
+  .bp-fs-tname { font-family:var(--display); font-size:16px; font-weight:800;
+    color:#fff; letter-spacing:0.07em; text-transform:uppercase; }
+  .bp-fs-close { background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3);
+    color:#f87171; border-radius:8px; padding:6px 18px; font-size:9px;
+    font-family:var(--mono); letter-spacing:0.12em; cursor:pointer;
+    text-transform:uppercase; transition:all 0.2s; }
+  .bp-fs-close:hover { background:rgba(239,68,68,0.28); }
+  .bp-fs-scroll { flex:1; overflow:auto; padding:16px; }
+  .bp-fs-grid { display:grid; gap:13px; align-items:start;
+    grid-template-columns:270px repeat(3,1fr); }
+  @media (max-width:1300px) { .bp-fs-grid { grid-template-columns:1fr 1fr 1fr; } }
+  @media (max-width:960px)  { .bp-fs-grid { grid-template-columns:1fr 1fr; } }
+  @media (max-width:620px)  { .bp-fs-grid { grid-template-columns:1fr; } }
+  .bp-fs-col { display:flex; flex-direction:column; gap:13px; }
+  .bp-fs-col:nth-child(1){animation:bp-col-in 0.35s 0.05s both ease}
+  .bp-fs-col:nth-child(2){animation:bp-col-in 0.35s 0.13s both ease}
+  .bp-fs-col:nth-child(3){animation:bp-col-in 0.35s 0.21s both ease}
+  .bp-fs-col:nth-child(4){animation:bp-col-in 0.35s 0.29s both ease}
+  .bp-fs-p { background:rgba(255,255,255,0.026); border:1px solid rgba(255,255,255,0.07);
+    border-left:3px solid var(--bpa,rgba(255,255,255,0.15)); border-radius:11px; padding:13px 15px; }
+  .bp-fs-pt { font-family:var(--mono); font-size:8.5px; letter-spacing:0.2em;
+    text-transform:uppercase; color:rgba(255,255,255,0.37); margin-bottom:11px;
+    display:flex; align-items:center; gap:6px; }
+  .bp-fs-hero { background:linear-gradient(130deg,#0e1828,#16213a);
+    border:1px solid rgba(255,255,255,0.09); border-radius:13px;
+    padding:18px; position:relative; overflow:hidden; }
+  .bp-fs-hero::after { content:''; position:absolute; top:-50px; right:-50px;
+    width:150px; height:150px; border-radius:50%;
+    background:radial-gradient(circle,rgba(251,113,133,0.1) 0%,transparent 70%);
+    pointer-events:none; }
+  .bp-fs-mstrip { background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.07);
+    border-radius:11px; overflow:hidden; }
+  .bp-fs-mrow { display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.06);
+    border-left:3px solid transparent; }
+  .bp-fs-mrow:last-child { border-bottom:none; }
+  .bp-fs-ml { font-family:var(--mono); font-size:8px; letter-spacing:0.16em;
+    text-transform:uppercase; color:rgba(255,255,255,0.32); margin-bottom:3px; }
+  .bp-fs-mv { font-family:var(--display); font-size:15px; font-weight:800; color:#fff; flex-shrink:0; margin-left:10px; }
+  .bp-fs-ms { font-size:9px; color:rgba(255,255,255,0.32); }
 </style>
 </head>
 <body>
@@ -12055,148 +12186,343 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── Record ────────────────────────────────────────────────────────────────
   const w = teamRow.wins ?? 0, l = teamRow.losses ?? 0;
 
+  // ── Cache all computed data for fullscreen reuse ───────────────────────────
+  window._bpData = {
+    rosterId, teamRow, phase, phStyle, archetype, windowDesc, posColors,
+    valueRank, projRank, overallGrade, gradeColor,
+    radarScores, shapeScores, clock, finish, eff, trendIcon, trendColor,
+    posGradesHTML, ageBarHTML, pieCSS, pieLegHTML, constBarSegs, constLegend,
+    lineupRowsHTML, benchBubbles, teamProj, bshHTML, csRowsHTML, capitalHTML,
+    buyTradeHTML, sellTradeHTML, swingHTML, needsHTML, rosterGridHTML,
+    pickValueRank, w, l, total,
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
+  const _radarLegIn = Object.entries(radarScores).map(([ax,sc])=>`<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:#fff;margin-left:3px;">${sc}</span></div>`).join('');
+  const _shapeLegIn = Object.entries(shapeScores).map(([ax,sc])=>`<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:#fff;margin-left:3px;">${sc}</span></div>`).join('');
+  const _benchLine  = benchBubbles.length ? `<div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.35);">Next up: ${benchBubbles.join(' · ')}</div>` : '';
+  const _ppgTotal   = teamProj ? `<div class="bp-lineup-total"><span style="font-family:var(--mono);font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.35);">PROJECTED PPG</span><span style="font-family:var(--display);font-size:18px;font-weight:900;color:#fff;">${teamProj.totalPpg.toFixed(1)}</span></div>${_benchLine}` : '';
+  const _trendSub   = clock.trend==='rising'?'Trajectory improving':clock.trend==='declining'?'Window may be closing':'Trajectory stable';
+  const _tvLine     = `Total ${(teamRow.totalValue/1000).toFixed(1)}k · Players ${(teamRow.playerValue/1000).toFixed(1)}k · Picks ${(teamRow.pickValue/1000).toFixed(1)}k`;
+  const _pickLine   = `Pick value: ${(teamRow.pickValue/1000).toFixed(1)}k · Rank #${pickValueRank} of ${total}`;
+
   el.innerHTML = `
   <div class="bp-card">
 
-    <!-- HEADER -->
-    <div class="bp-header">
-      <div class="bp-header-left">
-        <div class="bp-team-name">${teamRow.name}</div>
-        <div class="bp-meta-row">
-          <span class="bp-phase-badge" style="color:${phStyle.color};border-color:${phStyle.border};background:${phStyle.bg};">${phase}</span>
-          <span class="bp-archetype-val">◆ ${archetype}</span>
-          <span class="bp-archetype-win">${windowDesc}</span>
+    <!-- ═══ HERO ═══ -->
+    <div class="bp-hero">
+      <button class="bp-fs-btn" onclick="openBlueprintFullscreen()">⛶ FULL SCREEN</button>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;">
+        <div style="flex:1;min-width:0;">
+          <div class="bp-team-name">${teamRow.name}</div>
+          <div class="bp-meta-row">
+            <span class="bp-phase-badge" style="color:${phStyle.color};border-color:${phStyle.border};background:${phStyle.bg};">${phase}</span>
+            <span class="bp-archetype-val">◆ ${archetype}</span>
+            <span class="bp-archetype-win">${windowDesc}</span>
+          </div>
+          <div class="bp-meta-row" style="margin-top:5px;">
+            <span class="bp-record">${w}–${l} · Avg Age ${(teamRow.avgAge??0).toFixed(1)} · ${total} teams · Proj #${projRank} · Value #${valueRank}</span>
+          </div>
         </div>
-        <div class="bp-meta-row">
-          <span class="bp-record">${w}–${l} · Avg Age ${(teamRow.avgAge??0).toFixed(1)} · ${total} teams</span>
-          <span class="bp-record">Proj #${projRank} · Value #${valueRank}</span>
+        <div class="bp-grade-ring" style="--grade-color:${gradeColor};--gc-rgb:${gradeColor==='#22d3ee'?'34,211,238':gradeColor==='#4ade80'?'74,222,128':gradeColor==='#facc15'?'250,204,21':gradeColor==='#fb923c'?'251,146,60':'239,68,68'};border-color:${gradeColor};">
+          <div class="bp-grade-num" style="color:${gradeColor};">${overallGrade}</div>
+          <div class="bp-grade-label">OVERALL</div>
         </div>
-      </div>
-      <div class="bp-grade-ring" style="--grade-color:${gradeColor};border-color:${gradeColor};">
-        <div class="bp-grade-num" style="color:${gradeColor};">${overallGrade}</div>
-        <div class="bp-grade-label">Overall</div>
       </div>
     </div>
 
-    <!-- METRICS STRIP: Window Clock | Projected Finish | Value Efficiency -->
+    <!-- ═══ METRICS STRIP ═══ -->
     <div class="bp-metrics-strip">
-      <div class="bp-metric-chip">
-        <div class="bp-metric-label">2-Year Window</div>
-        <div class="bp-metric-val">${clock.now} <span style="color:${trendColor};font-size:12px;">${trendIcon}</span> ${clock.future}</div>
-        <div class="bp-metric-sub">${clock.trend === 'rising' ? 'Trajectory improving' : clock.trend === 'declining' ? 'Window may be closing' : 'Trajectory stable'}</div>
+      <div class="bp-metric-chip" style="border-top-color:${trendColor};">
+        <div class="bp-metric-label">2-YEAR WINDOW</div>
+        <div class="bp-metric-val">${clock.now} <span style="color:${trendColor};font-size:14px;">${trendIcon}</span> ${clock.future}</div>
+        <div class="bp-metric-sub">${_trendSub}</div>
       </div>
-      <div class="bp-metric-chip">
-        <div class="bp-metric-label">Projected Finish</div>
+      <div class="bp-metric-chip" style="border-top-color:#2dd4bf;">
+        <div class="bp-metric-label">PROJECTED FINISH</div>
         <div class="bp-metric-val">${finish.projWins.toFixed(0)}–${finish.projLosses.toFixed(0)}</div>
         <div class="bp-metric-sub">${finish.playoffOdds}% playoff odds · ${finish.playoffTeams} spots</div>
       </div>
-      <div class="bp-metric-chip">
-        <div class="bp-metric-label">Value Efficiency</div>
+      <div class="bp-metric-chip" style="border-top-color:${eff.color};">
+        <div class="bp-metric-label">VALUE EFFICIENCY</div>
         <div class="bp-metric-val" style="color:${eff.color};">${eff.label}</div>
         <div class="bp-metric-sub">Value #${eff.valueRank} · Proj #${eff.projRank} · ${eff.delta>0?'+':''}${eff.delta} spots</div>
       </div>
     </div>
 
-    <!-- ROW 1: Roster Radar | Shape Radar -->
-    <div class="bp-row-split">
-      <div class="bp-panel bp-panel-radar">
-        <div class="bp-panel-title">ROSTER RADAR <span class="bp-panel-sub">positional league rank</span></div>
-        ${_bpRadarSVG(radarScores)}
-        <div class="bp-radar-legend">
-          ${Object.entries(radarScores).map(([ax,sc]) => `<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:var(--text);margin-left:3px;">${sc}</span></div>`).join('')}
-        </div>
-      </div>
-      <div class="bp-panel bp-panel-radar">
-        <div class="bp-panel-title">ROSTER SHAPE <span class="bp-panel-sub">health dimensions</span></div>
-        ${_bpShapeRadarSVG(shapeScores)}
-        <div class="bp-radar-legend">
-          ${Object.entries(shapeScores).map(([ax,sc]) => `<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:var(--text);margin-left:3px;">${sc}</span></div>`).join('')}
-        </div>
-      </div>
-    </div>
+    <!-- ═══ CONTENT ═══ -->
+    <div class="bp-content">
 
-    <!-- ROW 2: Positional Grades + Age Curve | Value Pie + Construction -->
-    <div class="bp-row-split">
-      <div class="bp-panel">
-        <div class="bp-panel-title">POSITIONAL GRADES <span class="bp-panel-sub">STR+DEP composite vs ${total} teams</span></div>
-        <div class="bp-grade-row" style="margin-bottom:14px;">${posGradesHTML}</div>
-        <div class="bp-panel-title" style="margin-top:4px;">POSITIONAL AGE <span class="bp-panel-sub">bar = team · tick = league avg</span></div>
-        ${ageBarHTML || '<div style="color:var(--text-dim);font-size:10px;">Age data unavailable.</div>'}
-      </div>
-      <div class="bp-panel">
-        <div class="bp-panel-title">VALUE BREAKDOWN</div>
-        <div class="bp-pie-row">
-          <div class="bp-pie" style="background:${pieCSS};"></div>
-          <div class="bp-pie-legend">${pieLegHTML}</div>
+      <!-- ROW 1: Radars -->
+      <div class="bp-row-split">
+        <div class="bp-panel bp-panel-radar" style="--bpa:#fb7185;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub">positional league rank</span></div>
+          ${_bpRadarSVG(radarScores)}
+          <div class="bp-radar-legend">${_radarLegIn}</div>
         </div>
-        <div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--text-dim);">
-          Total ${(teamRow.totalValue/1000).toFixed(1)}k · Players ${(teamRow.playerValue/1000).toFixed(1)}k · Picks ${(teamRow.pickValue/1000).toFixed(1)}k
-        </div>
-        <div class="bp-panel-title" style="margin-top:12px;">ROSTER CONSTRUCTION</div>
-        <div class="bp-const-bar">${constBarSegs}</div>
-        <div class="bp-const-legend">${constLegend}</div>
-      </div>
-    </div>
-
-    <!-- ROW 3: Optimal Lineup | Buy / Sell / Hold -->
-    <div class="bp-row-split">
-      <div class="bp-panel">
-        <div class="bp-panel-title">OPTIMAL LINEUP <span class="bp-panel-sub">base projections</span></div>
-        ${lineupRowsHTML || '<div style="color:var(--text-dim);font-size:11px;">Run projections first.</div>'}
-        ${teamProj ? `<div class="bp-lineup-total">
-          <span style="font-family:var(--mono);font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);">Projected PPG</span>
-          <span style="font-family:var(--display);font-size:16px;font-weight:700;color:var(--text);">${teamProj.totalPpg.toFixed(1)}</span>
-        </div>
-        ${benchBubbles.length ? `<div style="margin-top:6px;font-size:9px;color:var(--text-dim);">Next up: ${benchBubbles.join(' · ')}</div>` : ''}` : ''}
-      </div>
-      <div class="bp-panel">
-        <div class="bp-panel-title">BUY / SELL / HOLD <span class="bp-panel-sub">trade signals</span></div>
-        ${bshHTML}
-      </div>
-    </div>
-
-    <!-- ROW 4: Cornerstones | Draft Capital -->
-    <div class="bp-row-split">
-      <div class="bp-panel">
-        <div class="bp-panel-title">CORNERSTONES <span class="bp-panel-sub">top assets by FC value</span></div>
-        ${csRowsHTML}
-      </div>
-      <div class="bp-panel">
-        <div class="bp-panel-title">DRAFT CAPITAL <span class="bp-panel-sub">future picks owned</span></div>
-        ${capitalHTML}
-        <div style="margin-top:8px;font-size:9px;color:var(--text-dim);">Total pick value: ${(teamRow.pickValue/1000).toFixed(1)}k · Rank #${pickValueRank} of ${total}</div>
-      </div>
-    </div>
-
-    <!-- ROW 5: Trade Strategy | Swing Players + Needs -->
-    <div class="bp-row-split">
-      <div class="bp-panel">
-        <div class="bp-panel-title">TRADE STRATEGY</div>
-        <div class="bp-trade-section">
-          <div class="bp-trade-section-label">Target via trade</div>
-          ${buyTradeHTML}
-        </div>
-        <div class="bp-trade-section">
-          <div class="bp-trade-section-label">Sell from surplus</div>
-          ${sellTradeHTML}
+        <div class="bp-panel bp-panel-radar" style="--bpa:#a78bfa;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#a78bfa;"></span>ROSTER SHAPE<span class="bp-panel-sub">health dimensions</span></div>
+          ${_bpShapeRadarSVG(shapeScores)}
+          <div class="bp-radar-legend">${_shapeLegIn}</div>
         </div>
       </div>
-      <div class="bp-panel">
-        <div class="bp-panel-title">SWING PLAYERS <span class="bp-panel-sub">make-or-break</span></div>
-        ${swingHTML}
-        <div class="bp-panel-title" style="margin-top:12px;">POSITIONAL NEEDS</div>
-        ${needsHTML}
+
+      <!-- ROW 2: Grades+Age | Value+Construction -->
+      <div class="bp-row-split">
+        <div class="bp-panel" style="--bpa:#38bdf8;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub">STR+DEP composite vs ${total} teams</span></div>
+          <div class="bp-grade-row" style="margin-bottom:14px;">${posGradesHTML}</div>
+          <div class="bp-panel-title" style="margin-top:4px;"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL AGE<span class="bp-panel-sub">bar = team · tick = league avg</span></div>
+          ${ageBarHTML || '<div style="color:rgba(255,255,255,0.3);font-size:10px;">Age data unavailable.</div>'}
+        </div>
+        <div class="bp-panel" style="--bpa:#fbbf24;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fbbf24;"></span>VALUE BREAKDOWN</div>
+          <div class="bp-pie-row">
+            <div class="bp-pie" style="background:${pieCSS};"></div>
+            <div class="bp-pie-legend">${pieLegHTML}</div>
+          </div>
+          <div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.35);">${_tvLine}</div>
+          <div class="bp-panel-title" style="margin-top:12px;"><span class="bp-pdot" style="background:#fbbf24;"></span>ROSTER CONSTRUCTION</div>
+          <div class="bp-const-bar">${constBarSegs}</div>
+          <div class="bp-const-legend">${constLegend}</div>
+        </div>
       </div>
-    </div>
 
-    <!-- ROW 6: Full Roster Grid -->
-    <div class="bp-panel">
-      <div class="bp-panel-title">FULL ROSTER <span class="bp-panel-sub">by FC value · line = starter threshold</span></div>
-      <div class="bp-roster-grid" style="margin-top:8px;">${rosterGridHTML}</div>
-    </div>
+      <!-- ROW 3: Lineup | Buy/Sell/Hold -->
+      <div class="bp-row-split">
+        <div class="bp-panel" style="--bpa:#2dd4bf;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#2dd4bf;"></span>OPTIMAL LINEUP<span class="bp-panel-sub">base projections</span></div>
+          ${lineupRowsHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">Run projections first.</div>'}
+          ${_ppgTotal}
+        </div>
+        <div class="bp-panel" style="--bpa:#f87171;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#f87171;"></span>BUY / SELL / HOLD<span class="bp-panel-sub">trade signals</span></div>
+          ${bshHTML}
+        </div>
+      </div>
 
+      <!-- ROW 4: Cornerstones | Draft Capital -->
+      <div class="bp-row-split">
+        <div class="bp-panel" style="--bpa:#f5c842;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#f5c842;"></span>CORNERSTONES<span class="bp-panel-sub">top assets by FC value</span></div>
+          ${csRowsHTML}
+        </div>
+        <div class="bp-panel" style="--bpa:#94a3b8;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#94a3b8;"></span>DRAFT CAPITAL<span class="bp-panel-sub">future picks owned</span></div>
+          ${capitalHTML}
+          <div style="margin-top:8px;font-size:9px;color:rgba(255,255,255,0.35);">${_pickLine}</div>
+        </div>
+      </div>
+
+      <!-- ROW 5: Trade | Swing+Needs -->
+      <div class="bp-row-split">
+        <div class="bp-panel" style="--bpa:#4ade80;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY</div>
+          <div class="bp-trade-section">
+            <div class="bp-trade-section-label" style="color:rgba(255,255,255,0.35);">Target via trade</div>
+            ${buyTradeHTML}
+          </div>
+          <div class="bp-trade-section">
+            <div class="bp-trade-section-label" style="color:rgba(255,255,255,0.35);">Sell from surplus</div>
+            ${sellTradeHTML}
+          </div>
+        </div>
+        <div class="bp-panel" style="--bpa:#fb923c;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>SWING PLAYERS<span class="bp-panel-sub">make-or-break</span></div>
+          ${swingHTML}
+          <div class="bp-panel-title" style="margin-top:12px;"><span class="bp-pdot" style="background:#fb923c;"></span>POSITIONAL NEEDS</div>
+          ${needsHTML}
+        </div>
+      </div>
+
+      <!-- ROW 6: Full Roster -->
+      <div class="bp-panel" style="--bpa:rgba(255,255,255,0.2);">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:rgba(255,255,255,0.4);"></span>FULL ROSTER<span class="bp-panel-sub">by FC value · line = starter threshold</span></div>
+        <div class="bp-roster-grid" style="margin-top:8px;">${rosterGridHTML}</div>
+      </div>
+
+    </div>
   </div>`;
+}
+
+// ── Blueprint fullscreen helpers ──────────────────────────────────────────────
+
+function _bpFsHeroBlock(d) {
+  const wl = `${d.w}–${d.l}`;
+  const avgAge = (d.teamRow.avgAge??0).toFixed(1);
+  return `<div class="bp-fs-hero">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:var(--display);font-size:20px;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;color:#fff;margin-bottom:8px;line-height:1;">${d.teamRow.name}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+          <span class="bp-phase-badge" style="color:${d.phStyle.color};border-color:${d.phStyle.border};background:${d.phStyle.bg};">${d.phase}</span>
+          <span style="font-family:var(--mono);font-size:9px;color:#fb7185;letter-spacing:0.1em;font-weight:600;">◆ ${d.archetype}</span>
+          <span style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:0.06em;">${d.windowDesc}</span>
+        </div>
+        <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.3);letter-spacing:0.06em;">${wl} · Age ${avgAge} · Proj #${d.projRank} · Val #${d.valueRank}</div>
+      </div>
+      <div class="bp-grade-ring" style="--grade-color:${d.gradeColor};border-color:${d.gradeColor};width:72px;height:72px;">
+        <div style="font-family:var(--display);font-size:22px;font-weight:900;color:${d.gradeColor};line-height:1;">${d.overallGrade}</div>
+        <div style="font-family:var(--mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-top:2px;">OVERALL</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _bpFsMetricBlock(d) {
+  const _tSub = d.clock.trend==='rising'?'Improving':d.clock.trend==='declining'?'Declining':'Stable';
+  return `<div class="bp-fs-mstrip">
+    <div class="bp-fs-mrow" style="border-left-color:${d.trendColor};">
+      <div><div class="bp-fs-ml">2-YEAR WINDOW</div><div class="bp-fs-ms">${_tSub}</div></div>
+      <div class="bp-fs-mv">${d.clock.now} <span style="color:${d.trendColor};font-size:12px;">${d.trendIcon}</span> ${d.clock.future}</div>
+    </div>
+    <div class="bp-fs-mrow" style="border-left-color:#2dd4bf;">
+      <div><div class="bp-fs-ml">PROJECTED FINISH</div><div class="bp-fs-ms">${d.finish.playoffOdds}% playoff odds · ${d.finish.playoffTeams} spots</div></div>
+      <div class="bp-fs-mv">${d.finish.projWins.toFixed(0)}–${d.finish.projLosses.toFixed(0)}</div>
+    </div>
+    <div class="bp-fs-mrow" style="border-left-color:${d.eff.color};">
+      <div><div class="bp-fs-ml">VALUE EFFICIENCY</div><div class="bp-fs-ms">Val #${d.eff.valueRank} · Proj #${d.eff.projRank} · ${d.eff.delta>0?'+':''}${d.eff.delta} spots</div></div>
+      <div class="bp-fs-mv" style="color:${d.eff.color};">${d.eff.label}</div>
+    </div>
+  </div>`;
+}
+
+function openBlueprintFullscreen() {
+  const d = window._bpData;
+  if (!d) { return; }
+  document.getElementById('bp-fs-overlay')?.remove();
+
+  const _ppgFs = d.teamProj ? `<div class="bp-lineup-total"><span style="font-family:var(--mono);font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.35);">PROJECTED PPG</span><span style="font-family:var(--display);font-size:17px;font-weight:900;color:#fff;">${d.teamProj.totalPpg.toFixed(1)}</span></div>` : '';
+  const _radarLeg = Object.entries(d.radarScores).map(([ax,sc])=>`<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:#fff;margin-left:3px;">${sc}</span></div>`).join('');
+  const _shapeLeg = Object.entries(d.shapeScores).map(([ax,sc])=>`<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:#fff;margin-left:3px;">${sc}</span></div>`).join('');
+  const _tvLine   = `Total ${(d.teamRow.totalValue/1000).toFixed(1)}k · Players ${(d.teamRow.playerValue/1000).toFixed(1)}k · Picks ${(d.teamRow.pickValue/1000).toFixed(1)}k`;
+  const _pickLine = `Pick value: ${(d.teamRow.pickValue/1000).toFixed(1)}k · Rank #${d.pickValueRank} of ${d.total}`;
+
+  const ov = document.createElement('div');
+  ov.className = 'bp-fs-overlay';
+  ov.id = 'bp-fs-overlay';
+  ov.innerHTML = `
+    <div class="bp-fs-topbar">
+      <div class="bp-fs-meta">
+        <span style="font-size:20px;">🗺️</span>
+        <div>
+          <div class="bp-fs-tname">${d.teamRow.name}</div>
+          <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.12em;color:rgba(255,255,255,0.32);margin-top:2px;">TEAM BLUEPRINT · ${d.phase} · ${d.archetype}</div>
+        </div>
+        <span class="bp-phase-badge" style="color:${d.phStyle.color};border-color:${d.phStyle.border};background:${d.phStyle.bg};">${d.phase}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.25);letter-spacing:0.1em;display:none;" id="bp-fs-esc-hint">ESC TO CLOSE</span>
+        <button class="bp-fs-close" onclick="closeBlueprintFullscreen()">✕ CLOSE</button>
+      </div>
+    </div>
+    <div class="bp-fs-scroll">
+      <div class="bp-fs-grid">
+
+        <!-- COL 1: Identity + Metrics + Radars -->
+        <div class="bp-fs-col">
+          ${_bpFsHeroBlock(d)}
+          ${_bpFsMetricBlock(d)}
+          <div class="bp-fs-p bp-panel-radar" style="--bpa:#fb7185;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">positional rank</span></div>
+            ${_bpRadarSVG(d.radarScores)}
+            <div class="bp-radar-legend">${_radarLeg}</div>
+          </div>
+          <div class="bp-fs-p bp-panel-radar" style="--bpa:#a78bfa;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#a78bfa;"></span>ROSTER SHAPE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">health dimensions</span></div>
+            ${_bpShapeRadarSVG(d.shapeScores)}
+            <div class="bp-radar-legend">${_shapeLeg}</div>
+          </div>
+        </div>
+
+        <!-- COL 2: Grades + Value + Lineup -->
+        <div class="bp-fs-col">
+          <div class="bp-fs-p" style="--bpa:#38bdf8;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">vs ${d.total} teams</span></div>
+            <div class="bp-grade-row" style="margin-bottom:14px;">${d.posGradesHTML}</div>
+            <div class="bp-fs-pt" style="margin-top:4px;"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL AGE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">bar=team · tick=avg</span></div>
+            ${d.ageBarHTML || '<div style="color:rgba(255,255,255,0.3);font-size:10px;">Age data unavailable.</div>'}
+          </div>
+          <div class="bp-fs-p" style="--bpa:#fbbf24;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fbbf24;"></span>VALUE BREAKDOWN</div>
+            <div class="bp-pie-row">
+              <div class="bp-pie" style="background:${d.pieCSS};"></div>
+              <div class="bp-pie-legend">${d.pieLegHTML}</div>
+            </div>
+            <div style="margin-top:7px;font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.3);">${_tvLine}</div>
+            <div class="bp-fs-pt" style="margin-top:11px;"><span class="bp-pdot" style="background:#fbbf24;"></span>ROSTER CONSTRUCTION</div>
+            <div class="bp-const-bar">${d.constBarSegs}</div>
+            <div class="bp-const-legend">${d.constLegend}</div>
+          </div>
+          <div class="bp-fs-p" style="--bpa:#2dd4bf;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#2dd4bf;"></span>OPTIMAL LINEUP<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">base projections</span></div>
+            ${d.lineupRowsHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">Run projections first.</div>'}
+            ${_ppgFs}
+          </div>
+        </div>
+
+        <!-- COL 3: BSH + Cornerstones + Capital -->
+        <div class="bp-fs-col">
+          <div class="bp-fs-p" style="--bpa:#f87171;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#f87171;"></span>BUY / SELL / HOLD<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">trade signals</span></div>
+            ${d.bshHTML}
+          </div>
+          <div class="bp-fs-p" style="--bpa:#f5c842;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#f5c842;"></span>CORNERSTONES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">top assets by FC value</span></div>
+            ${d.csRowsHTML}
+          </div>
+          <div class="bp-fs-p" style="--bpa:#94a3b8;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#94a3b8;"></span>DRAFT CAPITAL<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">future picks owned</span></div>
+            ${d.capitalHTML}
+            <div style="margin-top:8px;font-size:9px;color:rgba(255,255,255,0.3);">${_pickLine}</div>
+          </div>
+        </div>
+
+        <!-- COL 4: Trade + Swing + Needs + Roster -->
+        <div class="bp-fs-col">
+          <div class="bp-fs-p" style="--bpa:#4ade80;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY</div>
+            <div class="bp-trade-section">
+              <div class="bp-trade-section-label" style="color:rgba(255,255,255,0.32);">Target via trade</div>
+              ${d.buyTradeHTML}
+            </div>
+            <div class="bp-trade-section">
+              <div class="bp-trade-section-label" style="color:rgba(255,255,255,0.32);">Sell from surplus</div>
+              ${d.sellTradeHTML}
+            </div>
+          </div>
+          <div class="bp-fs-p" style="--bpa:#fb923c;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb923c;"></span>SWING PLAYERS<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">make-or-break</span></div>
+            ${d.swingHTML}
+            <div class="bp-fs-pt" style="margin-top:11px;"><span class="bp-pdot" style="background:#fb923c;"></span>POSITIONAL NEEDS</div>
+            ${d.needsHTML}
+          </div>
+          <div class="bp-fs-p" style="--bpa:rgba(255,255,255,0.2);">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:rgba(255,255,255,0.35);"></span>FULL ROSTER<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">by FC value</span></div>
+            <div class="bp-roster-grid" style="margin-top:6px;">${d.rosterGridHTML}</div>
+          </div>
+        </div>
+
+      </div>
+    </div>`;
+
+  document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+
+  // Show ESC hint
+  setTimeout(() => { const h = document.getElementById('bp-fs-esc-hint'); if(h) h.style.display='block'; }, 400);
+
+  // ESC key handler
+  const escFn = e => { if (e.key === 'Escape') { closeBlueprintFullscreen(); document.removeEventListener('keydown', escFn); } };
+  document.addEventListener('keydown', escFn);
+  ov._escFn = escFn;
+}
+
+function closeBlueprintFullscreen() {
+  const ov = document.getElementById('bp-fs-overlay');
+  if (ov?._escFn) document.removeEventListener('keydown', ov._escFn);
+  ov?.remove();
+  document.body.style.overflow = '';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
