@@ -2943,6 +2943,22 @@
   .bp-ts-rb-body { display:flex; align-items:center; gap:5px; font-size:10px; color:rgba(255,255,255,0.7); }
   .bp-ts-rb-body:hover span[onclick] { color:var(--accent); text-decoration:underline; }
   .bp-ts-rb-sub { font-size:8.5px; color:rgba(255,255,255,0.32); margin-top:4px; line-height:1.4; }
+  /* ── Tier Strategy cards (Down-tier / Up-tier) ── */
+  .bp-tier-card { border-radius:9px; padding:11px 13px; margin-bottom:10px; }
+  .bp-tier-card:last-child { margin-bottom:0; }
+  .bp-tier-down { background:rgba(251,146,60,0.05); border:1px solid rgba(251,146,60,0.22); }
+  .bp-tier-up   { background:rgba(74,222,128,0.04); border:1px solid rgba(74,222,128,0.18); }
+  .bp-tier-card-header { display:flex; align-items:center; gap:7px; margin-bottom:8px; }
+  .bp-tier-badge { font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.1em; padding:2px 8px; border-radius:3px; }
+  .bp-tier-badge-down { background:rgba(251,146,60,0.18); color:#fb923c; border:1px solid rgba(251,146,60,0.30); }
+  .bp-tier-badge-up   { background:rgba(74,222,128,0.15); color:#4ade80; border:1px solid rgba(74,222,128,0.25); }
+  .bp-tier-card-title { font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; }
+  .bp-tier-headline { font-size:10px; color:rgba(255,255,255,0.55); line-height:1.5; margin-bottom:10px; font-style:italic; padding:7px 10px; background:rgba(255,255,255,0.03); border-radius:5px; }
+  .bp-tier-sub-label { font-family:var(--mono); font-size:6.5px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,255,255,0.25); margin-bottom:5px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06); }
+  .bp-tier-row { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .bp-tier-row:last-child { border-bottom:none; }
+  .bp-tier-total-line { display:flex; align-items:center; gap:5px; margin-top:7px; padding-top:7px; border-top:1px solid rgba(255,255,255,0.07); font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.35); }
+  .bp-tier-total-val { color:rgba(255,255,255,0.65); font-weight:700; font-size:9px; }
   /* Swing player role badge */
   .bp-swing-role-badge { font-family:var(--mono); font-size:7px; letter-spacing:0.04em; padding:2px 6px; border-radius:3px; flex-shrink:0; font-weight:700; }
   /* Smart offer hint chip */
@@ -13025,7 +13041,9 @@ function _bpHolds(rosterId) {
 function _bpDeadCapital(rosterId) {
   const pids      = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
   const teamProj  = leagueProjData.find(t => t.roster_id === rosterId);
-  const starterPids = teamProj?.starterPids ?? new Set();
+  // Without projection data we can't reliably determine starters — bail out
+  if (!teamProj?.starterPids) return [];
+  const starterPids = teamProj.starterPids;
   const dead      = [];
 
   for (const pid of pids) {
@@ -13088,6 +13106,178 @@ function _bpDeadCapital(rosterId) {
 
   dead.sort((a, b) => b.val - a.val);
   return dead.slice(0, 5); // cap at 5 to keep the signal focused
+}
+
+// ── Tier Strategy: Down-tier (concentrated → spread) / Up-tier (depth → star) ─
+// Down-tier: a non-contending roster has 1 aging player carrying ≥28% of value.
+//   That asset should become 2+ young pieces / picks.
+// Up-tier: a competing roster has 3+ depth pieces worth ≥5.5k combined.
+//   Package them for a star upgrade at the weakest position.
+function _bpTierMoves(rosterId, allTeams, total, phase) {
+  const myRoster  = rostersData?.find(r => r.roster_id === rosterId);
+  const myPidArr  = myRoster?.players ?? [];
+  const myPidSet  = new Set(myPidArr);
+  const myTeamRow = allTeams.find(t => t.roster_id === rosterId);
+  const ranks     = leagueRankings[rosterId] ?? {};
+
+  const myPlayers = myPidArr.map(pid => {
+    const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+    if (!fc || !['QB','RB','WR','TE'].includes(fc.position)) return null;
+    const age = _bpAge(sp?.birth_date); if (!age) return null;
+    return { pid, name: fc.name, pos: fc.position, value: fc.value ?? 0, age: +age.toFixed(1) };
+  }).filter(Boolean).sort((a, b) => b.value - a.value);
+
+  const playerValue = myTeamRow?.playerValue || myPlayers.reduce((s, p) => s + p.value, 0) || 1;
+  const posColors = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' };
+
+  let downTier = null, upTier = null;
+
+  // ── DOWN-TIER ─────────────────────────────────────────────────────────────
+  // Trigger: non-contending phase + an aging player holding ≥28% of roster value
+  const isNonContender = !['WIN NOW', 'CONTENDING'].includes(phase);
+  if (isNonContender && myPlayers.length >= 3) {
+    const carrier = myPlayers.find(
+      p => p.age > 26 && p.value >= 4000 && (p.value / playerValue) >= 0.28
+    );
+    if (carrier) {
+      const carrierPct = Math.round(carrier.value / playerValue * 100);
+
+      const weaknessPositions = ['QB','RB','WR','TE'].filter(pos => {
+        const r = ranks[`${pos}Comp`];
+        return r && (r - 1) / Math.max(total - 1, 1) >= 0.55;
+      });
+
+      // Teams that need the carrier's position (most desperate first)
+      const buyerTeams = allTeams
+        .filter(t => t.roster_id !== rosterId)
+        .filter(t => {
+          const r = leagueRankings[t.roster_id]?.[`${carrier.pos}Comp`];
+          return r && (r - 1) / Math.max(total - 1, 1) >= 0.45;
+        })
+        .sort((a, b) => {
+          const ra = leagueRankings[a.roster_id]?.[`${carrier.pos}Comp`] ?? 1;
+          const rb = leagueRankings[b.roster_id]?.[`${carrier.pos}Comp`] ?? 1;
+          return rb - ra;
+        });
+
+      let bestReturn = null;
+      const retMin = carrier.value * 0.74;
+      const retMax = carrier.value * 1.36;
+
+      for (const buyer of buyerTeams.slice(0, 6)) {
+        const bPidArr = rostersData?.find(r => r.roster_id === buyer.roster_id)?.players ?? [];
+        const bPlayers = bPidArr.map(pid => {
+          const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+          if (!fc || !['QB','RB','WR','TE'].includes(fc.position)) return null;
+          if (myPidSet.has(pid)) return null;
+          const age = _bpAge(sp?.birth_date); if (!age) return null;
+          if (age > 27) return null; // only young players back
+          return { pid, name: fc.name, pos: fc.position, value: fc.value ?? 0, age: +age.toFixed(1),
+                   team: (buyer.name || '').split(/[\s_]+/).pop() };
+        }).filter(Boolean).sort((a, b) => b.value - a.value);
+
+        const theirTopVal = bPlayers[0]?.value ?? Infinity;
+
+        // Try 2-player return first
+        for (let i = 0; i < Math.min(bPlayers.length, 8); i++) {
+          if (bPlayers[i].value > theirTopVal * 0.88) continue;
+          for (let j = i+1; j < Math.min(bPlayers.length, 8); j++) {
+            const sum = bPlayers[i].value + bPlayers[j].value;
+            if (sum < retMin || sum > retMax) continue;
+            const coversNeed = weaknessPositions.some(wp =>
+              bPlayers[i].pos === wp || bPlayers[j].pos === wp);
+            if (!bestReturn || coversNeed || sum > bestReturn.total) {
+              bestReturn = { players: [bPlayers[i], bPlayers[j]], picks: [],
+                             total: sum, fromTeam: buyer.name, coversNeed };
+            }
+          }
+          if (bestReturn?.coversNeed) break;
+        }
+
+        // Also try player + pick (gives the "young + future" spread the user wants)
+        const buyerPicks = (buyer.allPicks ?? []).filter(p => p.tier === 'early' || p.tier === 'mid');
+        for (const bP of bPlayers.slice(0, 6)) {
+          if (bP.value > theirTopVal * 0.88) continue;
+          for (const pk of buyerPicks) {
+            const pkVal = pk.val ?? pk.value ?? 1100;
+            const sum = bP.value + pkVal;
+            if (sum < retMin || sum > retMax) continue;
+            const coversNeed = weaknessPositions.includes(bP.pos);
+            if (!bestReturn || coversNeed || sum > bestReturn.total) {
+              bestReturn = { players: [bP], picks: [pk],
+                             total: sum, fromTeam: buyer.name, coversNeed };
+            }
+          }
+          if (bestReturn?.coversNeed) break;
+        }
+        if (bestReturn?.coversNeed) break;
+      }
+
+      downTier = { carrier, carrierPct, bestReturn, weaknessPositions, posColors };
+    }
+  }
+
+  // ── UP-TIER ───────────────────────────────────────────────────────────────
+  // Trigger: competing/reload phase + depth worth ≥5.5k after top 2 + a weak spot to upgrade
+  const isCompeting = ['WIN NOW', 'CONTENDING', 'RELOAD'].includes(phase);
+  if (isCompeting && myPlayers.length >= 5) {
+    const depth = myPlayers.slice(2).filter(p => p.value >= 2000);
+    const depthTotal = depth.reduce((s, p) => s + p.value, 0);
+
+    if (depth.length >= 3 && depthTotal >= 5500) {
+      const posWeakness = ['QB','RB','WR','TE']
+        .map(pos => {
+          const r = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
+          return { pos, rank: r, pct: (r - 1) / Math.max(total - 1, 1) };
+        })
+        .filter(p => p.pct >= 0.45)
+        .sort((a, b) => b.rank - a.rank)[0];
+
+      if (posWeakness) {
+        const pkg   = depth.slice(0, 2);
+        const pkgVal = pkg.reduce((s, p) => s + p.value, 0);
+        const myPicks = (myTeamRow?.allPicks ?? [])
+          .filter(p => p.tier === 'early' || p.tier === 'mid')
+          .map(pk => ({ ...pk, val: pk.val ?? pk.value ?? 1100 }));
+        const addPick = myPicks[0] ?? null;
+        const offerTotal = pkgVal + (addPick ? addPick.val : 0);
+
+        // Find target: surplus teams at weak pos → their #2 who's worth the offer
+        const surplusTeams = allTeams
+          .filter(t => t.roster_id !== rosterId)
+          .filter(t => {
+            const r = leagueRankings[t.roster_id]?.[`${posWeakness.pos}Comp`];
+            return r && (r - 1) / Math.max(total - 1, 1) <= 0.28;
+          });
+
+        let target = null;
+        for (const t of surplusTeams.slice(0, 6)) {
+          const tPidArr = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+          const tPlayers = tPidArr.map(pid => {
+            const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+            if (!fc || fc.position !== posWeakness.pos) return null;
+            if (myPidSet.has(pid)) return null;
+            const age = _bpAge(sp?.birth_date); if (!age) return null;
+            return { pid, name: fc.name, value: fc.value ?? 0, age: +age.toFixed(1),
+                     team: (t.name || '').split(/[\s_]+/).pop(), roster_id: t.roster_id };
+          }).filter(Boolean).sort((a, b) => b.value - a.value);
+
+          const theirTopVal = tPlayers[0]?.value ?? 0;
+          // Don't demand their unmovable #1; target #2 or a premium piece they can part with
+          const cand = tPlayers.find(p =>
+            p.value < theirTopVal * 0.92 && p.value >= offerTotal * 0.78 && p.value <= offerTotal * 1.40
+          );
+          if (cand) { target = cand; break; }
+        }
+
+        const posGrade = _bpRankToGrade(posWeakness.rank, total);
+        upTier = { weakPos: posWeakness.pos, posGrade, pkg, pkgVal,
+                   addPick, offerTotal, target, depth, depthTotal, posColors };
+      }
+    }
+  }
+
+  return { downTier, upTier };
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
@@ -13646,6 +13836,133 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     </div>`;
   })();
 
+  // ── Tier Strategy ─────────────────────────────────────────────────────────
+  const tierMoves = _bpTierMoves(rosterId, allTeams, total, phase);
+  const tierMovesHTML = (() => {
+    const { downTier: dt, upTier: ut } = tierMoves;
+    if (!dt && !ut) return '';
+
+    const cards = [];
+
+    // ── DOWN-TIER CARD ────────────────────────────────────────────────────
+    if (dt) {
+      const pc = posColors[dt.carrier.pos] ?? 'var(--text-dim)';
+      const ageC = dt.carrier.age >= 30 ? 'var(--red)' : dt.carrier.age >= 28 ? 'var(--orange)' : 'var(--text-dim)';
+      const headline = `${dt.carrier.name} accounts for ${dt.carrierPct}% of your roster value — and this team isn't competing yet. Turn that single concentrated asset into 2–3 younger pieces with upside.`;
+
+      let returnHTML = '';
+      if (dt.bestReturn) {
+        const retPlayers = (dt.bestReturn.players ?? []).map(p => {
+          const bpc = posColors[p.pos] ?? 'var(--text-dim)';
+          return `<div class="bp-tier-row">
+            <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:16px;height:16px;border-radius:50%;flex-shrink:0;">
+            <span style="flex:1;font-size:10px;color:rgba(255,255,255,0.78);cursor:pointer;" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name}</span>
+            <span style="font-family:var(--mono);font-size:7.5px;color:${bpc};">${p.pos}</span>
+            <span style="font-family:var(--mono);font-size:7.5px;color:var(--green);">${p.age}</span>
+            <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.35);">${(p.value/1000).toFixed(1)}k</span>
+          </div>`;
+        }).join('');
+
+        const retPicks = (dt.bestReturn.picks ?? []).map(pk => {
+          const pkVal = pk.val ?? pk.value ?? 1100;
+          const pkC = pk.tier==='early'?'#fbbf24':pk.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)';
+          return `<div class="bp-tier-row">
+            <span style="font-size:11px;flex-shrink:0;">🎟</span>
+            <span style="flex:1;font-family:var(--mono);font-size:8px;color:${pkC};">${pk.label ?? (pk.tier?.toUpperCase()+' PICK')}</span>
+            <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.35);">${(pkVal/1000).toFixed(1)}k</span>
+          </div>`;
+        }).join('');
+
+        const avgAge = dt.bestReturn.players.length > 0
+          ? (dt.bestReturn.players.reduce((s,p)=>s+p.age,0)/dt.bestReturn.players.length).toFixed(0) : null;
+        const positions = [...new Set([...dt.bestReturn.players.map(p=>p.pos), ...(dt.bestReturn.picks?.length?['pick']:[])])].join(', ');
+
+        returnHTML = `
+          <div class="bp-tier-sub-label">GET BACK · from ${dt.bestReturn.fromTeam}</div>
+          ${retPlayers}${retPicks}
+          <div class="bp-tier-total-line">
+            <span class="bp-tier-total-val">${(dt.bestReturn.total/1000).toFixed(1)}k</span>
+            <span>total return</span>
+            ${avgAge ? `<span style="color:rgba(74,222,128,0.65);">· avg age ${avgAge}</span>` : ''}
+            ${positions ? `<span style="color:rgba(255,255,255,0.2);">· ${positions}</span>` : ''}
+          </div>`;
+      } else {
+        returnHTML = `<div class="bp-tier-sub-label" style="margin-top:6px;">No ideal return match found — identify teams needing ${dt.carrier.pos} and negotiate.</div>`;
+      }
+
+      cards.push(`<div class="bp-tier-card bp-tier-down">
+        <div class="bp-tier-card-header">
+          <span class="bp-tier-badge bp-tier-badge-down">↓ DOWN-TIER</span>
+          <span class="bp-tier-card-title" style="color:#fb923c;">Spread the Value</span>
+        </div>
+        <div class="bp-tier-headline">${headline}</div>
+        <div class="bp-tier-sub-label">SELL</div>
+        <div class="bp-tier-row">
+          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${dt.carrier.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:18px;height:18px;border-radius:50%;flex-shrink:0;">
+          <span style="flex:1;font-size:10.5px;color:rgba(255,255,255,0.88);cursor:pointer;font-weight:600;" onclick="searchAndOpenProfile('${(dt.carrier.name||'').replace(/'/g,"\\'")}'">${dt.carrier.name}</span>
+          <span style="font-family:var(--mono);font-size:7.5px;color:${pc};">${dt.carrier.pos}</span>
+          <span style="font-family:var(--mono);font-size:7.5px;color:${ageC};">${dt.carrier.age}</span>
+          <span style="font-family:var(--mono);font-size:9px;color:#fb923c;font-weight:700;">${(dt.carrier.value/1000).toFixed(1)}k</span>
+          <span style="font-family:var(--mono);font-size:6.5px;color:rgba(251,146,60,0.55);margin-left:2px;">(${dt.carrierPct}%)</span>
+        </div>
+        ${returnHTML}
+      </div>`);
+    }
+
+    // ── UP-TIER CARD ──────────────────────────────────────────────────────
+    if (ut) {
+      const wpc = posColors[ut.weakPos] ?? 'var(--text-dim)';
+      const gradeC = _bpGradeColor(ut.posGrade);
+      const headline = `You have ${ut.depth.length} tradeable depth pieces worth ${(ut.depthTotal/1000).toFixed(1)}k total. Package them into a ${ut.weakPos} upgrade — individual depth is worth less than a true difference-maker.`;
+
+      const pkgRows = ut.pkg.map(p => {
+        const pc = posColors[p.pos] ?? 'var(--text-dim)';
+        return `<div class="bp-tier-row">
+          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:16px;height:16px;border-radius:50%;flex-shrink:0;">
+          <span style="flex:1;font-size:10px;color:rgba(255,255,255,0.72);cursor:pointer;" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name}</span>
+          <span style="font-family:var(--mono);font-size:7.5px;color:${pc};">${p.pos}</span>
+          <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.35);">${(p.value/1000).toFixed(1)}k</span>
+        </div>`;
+      }).join('');
+
+      const pickRow = ut.addPick ? (() => {
+        const pkC = ut.addPick.tier==='early'?'#fbbf24':ut.addPick.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)';
+        return `<div class="bp-tier-row">
+          <span style="font-size:11px;flex-shrink:0;">🎟</span>
+          <span style="flex:1;font-family:var(--mono);font-size:8px;color:${pkC};">${ut.addPick.label ?? (ut.addPick.tier?.toUpperCase()+' PICK')}</span>
+          <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.35);">${(ut.addPick.val/1000).toFixed(1)}k</span>
+        </div>`;
+      })() : '';
+
+      const targetHTML = ut.target ? `
+        <div class="bp-tier-sub-label">TARGET</div>
+        <div class="bp-tier-row">
+          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${ut.target.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;">
+          <span style="flex:1;font-size:11px;color:rgba(255,255,255,0.9);cursor:pointer;font-weight:600;" onclick="searchAndOpenProfile('${(ut.target.name||'').replace(/'/g,"\\'")}'">${ut.target.name}</span>
+          <span style="font-family:var(--mono);font-size:7.5px;color:${wpc};">${ut.weakPos}</span>
+          <span style="font-family:var(--mono);font-size:7.5px;color:rgba(255,255,255,0.32);">${ut.target.age}</span>
+          <span style="font-family:var(--mono);font-size:9px;color:#4ade80;font-weight:700;">${(ut.target.value/1000).toFixed(1)}k</span>
+          <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.25);">${ut.target.team}</span>
+        </div>` : `<div class="bp-tier-sub-label" style="margin-top:6px;">No exact match — push package to any ${ut.weakPos}-rich team.</div>`;
+
+      cards.push(`<div class="bp-tier-card bp-tier-up">
+        <div class="bp-tier-card-header">
+          <span class="bp-tier-badge bp-tier-badge-up">↑ UP-TIER</span>
+          <span class="bp-tier-card-title" style="color:#4ade80;">→ ${ut.weakPos} <span style="color:${gradeC};font-size:8px;">(${ut.posGrade})</span></span>
+        </div>
+        <div class="bp-tier-headline">${headline}</div>
+        <div class="bp-tier-sub-label">PACKAGE (${(ut.offerTotal/1000).toFixed(1)}k total offer)</div>
+        ${pkgRows}${pickRow}
+        ${targetHTML}
+      </div>`);
+    }
+
+    return cards.length ? `<div style="margin-top:16px;">
+      <div class="bp-ts-section-title" style="margin-bottom:10px;">📊 Tier Strategy</div>
+      ${cards.join('')}
+    </div>` : '';
+  })();
+
   // ── Swing players (position-of-need focus) ────────────────────────────────
   const swings = _bpSwingPlayers(rosterId, total);
   const swingHTML = swings.length ? swings.map((s, i) =>
@@ -13735,6 +14052,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     suggestedMovesHTML, purgatoryHTML, holdsHTML,
     prodShareColor, valShareColor, fairShare,
     deadCapital, deadCapitalHTML,
+    tierMoves, tierMovesHTML,
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -13885,6 +14203,9 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         <!-- Suggested Moves section -->
         <div class="bp-ts-section-title" style="margin-bottom:10px;">🔄 Suggested Moves</div>
         ${suggestedMovesHTML}
+
+        <!-- Tier Strategy (Down-tier / Up-tier) -->
+        ${tierMovesHTML}
 
         <!-- 2-col: Acquisition Targets | Portfolio Rebalancing -->
         <div class="bp-ts-body" style="margin-top:16px;">
@@ -14097,6 +14418,7 @@ function openBlueprintFullscreen() {
             ${d.overviewHTML}
             <div class="bp-ts-section-title" style="margin-bottom:8px;">🔄 Suggested Moves</div>
             ${d.suggestedMovesHTML ?? ''}
+            ${d.tierMovesHTML ?? ''}
             <div class="bp-ts-body" style="margin-top:14px;">
               <div>
                 <div class="bp-ts-section-title">▸ Acquisition Targets</div>
