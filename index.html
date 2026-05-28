@@ -2817,6 +2817,28 @@
   .bp-win-phases { display:flex; align-items:center; gap:5px; margin:3px 0; flex-wrap:wrap; }
   .bp-win-phase-pill { font-family:var(--mono); font-size:8px; font-weight:700; letter-spacing:0.06em; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.06); white-space:nowrap; }
 
+  /* ── Swing player enhanced rows ── */
+  .bp-swing-body { flex:1; min-width:0; }
+  .bp-swing-top  { display:flex; align-items:center; gap:5px; }
+  .bp-swing-bottom { display:flex; align-items:center; gap:5px; margin-top:2px; flex-wrap:wrap; }
+  .bp-swing-tier { font-family:var(--mono); font-size:7px; letter-spacing:0.05em; padding:1px 5px; border-radius:3px; flex-shrink:0; }
+  .bp-swing-ppg  { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.5); flex-shrink:0; }
+  .bp-swing-reason { font-size:9px; color:rgba(255,255,255,0.36); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+
+  /* ── Trade deal cards ── */
+  .bp-deal-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 10px; margin-bottom:6px; }
+  .bp-deal-card:last-child { margin-bottom:0; }
+  .bp-deal-row { display:flex; align-items:center; gap:7px; padding:3px 0; }
+  .bp-deal-label { font-family:var(--mono); font-size:7px; letter-spacing:0.14em; text-transform:uppercase; width:32px; flex-shrink:0; opacity:0.45; }
+  .bp-deal-name { flex:1; font-size:10px; color:rgba(255,255,255,0.82); cursor:pointer; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-deal-name:hover { color:var(--accent); text-decoration:underline; }
+  .bp-deal-val { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.4); flex-shrink:0; }
+  .bp-deal-team { font-family:var(--mono); font-size:7px; color:rgba(255,255,255,0.24); flex-shrink:0; }
+  .bp-deal-sep { height:1px; background:rgba(255,255,255,0.07); margin:4px 0; }
+  .bp-deal-offer-players { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+  .bp-deal-offer-line { font-size:9px; color:rgba(255,255,255,0.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-deal-offer-line span { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.3); margin-left:4px; }
+
 </style>
 </head>
 <body>
@@ -11882,11 +11904,33 @@ function _bpCornerstones(rosterId) {
     .slice(0, 6);
 }
 
-// Swing players — Rising / Prove It / Cliff Risk
+// Swing players — Rising Star / Prove It / Cliff Risk with PPG, tier, reason
 function _bpSwingPlayers(rosterId) {
   const roster = rostersData?.find(r => r.roster_id === rosterId);
   if (!roster) return [];
   const pids = roster.players ?? [];
+  const teamProj = leagueProjData.find(t => t.roster_id === rosterId);
+
+  // Contribution tier from PPG + age
+  const contribTier = (pos, ppg, age) => {
+    if (pos === 'QB') {
+      if (ppg >= 25) return ['Superstar',     '#fbbf24', 'rgba(251,191,36,0.14)'];
+      if (ppg >= 20) return ['Star',           '#a78bfa', 'rgba(167,139,250,0.14)'];
+      if (ppg >= 15) return ['Starter',        '#38bdf8', 'rgba(56,189,248,0.12)'];
+      if (age >= 30) return ['Aging Producer', '#fb923c', 'rgba(251,146,60,0.14)'];
+      if (age <= 22) return ['Developmental',  '#2dd4bf', 'rgba(45,212,191,0.12)'];
+      return             ['Promising Prospect','#4ade80', 'rgba(74,222,128,0.12)'];
+    }
+    if (ppg >= 18) return ['Superstar',        '#fbbf24', 'rgba(251,191,36,0.14)'];
+    if (ppg >= 13) return ['Star',             '#a78bfa', 'rgba(167,139,250,0.14)'];
+    if (ppg >= 9)  return ['Starter',          '#38bdf8', 'rgba(56,189,248,0.12)'];
+    if (ppg >= 6 && age >= 29) return ['Veteran Producer','#94a3b8','rgba(148,163,184,0.12)'];
+    if (age >= 31) return ['Aging Producer',   '#fb923c', 'rgba(251,146,60,0.14)'];
+    if (age <= 22) return ['Developmental',    '#2dd4bf', 'rgba(45,212,191,0.12)'];
+    if (age <= 24) return ['Promising Prospect','#4ade80','rgba(74,222,128,0.12)'];
+    return             ['Veteran Producer',    '#94a3b8', 'rgba(148,163,184,0.12)'];
+  };
+
   const swings = [];
   for (const pid of pids) {
     const fc = fcPlayerMap[pid];
@@ -11894,17 +11938,27 @@ function _bpSwingPlayers(rosterId) {
     if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) continue;
     const age = _bpAge(sp?.birth_date);
     if (age == null) continue;
-    if (age <= 23 && fc.value >= 2500)
-      swings.push({ pid, name: fc.name, pos: fc.position, age, tag: 'Rising Star', icon: '↑', color: 'var(--green)' });
-    else if (age >= 25 && age <= 28 && fc.value >= 1500 && fc.value <= 6000)
-      swings.push({ pid, name: fc.name, pos: fc.position, age, tag: 'Prove It', icon: '→', color: 'var(--accent)' });
-    else if (age > 29 && fc.value >= 2000)
-      swings.push({ pid, name: fc.name, pos: fc.position, age, tag: 'Cliff Risk', icon: '↓', color: 'var(--red)' });
+    const pProj = teamProj?.players?.find(p => p.pid === pid);
+    const basePpg = pProj?.basePpg ?? null;
+    const [tierName, tierColor, tierBg] = basePpg != null ? contribTier(fc.position, basePpg, age) : ['—', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.05)'];
+
+    let tag, icon, color, reason;
+    if (age <= 23 && fc.value >= 2500) {
+      tag='Rising Star'; icon='↑'; color='var(--green)';
+      reason = `Age ${age.toFixed(0)} — pre-prime upside, buy window closing`;
+    } else if (age >= 25 && age <= 28 && fc.value >= 1500 && fc.value <= 6000) {
+      tag='Prove It'; icon='→'; color='var(--accent)';
+      reason = `Prime years — production must justify the price tag`;
+    } else if (age > 29 && fc.value >= 2000) {
+      tag='Cliff Risk'; icon='↓'; color='var(--red)';
+      reason = `Age ${age.toFixed(0)} — value cliff possible, sell high`;
+    } else continue;
+
+    swings.push({ pid, name:fc.name, pos:fc.position, age, tag, icon, color, basePpg, tierName, tierColor, tierBg, reason, value:fc.value });
   }
-  // Cap at 6: prioritize by interest — Rising first, then Prove It, then Cliff
-  const order = ['Rising Star', 'Prove It', 'Cliff Risk'];
-  swings.sort((a, b) => order.indexOf(a.tag) - order.indexOf(b.tag) || b.value - a.value);
-  return swings.slice(0, 6);
+  const order = ['Rising Star','Prove It','Cliff Risk'];
+  swings.sort((a,b) => order.indexOf(a.tag) - order.indexOf(b.tag) || b.value - a.value);
+  return swings.slice(0, 7);
 }
 
 // Positional needs: positions where team ranks in bottom 40% of league
@@ -12227,19 +12281,50 @@ function _bpWindowChartSVG(clock, trendColor) {
   </svg>`;
 }
 
-// Trade strategy: what to buy, what to sell, who to target — with specific player targets
+// Trade strategy: what to buy, what to sell — with specific player targets + deal proposals
 function _bpTradeStrategy(rosterId, allTeams, total) {
   const ranks = leagueRankings[rosterId] ?? {};
   const posColors = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' };
   const buys = [], sells = [];
   const myPids = new Set(rostersData?.find(r => r.roster_id === rosterId)?.players ?? []);
 
+  // Build my tradeable depth for offer packages (skip top 4 cornerstones)
+  const myTeamRow = allTeams.find(t => t.roster_id === rosterId);
+  const myAllPlayers = [...myPids]
+    .map(pid => { const fc = fcPlayerMap[pid]; return fc && ['QB','RB','WR','TE'].includes(fc.position) ? { pid, name:fc.name, value:fc.value??0, pos:fc.position } : null; })
+    .filter(Boolean).sort((a,b) => b.value - a.value);
+  const myDepth = myAllPlayers.slice(4).filter(p => p.value >= 800); // skip top 4 cornerstones
+  const myPicksList = (myTeamRow?.allPicks ?? []).filter(p => p.tier === 'early' || p.tier === 'mid').slice(0, 4);
+
+  // Find best offer package for a given target value
+  const findOffer = (tv) => {
+    // Single player match
+    const s = myDepth.find(p => p.value >= tv * 0.68 && p.value <= tv * 1.22);
+    if (s) return { players:[s], picks:[], total:s.value };
+    // Two-player combo
+    for (let i = 0; i < Math.min(myDepth.length,7); i++) {
+      for (let j = i+1; j < Math.min(myDepth.length,7); j++) {
+        const sum = myDepth[i].value + myDepth[j].value;
+        if (sum >= tv * 0.70 && sum <= tv * 1.26) return { players:[myDepth[i], myDepth[j]], picks:[], total:sum };
+      }
+    }
+    // Player + pick
+    for (const p of myDepth.slice(0,5)) {
+      for (const pk of myPicksList) {
+        const sum = p.value + (pk.value ?? 1100);
+        if (sum >= tv * 0.70 && sum <= tv * 1.26) return { players:[p], picks:[pk], total:sum };
+      }
+    }
+    // Best available (inexact)
+    if (myDepth[0]) return { players:[myDepth[0]], picks:[], total:myDepth[0].value, inexact:true };
+    return null;
+  };
+
   for (const pos of ['QB','RB','WR','TE']) {
     const compRank = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
     const pct = (compRank - 1) / Math.max(total - 1, 1);
 
     if (pct >= 0.55) {
-      // Find rival teams strong at this position
       const surplusTeamObjs = allTeams
         .filter(t => t.roster_id !== rosterId)
         .filter(t => {
@@ -12248,26 +12333,24 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
         })
         .slice(0, 4);
 
-      // Pull specific tradeable players: skip their #1 cornerstone, take next best
       const targets = [];
       for (const t of surplusTeamObjs) {
         const pids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
         const sorted = pids
           .map(pid => { const fc = fcPlayerMap[pid]; return fc && fc.position === pos && !myPids.has(pid) ? { pid, name:fc.name, value:fc.value??0, team:t.name.split(/[\s_]+/).pop() } : null; })
           .filter(Boolean).sort((a,b) => b.value - a.value);
-        if (sorted.length > 1) targets.push(sorted[1]); // skip cornerstone, take #2
-        else if (sorted.length === 1 && sorted[0].value < 8000) targets.push(sorted[0]);
+        // Skip #1 cornerstone, take next best with a reasonable value
+        if (sorted.length > 1) targets.push({ ...sorted[1], offer: findOffer(sorted[1].value) });
+        else if (sorted.length === 1 && sorted[0].value < 8500) targets.push({ ...sorted[0], offer: findOffer(sorted[0].value) });
       }
       targets.sort((a,b) => b.value - a.value);
       buys.push({ pos, color: posColors[pos], targets: targets.slice(0, 3) });
     }
 
     if (pct <= 0.25) {
-      // Find our own tradeable players at surplus position
       const myPlayers = [...myPids]
         .map(pid => { const fc = fcPlayerMap[pid]; return fc && fc.position === pos ? { pid, name:fc.name, value:fc.value??0 } : null; })
         .filter(Boolean).sort((a,b) => b.value - a.value);
-      // Skip #1 cornerstone, offer #2+ as tradeable
       sells.push({ pos, color: posColors[pos], players: myPlayers.slice(1, 3) });
     }
   }
@@ -12460,8 +12543,8 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     return best && best.basePpg >= 5 ? `${best.name} (${best.basePpg.toFixed(1)})` : null;
   }).filter(Boolean);
 
-  // ── Buy / Sell / Hold ─────────────────────────────────────────────────────
-  const bshData = _bpBuySellHold(rosterId);
+  // ── Sell / Hold (BUY removed — trade finder handles acquisitions) ─────────
+  const bshData = _bpBuySellHold(rosterId).filter(p => p.tag !== 'BUY');
   const bshHTML = bshData.length ? bshData.map((p, i) => {
     const tagBg = p.tag === 'SELL' ? 'rgba(239,68,68,0.18)' : p.tag === 'BUY' ? 'rgba(45,214,168,0.18)' : 'rgba(56,196,232,0.15)';
     return `<div class="bp-bsh-row" style="--rd:${(i*0.05).toFixed(2)}s;">
@@ -12543,17 +12626,36 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── Trade strategy ────────────────────────────────────────────────────────
   const trade = _bpTradeStrategy(rosterId, allTeams, total);
   const buyTradeHTML = trade.buys.length ? trade.buys.map(b => {
-    const tgts = b.targets.length
-      ? b.targets.map(tp => `<div class="bp-trade-target">
-          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${tp.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:18px;height:18px;">
-          <span class="bp-trade-target-name" onclick="searchAndOpenProfile('${(tp.name||'').replace(/'/g,"\\'")}'">${tp.name}</span>
-          <span class="bp-trade-target-val">${(tp.value/1000).toFixed(1)}k</span>
-          <span class="bp-trade-target-team">${tp.team}</span>
-        </div>`).join('')
-      : `<div class="bp-trade-desc" style="font-size:9px;padding:2px 0;">Seek via trade</div>`;
-    return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:3px;padding:7px 0;">
-      <span class="bp-trade-action" style="color:${b.color};">▸ BUY ${b.pos}</span>
-      ${tgts}
+    if (!b.targets.length) return `<div class="bp-trade-item" style="padding:5px 0;"><span class="bp-trade-action" style="color:${b.color};">▸ BUY ${b.pos}</span><span class="bp-trade-desc" style="margin-left:8px;">Seek via trade or waiver</span></div>`;
+    const cards = b.targets.map(tp => {
+      const ofr = tp.offer;
+      let offerHTML = '';
+      if (ofr) {
+        const opLines = ofr.players.map(p => `<div class="bp-deal-offer-line"><img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;">${p.name}<span>${(p.value/1000).toFixed(1)}k</span></div>`).join('');
+        const pkLines = ofr.picks.map(pk => `<div class="bp-deal-offer-line">📅 ${pk.label}<span>${((pk.value??1100)/1000).toFixed(1)}k</span></div>`).join('');
+        const totalVal = (ofr.total/1000).toFixed(1);
+        const flag = ofr.inexact ? '<span style="color:rgba(251,146,60,0.7);font-size:7px;margin-left:4px;">~approx</span>' : '';
+        offerHTML = `<div class="bp-deal-sep"></div>
+          <div class="bp-deal-row" style="align-items:flex-start;">
+            <span class="bp-deal-label" style="color:rgba(251,146,60,0.7);">OFFER</span>
+            <div class="bp-deal-offer-players">${opLines}${pkLines}</div>
+            <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.3);flex-shrink:0;">${totalVal}k${flag}</span>
+          </div>`;
+      }
+      return `<div class="bp-deal-card">
+        <div class="bp-deal-row">
+          <span class="bp-deal-label" style="color:#4ade80;">GET</span>
+          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${tp.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;">
+          <span class="bp-deal-name" onclick="searchAndOpenProfile('${(tp.name||'').replace(/'/g,"\\'")}'">${tp.name}</span>
+          <span class="bp-deal-val">${(tp.value/1000).toFixed(1)}k</span>
+          <span class="bp-deal-team">${tp.team}</span>
+        </div>
+        ${offerHTML}
+      </div>`;
+    }).join('');
+    return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:5px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <span class="bp-trade-action" style="color:${b.color};font-size:9px;letter-spacing:0.1em;">▸ BUY ${b.pos}</span>
+      ${cards}
     </div>`;
   }).join('') : `<div style="color:var(--text-dim);font-size:10px;">No glaring gaps</div>`;
 
@@ -12574,13 +12676,22 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── Swing players ─────────────────────────────────────────────────────────
   const swings = _bpSwingPlayers(rosterId);
   const swingHTML = swings.length ? swings.map((s, i) =>
-    `<div class="bp-swing-row" style="--rd:${(i*0.06).toFixed(2)}s;">
+    `<div class="bp-swing-row" style="--rd:${(i*0.06).toFixed(2)}s;align-items:flex-start;padding:7px 0;">
       <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${s.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
-      <span class="bp-swing-icon" style="color:${s.color};">${s.icon}</span>
-      <span class="bp-swing-pos" style="color:${s.color};">${s.pos}</span>
-      <span class="bp-swing-name" onclick="searchAndOpenProfile('${(s.name||'').replace(/'/g,"\\'")}'">${s.name ?? '—'}</span>
-      <span class="bp-swing-tag" style="color:${s.color};">${s.tag}</span>
-      <span class="bp-swing-age">${s.age!=null?s.age.toFixed(0):'?'}</span>
+      <span class="bp-swing-icon" style="color:${s.color};margin-top:1px;">${s.icon}</span>
+      <div class="bp-swing-body">
+        <div class="bp-swing-top">
+          <span class="bp-swing-pos" style="color:${s.color};">${s.pos}</span>
+          <span class="bp-swing-name" onclick="searchAndOpenProfile('${(s.name||'').replace(/'/g,"\\'")}'">${s.name ?? '—'}</span>
+          <span class="bp-swing-age">${s.age!=null?s.age.toFixed(0):'?'}</span>
+        </div>
+        <div class="bp-swing-bottom">
+          <span class="bp-swing-tag" style="color:${s.color};">${s.tag}</span>
+          ${s.tierName !== '—' ? `<span class="bp-swing-tier" style="color:${s.tierColor};background:${s.tierBg};">${s.tierName}</span>` : ''}
+          ${s.basePpg != null ? `<span class="bp-swing-ppg">${s.basePpg.toFixed(1)} ppg</span>` : ''}
+        </div>
+        <div class="bp-swing-reason">${s.reason}</div>
+      </div>
     </div>`
   ).join('') : `<div style="color:var(--text-dim);font-size:11px;padding:8px 0;">No notable swing players.</div>`;
 
@@ -12674,12 +12785,9 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
             <span class="bp-record">${w}–${l} · Age ${(teamRow.avgAge??0).toFixed(1)} · Proj #${projRank} · Val #${valueRank}</span>
           </div>
         </div>
-        <div style="display:flex;gap:10px;align-items:flex-start;flex-shrink:0;">
-          ${_bpWindowRingSVG(phase, trendColor)}
-          <div class="bp-grade-ring" style="--grade-color:${gradeColor};--gc-rgb:${gradeColor==='#22d3ee'?'34,211,238':gradeColor==='#4ade80'?'74,222,128':gradeColor==='#facc15'?'250,204,21':gradeColor==='#fb923c'?'251,146,60':'239,68,68'};border-color:${gradeColor};">
-            <div class="bp-grade-num" style="color:${gradeColor};">${overallGrade}</div>
-            <div class="bp-grade-label">OVERALL</div>
-          </div>
+        <div class="bp-grade-ring" style="--grade-color:${gradeColor};--gc-rgb:${gradeColor==='#22d3ee'?'34,211,238':gradeColor==='#4ade80'?'74,222,128':gradeColor==='#facc15'?'250,204,21':gradeColor==='#fb923c'?'251,146,60':'239,68,68'};border-color:${gradeColor};">
+          <div class="bp-grade-num" style="color:${gradeColor};">${overallGrade}</div>
+          <div class="bp-grade-label">OVERALL</div>
         </div>
       </div>
     </div>
@@ -12755,8 +12863,8 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
           ${_ppgTotal}
         </div>
         <div class="bp-panel" style="--bpa:#f87171;">
-          <div class="bp-panel-title"><span class="bp-pdot" style="background:#f87171;"></span>BUY / SELL / HOLD<span class="bp-panel-sub">trade signals</span></div>
-          ${bshHTML}
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#f87171;"></span>SELL / HOLD<span class="bp-panel-sub">asset decisions</span></div>
+          ${bshHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;padding:4px 0;">No sell or hold signals right now.</div>'}
         </div>
       </div>
 
@@ -12819,12 +12927,9 @@ function _bpFsHeroBlock(d) {
           <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.06em;">${wl} · Age ${avgAge} · Proj #${d.projRank} · Val #${d.valueRank}</span>
         </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:flex-start;flex-shrink:0;">
-        ${_bpWindowRingSVG(d.phase, d.trendColor)}
-        <div class="bp-grade-ring" style="--grade-color:${d.gradeColor};border-color:${d.gradeColor};width:72px;height:72px;">
-          <div style="font-family:var(--display);font-size:22px;font-weight:900;color:${d.gradeColor};line-height:1;">${d.overallGrade}</div>
-          <div style="font-family:var(--mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-top:2px;">OVERALL</div>
-        </div>
+      <div class="bp-grade-ring" style="--grade-color:${d.gradeColor};border-color:${d.gradeColor};width:72px;height:72px;flex-shrink:0;">
+        <div style="font-family:var(--display);font-size:22px;font-weight:900;color:${d.gradeColor};line-height:1;">${d.overallGrade}</div>
+        <div style="font-family:var(--mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-top:2px;">OVERALL</div>
       </div>
     </div>
   </div>`;
@@ -12931,8 +13036,8 @@ function openBlueprintFullscreen() {
         <!-- COL 3: BSH + Cornerstones + Capital -->
         <div class="bp-fs-col">
           <div class="bp-fs-p" style="--bpa:#f87171;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#f87171;"></span>BUY / SELL / HOLD<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">trade signals</span></div>
-            ${d.bshHTML}
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#f87171;"></span>SELL / HOLD<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">asset decisions</span></div>
+            ${d.bshHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">No signals.</div>'}
           </div>
           <div class="bp-fs-p" style="--bpa:#f5c842;">
             <div class="bp-fs-pt"><span class="bp-pdot" style="background:#f5c842;"></span>CORNERSTONES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">top assets by FC value</span></div>
