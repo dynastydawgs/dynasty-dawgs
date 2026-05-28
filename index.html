@@ -13238,26 +13238,54 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         ${totalPicks === 0 ? '<div style="flex:1;background:rgba(255,255,255,0.06);border-radius:3px;"></div>' : ''}
       </div>
       <div class="bp-cap-tier-labels">
-        ${earlyPicks > 0 ? `<span style="color:#fbbf24;">●&nbsp;${earlyPicks} Early</span>` : ''}
-        ${midPicks   > 0 ? `<span style="color:#94a3b8;">●&nbsp;${midPicks} Mid</span>` : ''}
-        ${latePicks  > 0 ? `<span style="color:rgba(148,163,184,0.42);">●&nbsp;${latePicks} Late</span>` : ''}
+        ${earlyPicks > 0 ? `<span style="color:#fbbf24;" title="Top third of round slots (e.g. picks 1-4 in a 12-team league)">●&nbsp;${earlyPicks} Top-slot</span>` : ''}
+        ${midPicks   > 0 ? `<span style="color:#94a3b8;" title="Middle third of round slots">●&nbsp;${midPicks} Mid-slot</span>` : ''}
+        ${latePicks  > 0 ? `<span style="color:rgba(148,163,184,0.42);" title="Bottom third of round slots (e.g. picks 9-12)">●&nbsp;${latePicks} Late-slot</span>` : ''}
         ${totalPicks === 0 ? '<span style="color:var(--text-dim);">No picks</span>' : ''}
       </div>
     </div>
   </div>`;
 
-  // Pick hit rates (Dynasty Guru research: early R1 ~75%, mid R1 ~50%, late R1 ~35%, R2 ~30%, R3+ ~9%)
+  // ── Pick hit rates ──────────────────────────────────────────────────────────
+  // TIER = position within the round (early/mid/late thirds of slots, e.g. picks 1–4 / 5–8 / 9–12 in a 12-team league)
+  // ROUND = which draft round (1, 2, 3, 4+)
+  //
+  // Rule: ROUND is the primary gate — a late 1st (round=1, tier=late) is always
+  // more valuable than an early 2nd (round=2, tier=early). Tier provides
+  // sub-round differentiation within the same round.
+  //
+  // Rates calibrated to PICK_BASE values in the app (1_early=2000 baseline):
+  //   R1 early (~1.01–1.04): 72%   R1 mid (~1.05–1.08): 48%   R1 late (~1.09–1.12): 32%
+  //   R2 early (~2.01–2.04): 22%   R2 mid (~2.05–2.08): 15%   R2 late (~2.09–2.12): 10%
+  //   R3 early: 9%                 R3 mid/late: 7%
+  //   R4+: 4%
+  //
+  // The core guarantee: ALL R1 rates (32–72%) > ALL R2 rates (10–22%)
   const pickHitRate = p => {
-    if (p.tier === 'early') return p.round === 1 ? 0.75 : 0.30;
-    if (p.tier === 'mid')   return p.round === 1 ? 0.50 : p.round === 2 ? 0.30 : 0.09;
-    return p.round <= 2 ? 0.09 : 0.05;
+    const r    = +(p.round ?? 99);
+    const tier = p.tier ?? 'mid';
+    if (r === 1) {
+      if (tier === 'early') return 0.72;
+      if (tier === 'mid')   return 0.48;
+      return 0.32;                        // late first — still a first round pick
+    }
+    if (r === 2) {
+      if (tier === 'early') return 0.22;
+      if (tier === 'mid')   return 0.15;
+      return 0.10;                        // late second
+    }
+    if (r === 3) {
+      if (tier === 'early') return 0.09;
+      return 0.07;
+    }
+    return 0.04;                          // round 4+
   };
   const expectedStarters = picks.reduce((sum, p) => sum + pickHitRate(p), 0);
 
   const _capYears = Object.keys(picksByYear).sort().map(yr => {
     const dots = picksByYear[yr].map((p, i) => {
       const hr = pickHitRate(p);
-      const hrColor = hr >= 0.60 ? '#fbbf24' : hr >= 0.35 ? '#94a3b8' : 'rgba(148,163,184,0.5)';
+      const hrColor = hr >= 0.55 ? '#fbbf24' : hr >= 0.25 ? '#94a3b8' : 'rgba(148,163,184,0.5)';
       const hrPct   = Math.round(hr * 100);
       return `<div style="margin-bottom:5px;">
         <div class="bp-pick-dot" style="background:${tierColors[p.tier]??'rgba(148,163,184,0.4)'};animation-delay:${(i*0.08).toFixed(2)}s;" title="${p.label} · ${hrPct}% hit rate">${p.round}</div>
