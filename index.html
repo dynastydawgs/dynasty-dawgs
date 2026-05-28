@@ -12533,52 +12533,61 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
 
   // Picks with realistic FC-derived values (tier fallbacks calibrated to market)
   const pickTierVal = tier => tier === 'early' ? 2200 : tier === 'mid' ? 1100 : 550;
+  // No hard slice — expose all non-garbage picks so combos can find a match
   const myPicksList = (myTeamRow?.allPicks ?? [])
     .filter(p => p.tier === 'early' || p.tier === 'mid' || p.tier === 'late')
     .map(pk => ({ ...pk, val: pk.value && pk.value > 100 ? pk.value : pickTierVal(pk.tier) }))
-    .sort((a, b) => b.val - a.val)
-    .slice(0, 6);
-  const myOfferPicks = myPicksList.filter(p => p.tier !== 'late' || p.val >= 700); // don't offer garbage lates
+    .sort((a, b) => b.val - a.val);
+  const myOfferPicks = myPicksList.filter(p => p.tier !== 'late' || p.val >= 700);
 
-  // Smart offer: prioritize pieces the target team actually needs (mutual benefit)
-  // Attempts (in order): single player → single pick → two-player → player+pick → two picks → fallback
+  // Smart offer: always tries to include picks before resorting to player+player.
+  // Dynasty trades almost always involve picks — two bare players is the fallback,
+  // not the first choice.
+  //
+  // Step order:
+  //   1. Single player  (only when value is "fair": ≥87% of target)
+  //   2. Single pick    (if one pick covers the range)
+  //   3. Player + pick  (preferred combo — depth piece + pick sweetener)
+  //   4. Two players    (fallback when no pick fits)
+  //   5. Two picks
+  //   6. Best available (inexact)
   const findSmartOffer = (tv, targetRosterId) => {
     const tRanks = leagueRankings[targetRosterId] ?? {};
     const targetNeeds = ['QB','RB','WR','TE'].filter(pos => {
       const r = tRanks[`${pos}Comp`];
       return r && (r - 1) / Math.max(total - 1, 1) >= 0.50;
     });
-    // Smart pool = my depth at positions the target actually needs
     const smartPool = targetNeeds.length > 0 ? myDepth.filter(p => targetNeeds.includes(p.pos)) : [];
     const offerPool = smartPool.length >= 1
       ? [...smartPool, ...myDepth.filter(p => !smartPool.includes(p))]
       : myDepth;
 
     const inRange = (v, lo, hi) => v >= lo && v <= hi;
-    const lo = tv * 0.68, hi = tv * 1.24;
+    const lo = tv * 0.68, hi = tv * 1.26;
 
-    // 1. Single player
-    const s = offerPool.find(p => inRange(p.value, lo, hi));
+    // 1. Single player — only when it's genuinely "fair" (≥87% of target value).
+    //    Below that threshold we fall through and sweeten with a pick.
+    const s = offerPool.find(p => p.value >= tv * 0.87 && inRange(p.value, lo, hi));
     if (s) return { players:[s], picks:[], total:s.value, targetNeeds };
 
     // 2. Single pick
     const sp = myOfferPicks.find(pk => inRange(pk.val, lo, hi));
     if (sp) return { players:[], picks:[sp], total:sp.val, targetNeeds };
 
-    // 3. Two-player combo
+    // 3. Player + pick (BEFORE two-player — always prefer pick-inclusive packages)
+    for (const p of offerPool.slice(0, 8))
+      for (const pk of myOfferPicks) {
+        const sum = p.value + pk.val;
+        if (inRange(sum, tv * 0.68, tv * 1.30))
+          return { players:[p], picks:[pk], total:sum, targetNeeds };
+      }
+
+    // 4. Two-player combo (when no pick combo hits the range)
     for (let i = 0; i < Math.min(offerPool.length, 7); i++)
       for (let j = i+1; j < Math.min(offerPool.length, 7); j++) {
         const sum = offerPool[i].value + offerPool[j].value;
         if (inRange(sum, tv * 0.70, tv * 1.28))
           return { players:[offerPool[i], offerPool[j]], picks:[], total:sum, targetNeeds };
-      }
-
-    // 4. Player + pick
-    for (const p of offerPool.slice(0, 6))
-      for (const pk of myOfferPicks) {
-        const sum = p.value + pk.val;
-        if (inRange(sum, tv * 0.70, tv * 1.28))
-          return { players:[p], picks:[pk], total:sum, targetNeeds };
       }
 
     // 5. Two picks
