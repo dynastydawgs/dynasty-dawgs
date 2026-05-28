@@ -12957,10 +12957,11 @@ function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
       if (!targetPositions.length) targetPositions = ['QB','RB','WR','TE'].filter(p => p !== sell.pos).slice(0, 1);
     }
 
-    // Value band: the BUY player should be in a realistic trade range
-    // FantasyCalc treats ±25% as "fair"; we allow 60–145% to account for
-    // the selling team accepting slight discount to move aging asset.
-    const valLo = sell.val * 0.60;
+    // Value band: the BUY player should be in a realistic trade range.
+    // FantasyCalc treats ±25% as "fair"; we allow 78–145% to account for
+    // the selling team accepting a modest discount to move an aging asset.
+    // 60% was too loose — it produced trades like 2.3k → 1.7k straight up.
+    const valLo = sell.val * 0.78;
     const valHi = sell.val * 1.45;
 
     const buys = [];
@@ -13054,14 +13055,21 @@ function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
           .filter(p => (p.tier === 'early' || p.tier === 'mid') && (p.round ?? 99) <= 2)
           .sort((a, b) => b.val - a.val);
 
-        // Accumulate picks until we reach ~85–100% of sell value
+        // Accumulate picks until we reach ~75–100% of sell value.
+        // Rules:
+        //   • Stop after the first pick if it already covers ≥70% (don't pile on)
+        //   • Never add a second 1st-round pick — asking for two 1sts for one player
+        //     is unreasonable regardless of year-discounted math
+        //   • Hard cap of 2 picks total; never exceed sell.val × 1.10
         let accumulated = 0;
         const picksToRequest = [];
         for (const pk of theirPicks) {
-          if (accumulated >= sell.val * 1.05) break;  // don't over-collect
+          if (picksToRequest.length >= 2) break;
+          if (accumulated + pk.val > sell.val * 1.10) continue; // skip overshoot
+          if (picksToRequest.length >= 1 && pk.round <= 1) continue; // no two 1sts
           picksToRequest.push(pk);
           accumulated += pk.val;
-          if (accumulated >= sell.val * 0.85) break;
+          if (accumulated >= sell.val * 0.70) break; // one pick close enough → done
         }
 
         if (picksToRequest.length && accumulated >= sell.val * 0.60) {
