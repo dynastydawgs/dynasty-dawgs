@@ -3690,6 +3690,27 @@ function getPickValue(year, round, slot, numTeams) {
   return { value: PICK_VALUES[key] ?? 0, tier, key };
 }
 
+// Trade value of a pick object — uses .value if already computed, otherwise
+// falls back to PICK_BASE using BOTH round and tier (not just tier).
+// Fixes the prior bug where every "early" pick got a flat 2200 regardless of round.
+function _bpPickVal(pk) {
+  if (pk && pk.value && pk.value > 100) return pk.value;
+  const r = +(pk?.round ?? 99);
+  const t = pk?.tier ?? 'mid';
+  return PICK_BASE[`${r}_${t}`] ?? 30;
+}
+
+// Effective trade value of a multi-asset package (dynasty consolidation model).
+// Each additional piece is worth ~87% of face value due to roster-space cost.
+// 4 × 1.25k pieces ≈ 4.1k effective trade value, not 5k face.
+// assets: array of objects with .value OR .val
+function _bpEffVal(assets) {
+  const vals = assets
+    .map(a => +(a.value ?? a.val ?? 0))
+    .sort((a, b) => b - a);           // biggest piece counted at full value
+  return vals.reduce((sum, v, i) => sum + v * Math.pow(0.87, i), 0);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // § 4  PLAYER MAP BUILDER & INIT
 function parseLeagueId(raw) {
@@ -12536,12 +12557,11 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
     .filter(Boolean).sort((a,b) => b.value - a.value);
   const myDepth = myAllPlayers.slice(4).filter(p => p.value >= 800);
 
-  // Picks with realistic FC-derived values (tier fallbacks calibrated to market)
-  const pickTierVal = tier => tier === 'early' ? 2200 : tier === 'mid' ? 1100 : 550;
+  // Picks with correct round+tier values via _bpPickVal (PICK_BASE lookup, not flat tier guess)
   // No hard slice — expose all non-garbage picks so combos can find a match
   const myPicksList = (myTeamRow?.allPicks ?? [])
     .filter(p => p.tier === 'early' || p.tier === 'mid' || p.tier === 'late')
-    .map(pk => ({ ...pk, val: pk.value && pk.value > 100 ? pk.value : pickTierVal(pk.tier) }))
+    .map(pk => ({ ...pk, val: _bpPickVal(pk) }))
     .sort((a, b) => b.val - a.val);
   const myOfferPicks = myPicksList.filter(p => p.tier !== 'late' || p.val >= 700);
 
@@ -12580,27 +12600,30 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
     if (sp) return { players:[], picks:[sp], total:sp.val, targetNeeds };
 
     // 3. Player + pick (BEFORE two-player — always prefer pick-inclusive packages)
+    //    Receiver gets consolidation discount: effective value < face sum (KTC model).
+    //    We need _bpEffVal(package) ≥ tv*0.87, but cap face sum so we don't overpay.
     for (const p of offerPool.slice(0, 8))
       for (const pk of myOfferPicks) {
-        const sum = p.value + pk.val;
-        if (inRange(sum, tv * 0.68, tv * 1.30))
-          return { players:[p], picks:[pk], total:sum, targetNeeds };
+        const eff = _bpEffVal([{ value: p.value }, { value: pk.val }]);
+        if (eff >= tv * 0.87 && (p.value + pk.val) <= tv * 1.45)
+          return { players:[p], picks:[pk], total:eff, targetNeeds };
       }
 
     // 4. Two-player combo (when no pick combo hits the range)
+    //    Two pieces need more combined face value to match a single star's effective value.
     for (let i = 0; i < Math.min(offerPool.length, 7); i++)
       for (let j = i+1; j < Math.min(offerPool.length, 7); j++) {
-        const sum = offerPool[i].value + offerPool[j].value;
-        if (inRange(sum, tv * 0.70, tv * 1.28))
-          return { players:[offerPool[i], offerPool[j]], picks:[], total:sum, targetNeeds };
+        const eff = _bpEffVal([offerPool[i], offerPool[j]]);
+        if (eff >= tv * 0.87 && (offerPool[i].value + offerPool[j].value) <= tv * 1.50)
+          return { players:[offerPool[i], offerPool[j]], picks:[], total:eff, targetNeeds };
       }
 
     // 5. Two picks
     for (let i = 0; i < myOfferPicks.length; i++)
       for (let j = i+1; j < myOfferPicks.length; j++) {
-        const sum = myOfferPicks[i].val + myOfferPicks[j].val;
-        if (inRange(sum, tv * 0.70, tv * 1.28))
-          return { players:[], picks:[myOfferPicks[i], myOfferPicks[j]], total:sum, targetNeeds };
+        const eff = _bpEffVal([{ value: myOfferPicks[i].val }, { value: myOfferPicks[j].val }]);
+        if (eff >= tv * 0.87 && (myOfferPicks[i].val + myOfferPicks[j].val) <= tv * 1.50)
+          return { players:[], picks:[myOfferPicks[i], myOfferPicks[j]], total:eff, targetNeeds };
       }
 
     // 6. Fallback: best available (flagged as approximate)
@@ -12654,9 +12677,9 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
       buys.push({ pos, color: posColors[pos], targets: targets.slice(0, 3) });
     }
 
-    // REBALANCE: over-concentrated by >12% at this position
+    // REBALANCE: over-concentrated by >7% at this position (was 12% — too high to ever trigger)
     const excess = myConc[pos] - idealAlloc[pos];
-    if (excess > 0.12 && myTeamRow) {
+    if (excess > 0.07 && myTeamRow) {
       const myPosPlayers = [...myPids]
         .map(pid => { const fc = fcPlayerMap[pid]; return fc && fc.position === pos ? { pid, name:fc.name, value:fc.value??0 } : null; })
         .filter(Boolean).sort((a,b) => b.value - a.value);
@@ -13009,8 +13032,6 @@ function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
     // WIN NOW teams should prioritise receiving players, not picks
     let picksOption = null;
     if (phase !== 'WIN NOW') {
-      const pfTierVal = tier => tier === 'early' ? 2200 : tier === 'mid' ? 1100 : 550;
-
       const pickBuyers = allTeams
         .filter(t => t.roster_id !== rosterId)
         .filter(t => {
@@ -13029,7 +13050,7 @@ function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
       if (pickBuyers.length) {
         const buyer = pickBuyers[0];
         const theirPicks = (buyer.allPicks ?? [])
-          .map(pk => ({ ...pk, val: pk.value && pk.value > 100 ? pk.value : pfTierVal(pk.tier) }))
+          .map(pk => ({ ...pk, val: _bpPickVal(pk) }))
           .filter(p => (p.tier === 'early' || p.tier === 'mid') && (p.round ?? 99) <= 2)
           .sort((a, b) => b.val - a.val);
 
@@ -13263,7 +13284,7 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
         for (const bP of bPlayers.slice(0, 6)) {
           if (bP.value > theirTopVal * 0.88) continue;
           for (const pk of buyerPicks) {
-            const pkVal = pk.val ?? pk.value ?? 1100;
+            const pkVal = _bpPickVal(pk);
             const sum = bP.value + pkVal;
             if (sum < retMin || sum > retMax) continue;
             const coversNeed = weaknessPositions.includes(bP.pos);
@@ -13302,7 +13323,7 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
         const pkgVal = pkg.reduce((s, p) => s + p.value, 0);
         const myPicks = (myTeamRow?.allPicks ?? [])
           .filter(p => p.tier === 'early' || p.tier === 'mid')
-          .map(pk => ({ ...pk, val: pk.val ?? pk.value ?? 1100 }));
+          .map(pk => ({ ...pk, val: _bpPickVal(pk) }));
         const addPick = myPicks[0] ?? null;
         const offerTotal = pkgVal + (addPick ? addPick.val : 0);
 
@@ -13690,7 +13711,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
           : '';
         const opLines = ofr.players.map(p => `<div class="bp-deal-offer-line"><img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;">${p.name}<span>${(p.value/1000).toFixed(1)}k</span></div>`).join('');
         const pkLines = ofr.picks.map(pk => {
-          const pkVal = pk.val ?? pk.value ?? 1100;
+          const pkVal = _bpPickVal(pk);
           const pkTierColor = pk.tier==='early'?'#fbbf24':pk.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)';
           return `<div class="bp-deal-offer-line"><span style="font-size:11px;margin-right:3px;">🎟</span><span style="font-family:var(--mono);font-size:8px;color:${pkTierColor};">${pk.label ?? pk.tier?.toUpperCase()+' PICK'}</span><span>${(pkVal/1000).toFixed(1)}k</span></div>`;
         }).join('');
@@ -13814,7 +13835,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       const po = move.picksOption;
       const teamShort = (po.fromTeam || '').split(/[\s_]+/).pop();
       const pickItems = po.picks.map(pk => {
-        const pkVal = pk.val ?? pk.value ?? 1100;
+        const pkVal = _bpPickVal(pk);
         const pkC = pk.tier === 'early' ? '#fbbf24' : pk.tier === 'mid' ? '#94a3b8' : 'rgba(148,163,184,0.5)';
         return `<span style="font-family:var(--mono);font-size:8px;color:${pkC};">🎟 ${pk.label ?? ((pk.tier?.toUpperCase()||'') + ' R' + (pk.round ?? '?'))}</span>`;
       }).join('<span style="color:rgba(255,255,255,0.2);font-size:9px;margin:0 2px;">+</span>');
@@ -13962,7 +13983,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         }).join('');
 
         const retPicks = (dt.bestReturn.picks ?? []).map(pk => {
-          const pkVal = pk.val ?? pk.value ?? 1100;
+          const pkVal = _bpPickVal(pk);
           const pkC = pk.tier==='early'?'#fbbf24':pk.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)';
           return `<div class="bp-tier-row">
             <span style="font-size:11px;flex-shrink:0;">🎟</span>
