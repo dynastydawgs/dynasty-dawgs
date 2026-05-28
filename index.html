@@ -12437,9 +12437,18 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
     .map(pid => { const fc = fcPlayerMap[pid]; return fc && ['QB','RB','WR','TE'].includes(fc.position) ? { pid, name:fc.name, value:fc.value??0, pos:fc.position } : null; })
     .filter(Boolean).sort((a,b) => b.value - a.value);
   const myDepth = myAllPlayers.slice(4).filter(p => p.value >= 800);
-  const myPicksList = (myTeamRow?.allPicks ?? []).filter(p => p.tier === 'early' || p.tier === 'mid').slice(0, 4);
+
+  // Picks with realistic FC-derived values (tier fallbacks calibrated to market)
+  const pickTierVal = tier => tier === 'early' ? 2200 : tier === 'mid' ? 1100 : 550;
+  const myPicksList = (myTeamRow?.allPicks ?? [])
+    .filter(p => p.tier === 'early' || p.tier === 'mid' || p.tier === 'late')
+    .map(pk => ({ ...pk, val: pk.value && pk.value > 100 ? pk.value : pickTierVal(pk.tier) }))
+    .sort((a, b) => b.val - a.val)
+    .slice(0, 6);
+  const myOfferPicks = myPicksList.filter(p => p.tier !== 'late' || p.val >= 700); // don't offer garbage lates
 
   // Smart offer: prioritize pieces the target team actually needs (mutual benefit)
+  // Attempts (in order): single player → single pick → two-player → player+pick → two picks → fallback
   const findSmartOffer = (tv, targetRosterId) => {
     const tRanks = leagueRankings[targetRosterId] ?? {};
     const targetNeeds = ['QB','RB','WR','TE'].filter(pos => {
@@ -12448,29 +12457,48 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
     });
     // Smart pool = my depth at positions the target actually needs
     const smartPool = targetNeeds.length > 0 ? myDepth.filter(p => targetNeeds.includes(p.pos)) : [];
-    // Full offer pool: smart candidates first, then rest
     const offerPool = smartPool.length >= 1
       ? [...smartPool, ...myDepth.filter(p => !smartPool.includes(p))]
       : myDepth;
 
-    // Single player match
-    const s = offerPool.find(p => p.value >= tv * 0.68 && p.value <= tv * 1.22);
+    const inRange = (v, lo, hi) => v >= lo && v <= hi;
+    const lo = tv * 0.68, hi = tv * 1.24;
+
+    // 1. Single player
+    const s = offerPool.find(p => inRange(p.value, lo, hi));
     if (s) return { players:[s], picks:[], total:s.value, targetNeeds };
-    // Two-player combo
-    for (let i = 0; i < Math.min(offerPool.length,7); i++)
-      for (let j = i+1; j < Math.min(offerPool.length,7); j++) {
+
+    // 2. Single pick
+    const sp = myOfferPicks.find(pk => inRange(pk.val, lo, hi));
+    if (sp) return { players:[], picks:[sp], total:sp.val, targetNeeds };
+
+    // 3. Two-player combo
+    for (let i = 0; i < Math.min(offerPool.length, 7); i++)
+      for (let j = i+1; j < Math.min(offerPool.length, 7); j++) {
         const sum = offerPool[i].value + offerPool[j].value;
-        if (sum >= tv * 0.70 && sum <= tv * 1.26)
+        if (inRange(sum, tv * 0.70, tv * 1.28))
           return { players:[offerPool[i], offerPool[j]], picks:[], total:sum, targetNeeds };
       }
-    // Player + pick
-    for (const p of offerPool.slice(0,5))
-      for (const pk of myPicksList) {
-        const sum = p.value + (pk.value ?? 1100);
-        if (sum >= tv * 0.70 && sum <= tv * 1.26)
+
+    // 4. Player + pick
+    for (const p of offerPool.slice(0, 6))
+      for (const pk of myOfferPicks) {
+        const sum = p.value + pk.val;
+        if (inRange(sum, tv * 0.70, tv * 1.28))
           return { players:[p], picks:[pk], total:sum, targetNeeds };
       }
+
+    // 5. Two picks
+    for (let i = 0; i < myOfferPicks.length; i++)
+      for (let j = i+1; j < myOfferPicks.length; j++) {
+        const sum = myOfferPicks[i].val + myOfferPicks[j].val;
+        if (inRange(sum, tv * 0.70, tv * 1.28))
+          return { players:[], picks:[myOfferPicks[i], myOfferPicks[j]], total:sum, targetNeeds };
+      }
+
+    // 6. Fallback: best available (flagged as approximate)
     if (offerPool[0]) return { players:[offerPool[0]], picks:[], total:offerPool[0].value, inexact:true, targetNeeds };
+    if (myOfferPicks[0]) return { players:[], picks:[myOfferPicks[0]], total:myOfferPicks[0].val, inexact:true, targetNeeds };
     return null;
   };
 
@@ -13009,7 +13037,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const trendIcon = clock.trend === 'rising' ? '↑' : clock.trend === 'declining' ? '↓' : '→';
   const trendColor = clock.trend === 'rising' ? 'var(--green)' : clock.trend === 'declining' ? 'var(--red)' : 'var(--text-dim)';
 
-  // ── Positional grades ─────────────────────────────────────────────────────
+  // ── Positional grades (QB/RB/WR/TE + Picks) ──────────────────────────────
   const posGradesHTML = ['QB','RB','WR','TE'].map(pos => {
     const compRank = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
     const grade = _bpRankToGrade(compRank, total);
@@ -13018,7 +13046,14 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       <span class="bp-grade-letter">${grade}</span>
       <span class="bp-grade-pos">${pos}</span>
     </div>`;
-  }).join('');
+  }).join('') + (() => {
+    const grade = _bpRankToGrade(pickValueRank, total);
+    const c = _bpGradeColor(grade);
+    return `<div class="bp-grade-circle" style="border-color:${c};color:${c};opacity:0.85;">
+      <span class="bp-grade-letter">${grade}</span>
+      <span class="bp-grade-pos" style="font-size:5.5px;letter-spacing:0.04em;">PICKS</span>
+    </div>`;
+  })();
 
   // ── Value pie ─────────────────────────────────────────────────────────────
   const tv = teamRow.totalValue || 1;
@@ -13224,7 +13259,11 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
           ? `<span class="bp-deal-smart-hint">they need ${ofr.targetNeeds.join('/')}</span>`
           : '';
         const opLines = ofr.players.map(p => `<div class="bp-deal-offer-line"><img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;">${p.name}<span>${(p.value/1000).toFixed(1)}k</span></div>`).join('');
-        const pkLines = ofr.picks.map(pk => `<div class="bp-deal-offer-line">📅 ${pk.label}<span>${((pk.value??1100)/1000).toFixed(1)}k</span></div>`).join('');
+        const pkLines = ofr.picks.map(pk => {
+          const pkVal = pk.val ?? pk.value ?? 1100;
+          const pkTierColor = pk.tier==='early'?'#fbbf24':pk.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)';
+          return `<div class="bp-deal-offer-line"><span style="font-size:11px;margin-right:3px;">🎟</span><span style="font-family:var(--mono);font-size:8px;color:${pkTierColor};">${pk.label ?? pk.tier?.toUpperCase()+' PICK'}</span><span>${(pkVal/1000).toFixed(1)}k</span></div>`;
+        }).join('');
         const totalVal = (ofr.total/1000).toFixed(1);
         const flag = ofr.inexact ? '<span style="color:rgba(251,146,60,0.7);font-size:7px;margin-left:4px;">~approx</span>' : '';
         offerHTML = `<div class="bp-deal-sep"></div>
@@ -13583,7 +13622,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       <!-- ROW: Grades+Age | Value+Construction -->
       <div class="bp-row-split">
         <div class="bp-panel" style="--bpa:#38bdf8;">
-          <div class="bp-panel-title"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub">STR+DEP composite vs ${total} teams</span></div>
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub">vs ${total} teams · incl. picks</span></div>
           <div class="bp-grade-row" style="margin-bottom:14px;">${posGradesHTML}</div>
           <div class="bp-panel-title" style="margin-top:4px;"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL AGE<span class="bp-panel-sub">bar = team · tick = league avg</span></div>
           ${ageBarHTML || '<div style="color:rgba(255,255,255,0.3);font-size:10px;">Age data unavailable.</div>'}
@@ -13785,7 +13824,7 @@ function openBlueprintFullscreen() {
         <!-- COL 2: Grades + Value + Lineup -->
         <div class="bp-fs-col">
           <div class="bp-fs-p" style="--bpa:#38bdf8;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">vs ${d.total} teams</span></div>
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">vs ${d.total} teams · incl. picks</span></div>
             <div class="bp-grade-row" style="margin-bottom:14px;">${d.posGradesHTML}</div>
             <div class="bp-fs-pt" style="margin-top:4px;"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL AGE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">bar=team · tick=avg</span></div>
             ${d.ageBarHTML || '<div style="color:rgba(255,255,255,0.3);font-size:10px;">Age data unavailable.</div>'}
