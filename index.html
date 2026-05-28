@@ -2897,6 +2897,21 @@
   /* ── Age cliff badge (cornerstones) ── */
   .bp-cliff-badge { background:rgba(239,68,68,0.14); color:#f87171; border:1px solid rgba(239,68,68,0.22); font-family:var(--mono); font-size:6.5px; padding:1px 5px; border-radius:3px; flex-shrink:0; white-space:nowrap; }
 
+  /* ── Dead Capital Alert ── */
+  .bp-dc-alert { background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.28); border-left:3px solid #ef4444; border-radius:8px; padding:12px 14px; margin-bottom:14px; }
+  .bp-dc-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; padding-bottom:9px; border-bottom:1px solid rgba(239,68,68,0.13); }
+  .bp-dc-title { font-family:var(--display); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:#f87171; margin-bottom:3px; }
+  .bp-dc-subtitle { font-size:9px; color:rgba(255,255,255,0.42); line-height:1.45; }
+  .bp-dc-total-val { color:#f87171; font-family:var(--mono); font-weight:700; }
+  .bp-dc-row { display:flex; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid rgba(239,68,68,0.08); }
+  .bp-dc-row:last-child { border-bottom:none; }
+  .bp-dc-sell-tag { background:rgba(239,68,68,0.18); color:#f87171; border:1px solid rgba(239,68,68,0.28); padding:2px 7px; border-radius:3px; font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.08em; flex-shrink:0; }
+  .bp-dc-name { flex:1; font-size:10px; color:rgba(255,255,255,0.82); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-dc-name:hover { color:var(--accent); }
+  .bp-dc-val { font-family:var(--mono); font-size:8.5px; color:rgba(255,255,255,0.38); flex-shrink:0; }
+  .bp-dc-cat-badge { font-family:var(--mono); font-size:6.5px; letter-spacing:0.06em; padding:2px 5px; border-radius:3px; flex-shrink:0; white-space:nowrap; }
+  .bp-dc-reason-line { font-size:8.5px; color:rgba(255,255,255,0.3); font-style:italic; padding:0 0 5px 28px; line-height:1.35; }
+
   /* ── Pick hit rate bar ── */
   .bp-hit-rate-row { display:flex; align-items:center; gap:5px; margin-top:4px; }
   .bp-hit-rate-bar { flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden; }
@@ -13004,6 +13019,77 @@ function _bpHolds(rosterId) {
   return holds.slice(0, 5);
 }
 
+// ── Dead Capital Detection ────────────────────────────────────────────────────
+// Dead capital = high FC value + benched + not a justified hold.
+// These are your clearest sell signals: value on the market, $0 on the field.
+function _bpDeadCapital(rosterId) {
+  const pids      = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
+  const teamProj  = leagueProjData.find(t => t.roster_id === rosterId);
+  const starterPids = teamProj?.starterPids ?? new Set();
+  const dead      = [];
+
+  for (const pid of pids) {
+    const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+    if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) continue;
+    const age = _bpAge(sp?.birth_date); if (!age) continue;
+    const pos = fc.position; const val = fc.value;
+
+    // Value threshold — must be worth chasing
+    if (val < 2500) continue;
+
+    // Skip starters — they're earning their spot
+    if (starterPids.has(pid)) continue;
+
+    const pProj = teamProj?.players?.find(p => p.pid === pid);
+    const ppg   = pProj?.basePpg ?? null;
+
+    // ── JUSTIFIED HOLD EXCLUSIONS ──────────────────────────────────────────
+    // Developmental: young player with value not yet realised — hold and let it grow
+    if (age <= 24 && val >= 3000) continue;
+
+    // Handcuff: backup RB with legitimate spot-start value
+    if (pos === 'RB' && age <= 26 && val < 5000) continue;
+
+    // ── CATEGORIZE DEAD CAPITAL ────────────────────────────────────────────
+    let reason = null; let category = null;
+
+    // AGED_OUT: old + production at or below positional floor
+    if (age >= 30) {
+      const posFloor = { QB:10, RB:5, WR:6, TE:5 };
+      if (ppg == null || ppg < (posFloor[pos] ?? 6)) {
+        reason = `Age ${age.toFixed(0)} — the value cliff has arrived. No longer earning a lineup spot.`;
+        category = 'AGED_OUT';
+      }
+    }
+
+    // DECLINING: 27+ and producing well below the positional baseline
+    if (!reason && age >= 27 && ppg != null) {
+      const posAvg = { QB:18, RB:9, WR:11, TE:9 };
+      if (ppg < (posAvg[pos] ?? 10) * 0.60) {
+        reason = `${ppg.toFixed(1)} ppg — well below the ${pos} average. Value tag no longer matches output.`;
+        category = 'DECLINING';
+      }
+    }
+
+    // LOGJAM: decent production but blocked from the lineup by better options
+    if (!reason && ppg != null && ppg >= 5) {
+      reason = `${ppg.toFixed(1)} ppg on the bench — buried by depth. Not converting this asset into wins.`;
+      category = 'LOGJAM';
+    }
+
+    // STASHED: no projection data — injured, IR, or depth chart casualty
+    if (!reason) {
+      reason = `No active production — injured or depth chart casualty. ${(val/1000).toFixed(1)}k in value sitting idle.`;
+      category = 'STASHED';
+    }
+
+    dead.push({ pid, name: fc.name, pos, age: +age.toFixed(1), val, ppg, reason, category });
+  }
+
+  dead.sort((a, b) => b.val - a.val);
+  return dead.slice(0, 5); // cap at 5 to keep the signal focused
+}
+
 // ── Main render ───────────────────────────────────────────────────────────────
 
 let _blueprintRosterId = null;
@@ -13518,6 +13604,48 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   }).join('')
   : `<div style="color:rgba(255,255,255,0.22);font-size:10px;padding:6px 0;font-style:italic;">No development stash or handcuff holds flagged.</div>`;
 
+  // ── Dead Capital ─────────────────────────────────────────────────────────────
+  const deadCapital = _bpDeadCapital(rosterId);
+  const deadCapitalHTML = (() => {
+    if (!deadCapital.length) return '';
+    const totalDC = deadCapital.reduce((s, p) => s + p.val, 0);
+    const catStyle = {
+      AGED_OUT:  { bg:'rgba(239,68,68,0.18)',   c:'#f87171' },
+      DECLINING: { bg:'rgba(251,146,60,0.16)',  c:'#fb923c' },
+      LOGJAM:    { bg:'rgba(251,191,36,0.14)',  c:'#fbbf24' },
+      STASHED:   { bg:'rgba(148,163,184,0.14)', c:'#94a3b8' },
+    };
+    const rows = deadCapital.map(p => {
+      const pc  = posColors[p.pos] ?? 'var(--text-dim)';
+      const cs  = catStyle[p.category] ?? catStyle.STASHED;
+      const ageC = p.age >= 30 ? 'var(--red)' : p.age >= 28 ? 'var(--orange)' : 'var(--text-dim)';
+      return `<div class="bp-dc-row">
+        <span class="bp-dc-sell-tag">SELL</span>
+        <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:18px;height:18px;border-radius:50%;flex-shrink:0;">
+        <span class="bp-dc-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name}</span>
+        <span style="font-family:var(--mono);font-size:7.5px;color:${pc};flex-shrink:0;">${p.pos}</span>
+        <span style="font-family:var(--mono);font-size:7.5px;color:${ageC};flex-shrink:0;">${p.age}</span>
+        <span class="bp-dc-val">${(p.val/1000).toFixed(1)}k</span>
+        <span class="bp-dc-cat-badge" style="background:${cs.bg};color:${cs.c};">${p.category.replace('_',' ')}</span>
+      </div>
+      <div class="bp-dc-reason-line">${p.reason}</div>`;
+    }).join('');
+    return `<div class="bp-dc-alert">
+      <div class="bp-dc-header">
+        <div style="font-size:20px;line-height:1;flex-shrink:0;margin-top:1px;">💀</div>
+        <div style="flex:1;min-width:0;">
+          <div class="bp-dc-title">Dead Capital Detected</div>
+          <div class="bp-dc-subtitle">You have <span class="bp-dc-total-val">${(totalDC/1000).toFixed(1)}k</span> in dead capital — high-value assets earning $0 in production. The clearest sell signals on your roster.</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:10px;">
+          <div style="font-family:var(--display);font-size:22px;font-weight:900;color:#f87171;line-height:1;">${(totalDC/1000).toFixed(1)}k</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(239,68,68,0.5);letter-spacing:0.1em;margin-top:2px;">DEAD CAPITAL</div>
+        </div>
+      </div>
+      ${rows}
+    </div>`;
+  })();
+
   // ── Swing players (position-of-need focus) ────────────────────────────────
   const swings = _bpSwingPlayers(rosterId, total);
   const swingHTML = swings.length ? swings.map((s, i) =>
@@ -13606,6 +13734,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     blueprintCode, shareStats, rfHTML, valueMatrixSVG, overviewParaHTML,
     suggestedMovesHTML, purgatoryHTML, holdsHTML,
     prodShareColor, valShareColor, fairShare,
+    deadCapital, deadCapitalHTML,
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -13740,6 +13869,9 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       <!-- ROW: Trade Strategy (full-width) -->
       <div class="bp-panel" style="--bpa:#4ade80;">
         <div class="bp-panel-title"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY<span class="bp-panel-sub">phase-aware · smart matching · suggested moves</span></div>
+
+        <!-- Dead capital alert (most urgent signal — show first) -->
+        ${deadCapitalHTML}
 
         <!-- Phase overview paragraph -->
         ${overviewParaHTML}
@@ -13959,6 +14091,7 @@ function openBlueprintFullscreen() {
         <div class="bp-fs-col">
           <div class="bp-fs-p" style="--bpa:#4ade80;">
             <div class="bp-fs-pt"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">phase-aware · smart matching</span></div>
+            ${d.deadCapitalHTML ?? ''}
             ${d.overviewParaHTML ?? ''}
             ${d.purgatoryHTML ?? ''}
             ${d.overviewHTML}
