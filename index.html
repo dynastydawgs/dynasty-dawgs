@@ -12739,73 +12739,137 @@ function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
   const myPidSet = new Set(myPids);
   const ranks    = leagueRankings[rosterId] ?? {};
   const ageCliff = { QB:35, RB:27, WR:30, TE:30 };
-  const posColors= { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' };
 
-  // Identify sell candidates
+  // ── Step 1: identify sell candidates ──────────────────────────────────────
   const sellCandidates = myPids.map(pid => {
     const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
     if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) return null;
-    const age  = _bpAge(sp?.birth_date); if (!age) return null;
-    const pos  = fc.position; const val = fc.value;
-    const cliff= ageCliff[pos] ?? 30;
-    const posRank = fc.positionRank ?? 99;
+    const age    = _bpAge(sp?.birth_date); if (!age) return null;
+    const pos    = fc.position; const val = fc.value;
+    const cliff  = ageCliff[pos] ?? 30;
+    const posRank= fc.positionRank ?? 99;
 
-    let sellReason = null;
-    // Aging at cliff with still-decent value
-    if (age >= cliff - 1 && val >= 2000) {
-      sellReason = `Age ${age.toFixed(0)} — approaching the ${pos} value cliff. Sell while the market still pays a premium.`;
+    // Must have enough value to actually get something back
+    if (val < 1500) return null;
+
+    let sellReason = null, sellType = null;
+
+    // Aging within 1.5 yrs of cliff with tradeable value
+    if (age >= cliff - 1.5 && val >= 1800 && posRank <= 35) {
+      sellReason = `Age ${age.toFixed(0)} — within 1–2 seasons of the ${pos} value cliff. The buy-high window is closing.`;
+      sellType   = 'age_cliff';
     }
-    // Surplus position (strong positional rank) — not if it's their #1
-    const posRankComp = ranks[`${pos}Comp`] ?? Math.ceil(total/2);
-    const posPct = (posRankComp - 1) / Math.max(total - 1, 1);
-    if (!sellReason && posPct <= 0.25 && posRank > 3 && val >= 3000) {
-      sellReason = `Surplus ${pos} depth — ranked top-25% at ${pos} already. Flip redundancy into a need.`;
+
+    // Surplus: top-quartile position rank + redundant depth (not their clear #1 at the position)
+    const posRankComp = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
+    const posPct      = (posRankComp - 1) / Math.max(total - 1, 1);
+    if (!sellReason && posPct <= 0.22 && posRank > 5 && val >= 2800) {
+      sellReason = `Surplus ${pos} — this team already ranks top-${Math.round(posPct * 100) || 22}% at ${pos}. Redirect the value.`;
+      sellType   = 'surplus';
     }
+
     if (!sellReason) return null;
-    return { pid, name: fc.name, pos, age: +age.toFixed(1), val, posRank, sellReason };
+    return { pid, name: fc.name, pos, age: +age.toFixed(1), val, posRank, sellReason, sellType };
   }).filter(Boolean).sort((a, b) => b.val - a.val).slice(0, 2);
 
   if (!sellCandidates.length) return [];
 
-  // For each sell, find 2 buy targets at weak positions
+  // ── Step 2: determine which positions to buy for each sell ────────────────
   const weakPositions = ['QB','RB','WR','TE'].filter(pos => {
     const r = ranks[`${pos}Comp`];
     return r && (r - 1) / Math.max(total - 1, 1) >= 0.55;
   });
 
-  const moves = [];
-  for (const sell of sellCandidates) {
-    const buys = [];
-    const targetPositions = weakPositions.length ? weakPositions : ['QB','RB','WR','TE'].filter(p => p !== sell.pos);
+  // Global dedupe: a player can only appear as a BUY once across all moves
+  const usedBuyPids = new Set();
 
-    for (const targetPos of targetPositions.slice(0, 2)) {
-      // Find a team with surplus at targetPos willing to part with a non-cornerstone
+  const moves = [];
+
+  for (const sell of sellCandidates) {
+    // What positions should we be getting back?
+    // - age_cliff: same position (younger) first, then weak spots
+    // - surplus: weak spots only (don't double-down on the same position)
+    let targetPositions;
+    if (sell.sellType === 'age_cliff') {
+      targetPositions = [sell.pos, ...weakPositions.filter(p => p !== sell.pos)].slice(0, 2);
+    } else {
+      // surplus → buy at weak positions, not same pos
+      const alts = weakPositions.filter(p => p !== sell.pos);
+      targetPositions = alts.length ? alts.slice(0, 2) : weakPositions.slice(0, 2);
+      if (!targetPositions.length) targetPositions = ['QB','RB','WR','TE'].filter(p => p !== sell.pos).slice(0, 1);
+    }
+
+    // Value band: the BUY player should be in a realistic trade range
+    // FantasyCalc treats ±25% as "fair"; we allow 60–145% to account for
+    // the selling team accepting slight discount to move aging asset.
+    const valLo = sell.val * 0.60;
+    const valHi = sell.val * 1.45;
+
+    const buys = [];
+
+    for (const targetPos of targetPositions) {
+      // Find teams with SURPLUS at targetPos who also NEED the sell position
+      // (mutual benefit = realistic trade)
       const surplusTeams = allTeams
         .filter(t => t.roster_id !== rosterId)
         .filter(t => {
+          // They must have depth at the target position (they can afford to trade it)
           const r = leagueRankings[t.roster_id]?.[`${targetPos}Comp`];
-          return r && (r - 1) / Math.max(total - 1, 1) <= 0.30;
+          if (!r) return false;
+          const pct = (r - 1) / Math.max(total - 1, 1);
+          return pct <= 0.35; // top 35% at target pos = surplus
+        })
+        .filter(t => {
+          // Critical: they must actually want what we're SELLING
+          // (they need the sell position — otherwise why would they trade?)
+          const r = leagueRankings[t.roster_id]?.[`${sell.pos}Comp`];
+          if (!r) return true; // no data, allow
+          const pct = (r - 1) / Math.max(total - 1, 1);
+          return pct >= 0.38; // they're average or weaker at the sell position
+        })
+        .sort((a, b) => {
+          // Prefer teams that need the sell position MOST (highest trade motivation)
+          const ra = leagueRankings[a.roster_id]?.[`${sell.pos}Comp`] ?? Math.ceil(total / 2);
+          const rb = leagueRankings[b.roster_id]?.[`${sell.pos}Comp`] ?? Math.ceil(total / 2);
+          return rb - ra; // higher rank number = worse team = more need
         });
 
+      let found = false;
       for (const t of surplusTeams) {
+        if (found) break;
         const tPids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+        const teamShort = (t.name || '').split(/[\s_]+/).pop();
+
         const candidates = tPids.map(pid => {
+          if (usedBuyPids.has(pid) || myPidSet.has(pid)) return null;
           const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
-          if (!fc || fc.position !== targetPos || myPidSet.has(pid)) return null;
+          if (!fc || fc.position !== targetPos) return null;
+          const val = fc.value ?? 0;
+          // Value must be in trade range
+          if (val < valLo || val > valHi) return null;
           const age = _bpAge(sp?.birth_date) ?? 27;
-          return { pid, name: fc.name, val: fc.value ?? 0, age: +age.toFixed(1), team: t.name.split(/[\s_]+/).pop(), roster_id: t.roster_id };
+          // For age-cliff same-position buys: must be younger than the sell
+          if (sell.sellType === 'age_cliff' && targetPos === sell.pos && age >= sell.age - 1) return null;
+          return { pid, name: fc.name, val, age: +age.toFixed(1), team: teamShort, roster_id: t.roster_id };
         }).filter(Boolean).sort((a, b) => b.val - a.val);
 
-        // Skip their #1, offer for their #2 or a solid non-cornerstone
-        const cand = candidates.length > 1 ? candidates[1]
-                   : (candidates[0] && candidates[0].val < 8500) ? candidates[0]
-                   : null;
-        if (cand && !buys.find(b => b.pid === cand.pid)) {
+        // Don't take their clear #1 cornerstone (top player on their roster)
+        const tAllVals = tPids
+          .map(p => fcPlayerMap[p]?.value ?? 0)
+          .sort((a, b) => b - a);
+        const theirTopVal = tAllVals[0] ?? Infinity;
+
+        const eligible = candidates.filter(c => c.val < theirTopVal * 0.90);
+        const cand = eligible[0] ?? null;
+
+        if (cand) {
           buys.push({ ...cand, pos: targetPos });
-          break;
+          usedBuyPids.add(cand.pid);
+          found = true;
         }
       }
     }
+
     if (buys.length) moves.push({ sell, buys });
   }
   return moves;
