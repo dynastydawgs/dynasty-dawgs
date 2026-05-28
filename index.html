@@ -2969,6 +2969,53 @@
   /* Smart offer hint chip */
   .bp-deal-smart-hint { font-family:var(--mono); font-size:6.5px; letter-spacing:0.1em; color:rgba(74,222,128,0.7); background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.2); border-radius:3px; padding:1px 5px; flex-shrink:0; }
 
+  /* ── Production Portfolio ────────────────────────────────────────────────── */
+  .bp-prod-row { display:flex; align-items:center; gap:7px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .bp-prod-row:last-child { border-bottom:none; }
+  .bp-prod-pos-label { font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:0.1em; width:24px; flex-shrink:0; }
+  .bp-prod-bar-wrap { flex:1; min-width:0; }
+  .bp-prod-bar-bg { position:relative; height:6px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:visible; }
+  .bp-prod-bar-fill { position:absolute; top:0; left:0; height:100%; border-radius:3px; }
+  .bp-prod-range { position:absolute; top:-2px; height:10px; background:rgba(255,255,255,0.07); border-radius:3px; pointer-events:none; }
+  .bp-prod-avg-tick { position:absolute; top:-3px; width:1.5px; height:12px; background:rgba(255,255,255,0.30); border-radius:1px; }
+  .bp-prod-val { font-family:var(--mono); font-size:9px; font-weight:700; width:44px; flex-shrink:0; text-align:right; }
+  .bp-prod-unit { font-size:7px; color:rgba(255,255,255,0.3); margin-left:1px; }
+  .bp-prod-rank { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.45); width:32px; flex-shrink:0; text-align:right; }
+  .bp-prod-of { font-size:7px; color:rgba(255,255,255,0.25); }
+  .bp-prod-label { font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.04em; width:64px; flex-shrink:0; }
+  .bp-prod-gap { font-family:var(--mono); font-size:8px; width:36px; flex-shrink:0; text-align:right; }
+  .bp-prod-gaps { margin-top:10px; padding-top:9px; border-top:1px solid rgba(255,255,255,0.07); }
+  .bp-prod-gap-item { font-size:9px; color:rgba(255,255,255,0.48); line-height:1.55; margin-bottom:4px; padding-left:6px; border-left:2px solid rgba(251,146,60,0.45); margin-left:2px; }
+  .bp-prod-gap-item:last-child { margin-bottom:0; }
+  .bp-prod-empty { font-size:9px; color:rgba(255,255,255,0.28); font-family:var(--mono); padding:10px 0; }
+
+  /* ── Injury Risk ─────────────────────────────────────────────────────────── */
+  .bp-inj-card { display:flex; align-items:flex-start; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .bp-inj-card:last-child { border-bottom:none; }
+  .bp-inj-badge { font-family:var(--mono); font-size:6.5px; font-weight:700; letter-spacing:0.07em; padding:2px 6px; border-radius:3px; flex-shrink:0; text-transform:uppercase; margin-top:2px; white-space:nowrap; }
+  .bp-inj-badge.INJURED       { background:rgba(239,68,68,0.20); color:#f87171; border:1px solid rgba(239,68,68,0.38); }
+  .bp-inj-badge.HIGH_RISK     { background:rgba(251,146,60,0.18); color:#fb923c; border:1px solid rgba(251,146,60,0.32); }
+  .bp-inj-badge.MODERATE_RISK { background:rgba(251,191,36,0.14); color:#fbbf24; border:1px solid rgba(251,191,36,0.28); }
+  .bp-inj-badge.AGE_CLIFF     { background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.22); }
+  .bp-inj-badge.AGE_CONCERN   { background:rgba(148,163,184,0.12); color:#94a3b8; border:1px solid rgba(148,163,184,0.22); }
+  .bp-inj-body { flex:1; min-width:0; }
+  .bp-inj-header { display:flex; align-items:center; gap:5px; margin-bottom:3px; flex-wrap:wrap; }
+  .bp-inj-name { font-size:10px; color:rgba(255,255,255,0.82); cursor:pointer; font-weight:500; }
+  .bp-inj-name:hover { color:var(--accent); }
+  .bp-inj-pos { font-family:var(--mono); font-size:7.5px; padding:1px 5px; border-radius:3px; font-weight:700; flex-shrink:0; }
+  .bp-inj-age { font-family:var(--mono); font-size:7.5px; color:rgba(255,255,255,0.3); flex-shrink:0; }
+  .bp-inj-starter-tag { font-family:var(--mono); font-size:6px; color:rgba(74,222,128,0.7); background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.2); padding:1px 5px; border-radius:3px; flex-shrink:0; }
+  .bp-inj-reasons { font-size:8.5px; color:rgba(255,255,255,0.36); line-height:1.5; margin-bottom:3px; }
+  .bp-inj-backup { font-family:var(--mono); font-size:7.5px; color:rgba(255,255,255,0.25); line-height:1.4; }
+  .bp-inj-backup.warn { color:#fb923c; }
+  .bp-inj-backup.crit { color:#f87171; }
+  .bp-depth-alert { background:rgba(251,146,60,0.05); border:1px solid rgba(251,146,60,0.18); border-radius:6px; padding:9px 11px; margin-top:12px; }
+  .bp-depth-alert-title { font-family:var(--mono); font-size:7px; letter-spacing:0.12em; text-transform:uppercase; color:#fb923c; margin-bottom:6px; }
+  .bp-depth-item { font-size:9px; color:rgba(255,255,255,0.48); line-height:1.6; margin-bottom:3px; }
+  .bp-depth-item:last-child { margin-bottom:0; }
+  .bp-depth-item .warn { color:#fb923c; }
+  .bp-depth-item .crit { color:#f87171; }
+
 </style>
 </head>
 <body>
@@ -13373,6 +13420,209 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
   return { downTier, upTier };
 }
 
+// ── Production Portfolio Breakdown ────────────────────────────────────────────
+// Shows per-position starter PPG vs league average: rank, grade, floor/bull range.
+// Each position's bar is scaled to the league max at that position so bars are
+// meaningful within their context. The avg tick marks league average.
+function _bpProdBreakdown(rosterId) {
+  if (!leagueProjData.length) return { posData: null, html: '<div class="bp-prod-empty">Run Projections to see production breakdown.</div>' };
+  const myProj    = leagueProjData.find(t => t.roster_id === rosterId);
+  const posColors = { QB:'var(--blue)', RB:'var(--green)', WR:'var(--accent)', TE:'var(--orange)' };
+  const posOrder  = ['QB','RB','WR','TE'];
+
+  const posData = {};
+  for (const pos of posOrder) {
+    const allVals = leagueProjData.map(t => t.posPpg?.[pos] ?? 0).filter(v => v > 0).sort((a,b) => b-a);
+    const myVal   = myProj?.posPpg?.[pos] ?? 0;
+    const total   = allVals.length || 1;
+    const avg     = allVals.reduce((s,v) => s+v, 0) / total;
+    const rank    = allVals.filter(v => v > myVal).length + 1;
+    const leagMax = allVals[0] || 1;
+    const pct     = (rank - 1) / Math.max(total - 1, 1);
+    const gapPpg  = +(myVal - avg).toFixed(1);
+    const color   = pct <= 0.18 ? 'var(--green)' : pct <= 0.45 ? '#a3e635' : pct <= 0.62 ? 'var(--accent)' : pct <= 0.80 ? 'var(--orange)' : 'var(--red)';
+    const label   = pct <= 0.18 ? 'ELITE' : pct <= 0.45 ? 'ABOVE AVG' : pct <= 0.62 ? 'AVERAGE' : pct <= 0.80 ? 'BELOW AVG' : 'WEAK';
+    // Floor / bull range from lineup player objects (each has floorPpg, ceilPpg from computeBaseProjection)
+    const starters = (myProj?.lineup ?? []).filter(p => p.pos === pos);
+    const floorSum = +starters.reduce((s,p) => s + (p.floorPpg ?? p.basePpg * 0.72), 0).toFixed(1);
+    const bullSum  = +starters.reduce((s,p) => s + (p.ceilPpg  ?? p.basePpg * 1.28), 0).toFixed(1);
+    posData[pos] = { val:myVal, avg:+avg.toFixed(1), rank, total, pct, color, label, gapPpg, leagMax, floorSum, bullSum };
+  }
+
+  const rows = posOrder.map(pos => {
+    const d      = posData[pos];
+    const mx     = d.leagMax || 1;
+    const barW   = Math.min(100, (d.val      / mx) * 100).toFixed(1);
+    const avgW   = Math.min(100, (d.avg      / mx) * 100).toFixed(1);
+    const floorW = Math.min(100, (d.floorSum / mx) * 100).toFixed(1);
+    const bullW  = Math.min(100, (d.bullSum  / mx) * 100).toFixed(1);
+    const rangeL = Math.min(parseFloat(floorW), parseFloat(barW));
+    const rangeW = Math.max(0, Math.max(parseFloat(bullW), parseFloat(barW)) - rangeL).toFixed(1);
+    const gapStr = d.gapPpg >= 0 ? `+${d.gapPpg}` : `${d.gapPpg}`;
+    const gapClr = d.gapPpg >= 0 ? 'var(--green)' : 'var(--red)';
+    const pc     = posColors[pos];
+    return `<div class="bp-prod-row">
+      <div class="bp-prod-pos-label" style="color:${pc};">${pos}</div>
+      <div class="bp-prod-bar-wrap"><div class="bp-prod-bar-bg">
+        <div class="bp-prod-range"    style="left:${rangeL}%;width:${rangeW}%;"></div>
+        <div class="bp-prod-bar-fill" style="width:${barW}%;background:${d.color};"></div>
+        <div class="bp-prod-avg-tick" style="left:${avgW}%;"></div>
+      </div></div>
+      <div class="bp-prod-val" style="color:${d.color};">${d.val.toFixed(1)}<span class="bp-prod-unit">ppg</span></div>
+      <div class="bp-prod-rank">#${d.rank}<span class="bp-prod-of">/${d.total}</span></div>
+      <div class="bp-prod-label" style="color:${d.color};">${d.label}</div>
+      <div class="bp-prod-gap" style="color:${gapClr};">${gapStr}</div>
+    </div>`;
+  }).join('');
+
+  const weakAlerts = posOrder.filter(pos => posData[pos].pct > 0.60 && posData[pos].val > 0).map(pos => {
+    const d    = posData[pos];
+    const diff = Math.abs(d.gapPpg).toFixed(1);
+    return `<div class="bp-prod-gap-item"><span style="color:${posColors[pos]};font-weight:700;">${pos}</span> ranks #${d.rank}/${d.total} — <span style="color:var(--orange);">${diff} ppg below avg.</span> Prioritize ${pos} in trade strategy.</div>`;
+  });
+
+  const html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-family:var(--mono);font-size:6.5px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.25);">POSITION · PPG · RANK · GRADE · vs AVG</div>
+      <div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:6.5px;color:rgba(255,255,255,0.20);">
+        <span style="display:inline-flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:8px;background:rgba(255,255,255,0.10);border-radius:2px;"></span>bull/bear</span>
+        <span style="display:inline-flex;align-items:center;gap:3px;"><span style="display:inline-block;width:1.5px;height:10px;background:rgba(255,255,255,0.28);border-radius:1px;"></span>league avg</span>
+      </div>
+    </div>
+    ${rows}
+    ${weakAlerts.length ? `<div class="bp-prod-gaps">${weakAlerts.join('')}</div>` : ''}`;
+
+  return { posData, html };
+}
+
+// ── Injury Risk & Depth Assessment ────────────────────────────────────────────
+// Flags players with current injuries, high historical miss rates, or age-cliff
+// proximity. Shows backup depth so you know where the roster is truly exposed.
+function _bpInjuryRisk(rosterId) {
+  const pids        = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
+  const teamProj    = leagueProjData.find(t => t.roster_id === rosterId);
+  const starterPids = teamProj?.starterPids ?? new Set();
+  const posColors   = { QB:'var(--blue)', RB:'var(--green)', WR:'var(--accent)', TE:'var(--orange)' };
+  const posBgs      = { QB:'rgba(56,196,232,0.12)', RB:'rgba(45,214,168,0.10)', WR:'rgba(245,200,66,0.12)', TE:'rgba(245,158,66,0.12)' };
+  const schedGms    = yr => yr >= 2021 ? 17 : 16;
+  const cliffAge    = { QB:34, RB:27, WR:30, TE:30 };
+  const warnAge     = { QB:32, RB:25, WR:28, TE:28 };
+  const sevLabel    = { INJURED:'INJURED', HIGH_RISK:'HIGH RISK', MODERATE_RISK:'MODERATE', AGE_CLIFF:'AGE CLIFF', AGE_CONCERN:'AGE WATCH' };
+  const sevOrd      = { INJURED:0, HIGH_RISK:1, MODERATE_RISK:2, AGE_CLIFF:3, AGE_CONCERN:4 };
+
+  // Build rich player snapshot (one pass through roster)
+  const info = {};
+  for (const pid of pids) {
+    const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+    if (!fc || !['QB','RB','WR','TE'].includes(fc.position)) continue;
+    const age = _bpAge(sp?.birth_date); if (!age) continue;
+    const pos = fc.position; const val = fc.value ?? 0;
+    const seasons = careerDB?.[pid] ?? [];
+    let played = 0, expected = 0;
+    for (const s of seasons) { played += Math.min(s.games ?? 0, schedGms(s.season)); expected += schedGms(s.season); }
+    const missRate   = expected >= 17 ? (expected - played) / expected : null;
+    const projMissed = missRate !== null ? +(missRate * 17).toFixed(1) : null;
+    const injSt      = (sp?.injury_status ?? '').toLowerCase();
+    const isInjured  = ['ir','pup','out','doubtful'].includes(injSt);
+    const ppg        = projectionCache[pid]?.basePpg ?? 0;
+    const isStarter  = starterPids.has(pid);
+    info[pid] = { pid, name:fc.name, pos, age:+age.toFixed(1), val, missRate, projMissed, injSt, isInjured, ppg, isStarter };
+  }
+
+  const riskPlayers = [];
+  for (const p of Object.values(info)) {
+    if (p.val < 400) continue;
+    let severity = null; const reasons = [];
+    if (p.isInjured) {
+      reasons.push(`Currently ${{ ir:'IR', pup:'PUP', out:'Out', doubtful:'Doubtful' }[p.injSt] ?? p.injSt.toUpperCase()}`);
+      severity = 'INJURED';
+    }
+    if (p.missRate !== null && p.missRate >= 0.25) {
+      reasons.push(`${Math.round(p.missRate * 100)}% career miss rate · ~${p.projMissed}g missed per season`);
+      if (severity !== 'INJURED') severity = 'HIGH_RISK';
+    } else if (p.missRate !== null && p.missRate >= 0.13 && (careerDB?.[p.pid]?.length ?? 0) >= 2) {
+      reasons.push(`${Math.round(p.missRate * 100)}% career miss rate`);
+      if (!severity) severity = 'MODERATE_RISK';
+    }
+    if (p.age >= cliffAge[p.pos]) {
+      reasons.push(`Age ${p.age} — at or past the ${p.pos} value cliff`);
+      if (!severity) severity = 'AGE_CLIFF';
+    } else if (p.age >= warnAge[p.pos]) {
+      reasons.push(`Age ${p.age} — approaching ${p.pos} cliff (age ${cliffAge[p.pos]})`);
+      if (!severity) severity = 'AGE_CONCERN';
+    }
+    if (!severity) continue;
+    if (!p.isStarter && !['INJURED','HIGH_RISK'].includes(severity) && p.val < 1800) continue;
+    riskPlayers.push({ ...p, severity, reasons });
+  }
+
+  riskPlayers.sort((a,b) => {
+    const so = (sevOrd[a.severity]??9) - (sevOrd[b.severity]??9);
+    if (so !== 0) return so;
+    if (a.isStarter !== b.isStarter) return a.isStarter ? -1 : 1;
+    return b.val - a.val;
+  });
+
+  // Depth gap for each risky starter — find best available backup
+  const depthGaps = []; const checked = new Set();
+  for (const rp of riskPlayers) {
+    if (!rp.isStarter || !['INJURED','HIGH_RISK'].includes(rp.severity) || checked.has(rp.pos)) continue;
+    checked.add(rp.pos);
+    const backup = Object.values(info)
+      .filter(p => p.pos === rp.pos && !p.isStarter && !['ir','pup'].includes(p.injSt))
+      .sort((a,b) => b.ppg - a.ppg)[0] ?? null;
+    depthGaps.push({ pos:rp.pos, riskName:rp.name, starterPpg:rp.ppg, backup });
+  }
+
+  if (!riskPlayers.length) return {
+    riskPlayers:[], depthGaps:[],
+    html:`<div style="font-size:9px;color:rgba(74,222,128,0.55);font-family:var(--mono);padding:6px 0;letter-spacing:0.04em;">✓ No major injury or age concerns flagged on this roster.</div>`,
+  };
+
+  const getBestBackup = p => Object.values(info)
+    .filter(b => b.pos === p.pos && !b.isStarter && !['ir','pup'].includes(b.injSt) && b.pid !== p.pid)
+    .sort((a,b) => b.ppg - a.ppg)[0] ?? null;
+
+  const cards = riskPlayers.slice(0, 8).map(p => {
+    const pc = posColors[p.pos]; const bg = posBgs[p.pos] ?? '';
+    const starterTag = p.isStarter ? `<span class="bp-inj-starter-tag">STARTER</span>` : '';
+    const bk = p.isStarter ? getBestBackup(p) : null;
+    let backupHTML = '';
+    if (p.isStarter) {
+      if (!bk || bk.ppg < 1.5) backupHTML = `<div class="bp-inj-backup crit">⚠ No viable backup — critical depth void</div>`;
+      else if (bk.ppg < p.ppg * 0.55) backupHTML = `<div class="bp-inj-backup warn">Backup: ${bk.name} (${bk.ppg.toFixed(1)} ppg) — significant drop-off</div>`;
+      else backupHTML = `<div class="bp-inj-backup">Backup: ${bk.name} (${bk.ppg.toFixed(1)} ppg)</div>`;
+    }
+    return `<div class="bp-inj-card">
+      <span class="bp-inj-badge ${p.severity}">${sevLabel[p.severity]}</span>
+      <div class="bp-inj-body">
+        <div class="bp-inj-header">
+          <span class="bp-inj-name" onclick="searchAndOpenProfile('${p.name.replace(/'/g,"\\'")}');">${p.name}</span>
+          <span class="bp-inj-pos" style="color:${pc};background:${bg};">${p.pos}</span>
+          <span class="bp-inj-age">${p.age}y</span>${starterTag}
+        </div>
+        <div class="bp-inj-reasons">${p.reasons.join(' · ')}</div>
+        ${backupHTML}
+      </div>
+    </div>`;
+  }).join('');
+
+  const depthHTML = depthGaps.length ? `<div class="bp-depth-alert">
+    <div class="bp-depth-alert-title">⚡ DEPTH GAPS</div>
+    ${depthGaps.map(dg => {
+      const pc = posColors[dg.pos];
+      const bppg = dg.backup?.ppg ?? 0; const bname = dg.backup?.name ?? null;
+      const cls  = !bname || bppg < 1.5 ? 'crit' : bppg < dg.starterPpg * 0.55 ? 'warn' : '';
+      const note = !bname
+        ? `<span class="crit">No backup — add ${dg.pos} depth now</span>`
+        : `<span class="${cls}">Next: ${bname} (${bppg.toFixed(1)} ppg)${bppg < dg.starterPpg * 0.55 ? ' — significant drop-off' : ''}</span>`;
+      return `<div class="bp-depth-item"><span style="color:${pc};font-weight:700;">${dg.pos}</span> exposed — ${dg.riskName} at risk · ${note}</div>`;
+    }).join('')}
+  </div>` : '';
+
+  return { riskPlayers, depthGaps, html: cards + depthHTML };
+}
+
 // ── Main render ───────────────────────────────────────────────────────────────
 
 let _blueprintRosterId = null;
@@ -14165,6 +14415,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── Record ────────────────────────────────────────────────────────────────
   const w = teamRow.wins ?? 0, l = teamRow.losses ?? 0;
 
+  // ── Production Portfolio & Injury Risk ────────────────────────────────────
+  const prodBreakdown    = _bpProdBreakdown(rosterId);
+  const prodBreakdownHTML = prodBreakdown.html;
+  const injuryRisk       = _bpInjuryRisk(rosterId);
+  const injuryRiskHTML   = injuryRisk.html;
+
   // ── Cache all computed data for fullscreen reuse ───────────────────────────
   window._bpData = {
     rosterId, teamRow, phase, phStyle, archetype, windowDesc, posColors,
@@ -14180,6 +14436,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     prodShareColor, valShareColor, fairShare,
     deadCapital, deadCapitalHTML,
     tierMoves, tierMovesHTML,
+    prodBreakdownHTML, injuryRiskHTML,
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -14304,6 +14561,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         </div>
       </div>
 
+      <!-- ROW: Production Portfolio (full-width) -->
+      <div class="bp-panel" style="--bpa:#a3e635;">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#a3e635;"></span>PRODUCTION PORTFOLIO<span class="bp-panel-sub">starter ppg by position vs league · bull/bear range</span></div>
+        ${prodBreakdownHTML}
+      </div>
+
       <!-- ROW: Lineup (full-width) -->
       <div class="bp-panel" style="--bpa:#2dd4bf;">
         <div class="bp-panel-title"><span class="bp-pdot" style="background:#2dd4bf;"></span>OPTIMAL LINEUP<span class="bp-panel-sub">base projections</span></div>
@@ -14358,6 +14621,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
           ${needsHTML}
           ${holds.length ? `<div class="bp-panel-title" style="margin-top:14px;"><span class="bp-pdot" style="background:#38bdf8;"></span>HOLDS<span class="bp-panel-sub">developing · handcuff · monitor</span></div>${holdsHTML}` : ''}
         </div>
+      </div>
+
+      <!-- ROW: Injury Risk & Depth (full-width) -->
+      <div class="bp-panel" style="--bpa:#f87171;">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#f87171;"></span>INJURY RISK &amp; DEPTH<span class="bp-panel-sub">availability concerns · backup depth assessment</span></div>
+        ${injuryRiskHTML}
       </div>
 
       <!-- ROW: Cornerstones (age cliff badges) | Draft Capital (hit rates) -->
