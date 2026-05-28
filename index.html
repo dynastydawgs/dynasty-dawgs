@@ -2775,6 +2775,48 @@
     animation-delay: var(--rd, 0s);
   }
 
+  /* ── Hero: prominent archetype ── */
+  .bp-archetype-big {
+    font-family: var(--display) !important;
+    font-size: 17px !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    margin: 4px 0 2px !important;
+    line-height: 1.1 !important;
+  }
+  .bp-window-desc-big {
+    font-size: 11px !important;
+    color: rgba(255,255,255,0.42) !important;
+    font-style: italic !important;
+    margin-bottom: 10px !important;
+    font-family: var(--sans) !important;
+  }
+
+  /* ── Draft capital redesign ── */
+  .bp-cap-hero { display:flex; align-items:center; gap:12px; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .bp-cap-grade-ring { width:52px; height:52px; border-radius:50%; border:2.5px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; background:rgba(255,255,255,0.03); }
+  .bp-cap-grade-letter { font-family:var(--display); font-size:22px; font-weight:900; line-height:1; }
+  .bp-cap-grade-sub { font-family:var(--mono); font-size:6px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,255,255,0.32); margin-top:1px; }
+  .bp-cap-stats { flex:1; min-width:0; }
+  .bp-cap-count-row { display:flex; align-items:baseline; gap:0; margin-bottom:5px; }
+  .bp-cap-total-num { font-family:var(--display); font-size:26px; font-weight:900; color:#fff; line-height:1; }
+  .bp-cap-rank-label { font-family:var(--mono); font-size:8px; letter-spacing:0.08em; color:rgba(255,255,255,0.38); }
+  .bp-cap-tier-bar { height:5px; border-radius:3px; display:flex; overflow:hidden; margin:5px 0; background:rgba(255,255,255,0.06); }
+  .bp-cap-tier-bar div { height:100%; transition:flex 0.4s; }
+  .bp-cap-tier-labels { display:flex; gap:10px; font-family:var(--mono); font-size:8px; }
+
+  /* ── Trade finder: specific player targets ── */
+  .bp-trade-target { display:flex; align-items:center; gap:6px; padding:2px 0; }
+  .bp-trade-target-name { flex:1; font-size:10px; color:rgba(255,255,255,0.75); cursor:pointer; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-trade-target-name:hover { color:var(--accent); text-decoration:underline; }
+  .bp-trade-target-val { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.38); flex-shrink:0; }
+  .bp-trade-target-team { font-family:var(--mono); font-size:7px; color:rgba(255,255,255,0.24); flex-shrink:0; }
+
+  /* ── 3-year window metric chip ── */
+  .bp-win-phases { display:flex; align-items:center; gap:5px; margin:3px 0; flex-wrap:wrap; }
+  .bp-win-phase-pill { font-family:var(--mono); font-size:8px; font-weight:700; letter-spacing:0.06em; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.06); white-space:nowrap; }
+
 </style>
 </head>
 <body>
@@ -12077,62 +12119,156 @@ function _bpValueEfficiency(rosterId, allTeams, total) {
   return { delta, label, color, valueRank, projRank };
 }
 
-// 2-year window clock: current phase → projected phase
+// 3-year window clock: current phase → +1 → +2 → +3
 function _bpWindowClock(teamRow, allTeams) {
-  // Project each team's value 2 years forward using age-based decay/growth
-  const futureAllTeams = allTeams.map(t => {
+  const phScore = { 'WIN NOW':100, CONTENDING:82, RELOAD:68, FRINGE:50, 'AGING OUT':32, REBUILDING:15 };
+  const ageAdj = (age) => age <= 21 ? 1.22 : age <= 23 ? 1.13 : age <= 25 ? 1.04 : age <= 27 ? 0.94 : age <= 29 ? 0.83 : 0.65;
+
+  const projectN = (years) => allTeams.map(t => {
     const pids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
-    let futurePlayerVal = 0;
+    let futVal = 0;
     for (const pid of pids) {
       const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
       if (!fc) continue;
-      const val = fc.value ?? 0; const age = _bpAge(sp?.birth_date) ?? 27;
-      const adj = age <= 21 ? 1.22 : age <= 23 ? 1.13 : age <= 25 ? 1.04 : age <= 27 ? 0.94 : age <= 29 ? 0.83 : 0.65;
-      futurePlayerVal += val * adj;
+      const val = fc.value ?? 0; const age = (_bpAge(sp?.birth_date) ?? 27) + years;
+      futVal += val * ageAdj(age);
     }
     return {
       roster_id: t.roster_id,
-      totalValue: futurePlayerVal + t.pickValue * 0.45,
-      playerValue: futurePlayerVal,
-      pickValue: t.pickValue * 0.45,
-      qbVal: t.qbVal, rbVal: t.rbVal, wrVal: t.wrVal, teVal: t.teVal, // approx
-      avgAge: (t.avgAge ?? 27) + 2,
+      totalValue: futVal + t.pickValue * Math.pow(0.52, years),
+      playerValue: futVal,
+      pickValue: t.pickValue * Math.pow(0.52, years),
+      qbVal: t.qbVal, rbVal: t.rbVal, wrVal: t.wrVal, teVal: t.teVal,
+      avgAge: (t.avgAge ?? 27) + years,
       wins: t.wins, losses: t.losses, name: t.name,
     };
   }).sort((a, b) => b.totalValue - a.totalValue);
 
-  const futureTeamRow = futureAllTeams.find(t => t.roster_id === teamRow.roster_id) ?? teamRow;
-  const currentPhase  = _bpPhase(teamRow, allTeams);
-  const futurePhase   = _bpPhase(futureTeamRow, futureAllTeams);
+  const y1Teams = projectN(1), y2Teams = projectN(2), y3Teams = projectN(3);
+  const pNow = _bpPhase(teamRow, allTeams);
+  const y1Row = y1Teams.find(t => t.roster_id === teamRow.roster_id) ?? teamRow;
+  const y2Row = y2Teams.find(t => t.roster_id === teamRow.roster_id) ?? teamRow;
+  const y3Row = y3Teams.find(t => t.roster_id === teamRow.roster_id) ?? teamRow;
+  const pY1 = _bpPhase(y1Row, y1Teams);
+  const pY2 = _bpPhase(y2Row, y2Teams);
+  const pY3 = _bpPhase(y3Row, y3Teams);
+
   const phOrder = { CONTENDING:1, 'WIN NOW':2, RELOAD:3, FRINGE:4, 'AGING OUT':5, REBUILDING:6 };
-  const trend = phOrder[futurePhase] < phOrder[currentPhase] ? 'rising'
-              : phOrder[futurePhase] > phOrder[currentPhase] ? 'declining' : 'stable';
-  return { now: currentPhase, future: futurePhase, trend };
+  const trend = phOrder[pY3] < phOrder[pNow] ? 'rising'
+              : phOrder[pY3] > phOrder[pNow] ? 'declining' : 'stable';
+
+  return {
+    now: pNow, y1: pY1, y2: pY2, y3: pY3,
+    future: pY3, // backward compat
+    trend,
+    scores: [phScore[pNow]??50, phScore[pY1]??50, phScore[pY2]??50, phScore[pY3]??50],
+  };
 }
 
-// Trade strategy: what to buy, what to sell, who to target
+// Championship window ring SVG (how far through the window)
+function _bpWindowRingSVG(phase, trendColor) {
+  const phPct = { 'WIN NOW':78, CONTENDING:55, RELOAD:84, FRINGE:30, 'AGING OUT':94, REBUILDING:10 };
+  const pct = phPct[phase] ?? 50;
+  const r = 31, cx = 40, cy = 40, size = 80;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  const ringColor = pct < 38 ? '#4ade80' : pct < 62 ? '#facc15' : pct < 84 ? '#fb923c' : '#f87171';
+  const phShort = { 'WIN NOW':'WIN\nNOW', CONTENDING:'CONT', REBUILDING:'REBL', 'AGING OUT':'AGE', RELOAD:'RELD', FRINGE:'FRNG' };
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="4.5"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${ringColor}" stroke-width="4.5"
+        stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
+        stroke-linecap="round"
+        transform="rotate(-90 ${cx} ${cy})"/>
+      <text x="${cx}" y="${cy-5}" text-anchor="middle" dominant-baseline="middle"
+        font-family="'Bebas Neue',sans-serif" font-size="16" fill="${ringColor}">${pct}%</text>
+      <text x="${cx}" y="${cy+9}" text-anchor="middle" dominant-baseline="middle"
+        font-family="monospace" font-size="5.5" letter-spacing="1.5"
+        fill="rgba(255,255,255,0.28)">THROUGH</text>
+    </svg>
+    <div style="font-family:monospace;font-size:6.5px;letter-spacing:0.14em;color:rgba(255,255,255,0.26);text-transform:uppercase;">WINDOW</div>
+  </div>`;
+}
+
+// 3-year window line chart SVG
+function _bpWindowChartSVG(clock, trendColor) {
+  const phScore = { 'WIN NOW':100, CONTENDING:82, RELOAD:68, FRINGE:50, 'AGING OUT':32, REBUILDING:15 };
+  const phases = [clock.now, clock.y1 ?? clock.now, clock.y2 ?? clock.now, clock.y3 ?? clock.future ?? clock.now];
+  const scores = clock.scores ?? phases.map(p => phScore[p] ?? 50);
+  const labels = ['NOW', '+1YR', '+2YR', '+3YR'];
+  const W = 100, H = 36;
+  const xs = [8, 36, 64, 92];
+  const minS = Math.min(...scores) - 8;
+  const maxS = Math.max(...scores) + 8;
+  const range = Math.max(maxS - minS, 28);
+  const toY = s => H - 5 - ((s - minS) / range) * (H - 12);
+
+  const pts = xs.map((x, i) => `${x},${toY(scores[i]).toFixed(1)}`);
+  const fillPts = `${xs[0]},${H} ${pts.join(' ')} ${xs[3]},${H}`;
+  const phShort = p => ({ 'WIN NOW':'WIN', CONTENDING:'CONT', REBUILDING:'REBL', 'AGING OUT':'AGE', RELOAD:'RELD', FRINGE:'FRNG' }[p] ?? p.slice(0,4));
+
+  const dots = xs.map((x, i) =>
+    `<circle cx="${x}" cy="${toY(scores[i]).toFixed(1)}" r="2.5" fill="${i===0?'rgba(255,255,255,0.55)':trendColor}" stroke="#07090f" stroke-width="1.2"/>`
+  ).join('');
+  const yearLbls = xs.map((x, i) =>
+    `<text x="${x}" y="${H+9}" text-anchor="middle" font-family="monospace" font-size="6" fill="rgba(255,255,255,0.26)">${labels[i]}</text>`
+  ).join('');
+  const phaseLbls = xs.map((x, i) => {
+    const y = toY(scores[i]);
+    return `<text x="${x}" y="${(y - 5).toFixed(1)}" text-anchor="middle" font-family="monospace" font-size="6" fill="rgba(255,255,255,0.48)">${phShort(phases[i])}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H+11}" width="100%" style="display:block;margin-top:5px;overflow:visible;">
+    <polygon points="${fillPts}" fill="${trendColor}" opacity="0.07"/>
+    <polyline points="${pts.join(' ')}" fill="none" stroke="${trendColor}" stroke-width="1.8"
+      stroke-linejoin="round" stroke-linecap="round" opacity="0.7"/>
+    ${dots}${yearLbls}${phaseLbls}
+  </svg>`;
+}
+
+// Trade strategy: what to buy, what to sell, who to target — with specific player targets
 function _bpTradeStrategy(rosterId, allTeams, total) {
   const ranks = leagueRankings[rosterId] ?? {};
   const posColors = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' };
   const buys = [], sells = [];
+  const myPids = new Set(rostersData?.find(r => r.roster_id === rosterId)?.players ?? []);
 
   for (const pos of ['QB','RB','WR','TE']) {
     const compRank = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
     const pct = (compRank - 1) / Math.max(total - 1, 1);
+
     if (pct >= 0.55) {
-      // Find teams strong at this position — they have surplus to trade
-      const surplusTeams = allTeams
+      // Find rival teams strong at this position
+      const surplusTeamObjs = allTeams
         .filter(t => t.roster_id !== rosterId)
         .filter(t => {
           const r = leagueRankings[t.roster_id]; if (!r) return false;
           return ((r[`${pos}Comp`] ?? total) - 1) / Math.max(total - 1, 1) <= 0.28;
         })
-        .slice(0, 3)
-        .map(t => t.name.split(/[\s_]+/).pop()); // last word for brevity
-      buys.push({ pos, color: posColors[pos], surplusTeams });
+        .slice(0, 4);
+
+      // Pull specific tradeable players: skip their #1 cornerstone, take next best
+      const targets = [];
+      for (const t of surplusTeamObjs) {
+        const pids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+        const sorted = pids
+          .map(pid => { const fc = fcPlayerMap[pid]; return fc && fc.position === pos && !myPids.has(pid) ? { pid, name:fc.name, value:fc.value??0, team:t.name.split(/[\s_]+/).pop() } : null; })
+          .filter(Boolean).sort((a,b) => b.value - a.value);
+        if (sorted.length > 1) targets.push(sorted[1]); // skip cornerstone, take #2
+        else if (sorted.length === 1 && sorted[0].value < 8000) targets.push(sorted[0]);
+      }
+      targets.sort((a,b) => b.value - a.value);
+      buys.push({ pos, color: posColors[pos], targets: targets.slice(0, 3) });
     }
+
     if (pct <= 0.25) {
-      sells.push({ pos, color: posColors[pos] });
+      // Find our own tradeable players at surplus position
+      const myPlayers = [...myPids]
+        .map(pid => { const fc = fcPlayerMap[pid]; return fc && fc.position === pos ? { pid, name:fc.name, value:fc.value??0 } : null; })
+        .filter(Boolean).sort((a,b) => b.value - a.value);
+      // Skip #1 cornerstone, offer #2+ as tradeable
+      sells.push({ pos, color: posColors[pos], players: myPlayers.slice(1, 3) });
     }
   }
   return { buys, sells };
@@ -12359,31 +12495,81 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const picksByYear = {};
   for (const p of picks) { if (!picksByYear[p.season]) picksByYear[p.season] = []; picksByYear[p.season].push(p); }
   const tierColors = { early:'#fbbf24', mid:'#94a3b8', late:'rgba(148,163,184,0.45)' };
-  const capitalHTML = Object.keys(picksByYear).sort().length ? Object.keys(picksByYear).sort().map(yr => {
+  const totalPicks = picks.length;
+  const earlyPicks = picks.filter(p => p.tier === 'early').length;
+  const midPicks   = picks.filter(p => p.tier === 'mid').length;
+  const latePicks  = picks.filter(p => p.tier === 'late').length;
+  const capGrade = _bpRankToGrade(pickValueRank, total);
+  const capGradeColor = _bpGradeColor(capGrade);
+
+  const _capHero = `<div class="bp-cap-hero">
+    <div class="bp-cap-grade-ring" style="border-color:${capGradeColor};">
+      <div class="bp-cap-grade-letter" style="color:${capGradeColor};">${capGrade}</div>
+      <div class="bp-cap-grade-sub">CAPITAL</div>
+    </div>
+    <div class="bp-cap-stats">
+      <div class="bp-cap-count-row">
+        <span class="bp-cap-total-num">${totalPicks}</span>
+        <span class="bp-cap-rank-label">&nbsp;PICKS · #${pickValueRank} of ${total}</span>
+      </div>
+      <div class="bp-cap-tier-bar">
+        ${earlyPicks > 0 ? `<div style="flex:${earlyPicks};background:#fbbf24;border-radius:3px 0 0 3px;"></div>` : ''}
+        ${midPicks   > 0 ? `<div style="flex:${midPicks};background:#94a3b8;"></div>` : ''}
+        ${latePicks  > 0 ? `<div style="flex:${latePicks};background:rgba(148,163,184,0.32);border-radius:0 3px 3px 0;"></div>` : ''}
+        ${totalPicks === 0 ? '<div style="flex:1;background:rgba(255,255,255,0.06);border-radius:3px;"></div>' : ''}
+      </div>
+      <div class="bp-cap-tier-labels">
+        ${earlyPicks > 0 ? `<span style="color:#fbbf24;">●&nbsp;${earlyPicks} Early</span>` : ''}
+        ${midPicks   > 0 ? `<span style="color:#94a3b8;">●&nbsp;${midPicks} Mid</span>` : ''}
+        ${latePicks  > 0 ? `<span style="color:rgba(148,163,184,0.42);">●&nbsp;${latePicks} Late</span>` : ''}
+        ${totalPicks === 0 ? '<span style="color:var(--text-dim);">No picks</span>' : ''}
+      </div>
+    </div>
+  </div>`;
+
+  const _capYears = Object.keys(picksByYear).sort().map(yr => {
     const dots = picksByYear[yr].map((p, i) =>
       `<div class="bp-pick-dot" style="background:${tierColors[p.tier]??'rgba(148,163,184,0.4)'};animation-delay:${(i*0.08).toFixed(2)}s;" title="${p.label}">${p.round}</div>`
     ).join('');
     return `<div class="bp-picks-year-row">
       <span class="bp-picks-year">${String(yr).slice(2)}'</span>
       <div class="bp-picks-dots">${dots}</div>
-      <span class="bp-picks-count">${picksByYear[yr].length}px</span>
+      <span class="bp-picks-count">${picksByYear[yr].length}</span>
     </div>`;
-  }).join('') : `<div style="color:var(--text-dim);font-size:11px;padding:8px 0;">No future picks on record.</div>`;
+  }).join('');
+
+  const capitalHTML = _capHero + (totalPicks > 0 ? _capYears : `<div style="color:var(--text-dim);font-size:11px;padding:4px 0;">No future picks on record.</div>`);
 
   // ── Trade strategy ────────────────────────────────────────────────────────
   const trade = _bpTradeStrategy(rosterId, allTeams, total);
-  const buyTradeHTML = trade.buys.length ? trade.buys.map(b =>
-    `<div class="bp-trade-item">
-      <span class="bp-trade-action" style="color:${b.color};">BUY ${b.pos}</span>
-      <span class="bp-trade-desc">${b.surplusTeams.length ? 'Target: ' + b.surplusTeams.join(', ') : 'Seek via trade'}</span>
-    </div>`
-  ).join('') : `<div style="color:var(--text-dim);font-size:10px;">No glaring gaps</div>`;
-  const sellTradeHTML = trade.sells.length ? trade.sells.map(s =>
-    `<div class="bp-trade-item">
-      <span class="bp-trade-action" style="color:${s.color};">SELL ${s.pos}</span>
-      <span class="bp-trade-desc">Surplus — trade for needs</span>
-    </div>`
-  ).join('') : `<div style="color:var(--text-dim);font-size:10px;">No obvious surplus</div>`;
+  const buyTradeHTML = trade.buys.length ? trade.buys.map(b => {
+    const tgts = b.targets.length
+      ? b.targets.map(tp => `<div class="bp-trade-target">
+          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${tp.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:18px;height:18px;">
+          <span class="bp-trade-target-name" onclick="searchAndOpenProfile('${(tp.name||'').replace(/'/g,"\\'")}'">${tp.name}</span>
+          <span class="bp-trade-target-val">${(tp.value/1000).toFixed(1)}k</span>
+          <span class="bp-trade-target-team">${tp.team}</span>
+        </div>`).join('')
+      : `<div class="bp-trade-desc" style="font-size:9px;padding:2px 0;">Seek via trade</div>`;
+    return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:3px;padding:7px 0;">
+      <span class="bp-trade-action" style="color:${b.color};">▸ BUY ${b.pos}</span>
+      ${tgts}
+    </div>`;
+  }).join('') : `<div style="color:var(--text-dim);font-size:10px;">No glaring gaps</div>`;
+
+  const sellTradeHTML = trade.sells.length ? trade.sells.map(s => {
+    const spls = s.players.length
+      ? s.players.map(sp => `<div class="bp-trade-target">
+          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${sp.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:18px;height:18px;">
+          <span class="bp-trade-target-name" onclick="searchAndOpenProfile('${(sp.name||'').replace(/'/g,"\\'")}'">${sp.name}</span>
+          <span class="bp-trade-target-val">${(sp.value/1000).toFixed(1)}k</span>
+        </div>`).join('')
+      : `<div class="bp-trade-desc" style="font-size:9px;padding:2px 0;">Surplus — trade for needs</div>`;
+    return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:3px;padding:7px 0;">
+      <span class="bp-trade-action" style="color:${s.color};">▸ SELL ${s.pos}</span>
+      ${spls}
+    </div>`;
+  }).join('') : `<div style="color:var(--text-dim);font-size:10px;">No obvious surplus</div>`;
 
   // ── Swing players ─────────────────────────────────────────────────────────
   const swings = _bpSwingPlayers(rosterId);
@@ -12429,11 +12615,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       return { pid, name: fc.name, value: fc.value, age: _bpAge(sp?.birth_date) };
     }).filter(Boolean).sort((a,b) => b.value - a.value);
     const maxV = players[0]?.value ?? 1;
+    const ageHeat = a => !a ? 'transparent' : a<=21 ? 'rgba(74,222,128,0.13)' : a<=23 ? 'rgba(74,222,128,0.07)' : a<=27 ? 'transparent' : a<=29 ? 'rgba(251,191,36,0.08)' : a<=31 ? 'rgba(251,146,60,0.1)' : 'rgba(239,68,68,0.13)';
     const rows = players.map((p, i) => {
       const barW  = maxV > 0 ? Math.round(p.value / maxV * 100) : 0;
       const ageStr = p.age != null ? p.age.toFixed(0) : '?';
       const ageC  = p.age&&p.age<24 ? 'var(--green)' : p.age&&p.age>30 ? 'var(--red)' : 'var(--text-dim)';
-      return `<div class="bp-roster-row${i < nStarters ? ' bp-roster-starter' : ''}" style="--rd:${(i*0.04).toFixed(2)}s;">
+      return `<div class="bp-roster-row${i < nStarters ? ' bp-roster-starter' : ''}" style="--rd:${(i*0.04).toFixed(2)}s;background:${ageHeat(p.age)};border-radius:4px;">
         <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;">
         <span class="bp-roster-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
         <span class="bp-roster-age" style="color:${ageC};">${ageStr}</span>
@@ -12477,21 +12664,22 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     <!-- ═══ HERO ═══ -->
     <div class="bp-hero">
       <button class="bp-fs-btn" onclick="openBlueprintFullscreen()">⛶ FULL SCREEN</button>
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
         <div style="flex:1;min-width:0;">
           <div class="bp-team-name">${teamRow.name}</div>
+          <div class="bp-archetype-big" style="color:${phStyle.color};">${archetype}</div>
+          <div class="bp-window-desc-big">${windowDesc}</div>
           <div class="bp-meta-row">
             <span class="bp-phase-badge" style="color:${phStyle.color};border-color:${phStyle.border};background:${phStyle.bg};">${phase}</span>
-            <span class="bp-archetype-val">◆ ${archetype}</span>
-            <span class="bp-archetype-win">${windowDesc}</span>
-          </div>
-          <div class="bp-meta-row" style="margin-top:5px;">
-            <span class="bp-record">${w}–${l} · Avg Age ${(teamRow.avgAge??0).toFixed(1)} · ${total} teams · Proj #${projRank} · Value #${valueRank}</span>
+            <span class="bp-record">${w}–${l} · Age ${(teamRow.avgAge??0).toFixed(1)} · Proj #${projRank} · Val #${valueRank}</span>
           </div>
         </div>
-        <div class="bp-grade-ring" style="--grade-color:${gradeColor};--gc-rgb:${gradeColor==='#22d3ee'?'34,211,238':gradeColor==='#4ade80'?'74,222,128':gradeColor==='#facc15'?'250,204,21':gradeColor==='#fb923c'?'251,146,60':'239,68,68'};border-color:${gradeColor};">
-          <div class="bp-grade-num" style="color:${gradeColor};">${overallGrade}</div>
-          <div class="bp-grade-label">OVERALL</div>
+        <div style="display:flex;gap:10px;align-items:flex-start;flex-shrink:0;">
+          ${_bpWindowRingSVG(phase, trendColor)}
+          <div class="bp-grade-ring" style="--grade-color:${gradeColor};--gc-rgb:${gradeColor==='#22d3ee'?'34,211,238':gradeColor==='#4ade80'?'74,222,128':gradeColor==='#facc15'?'250,204,21':gradeColor==='#fb923c'?'251,146,60':'239,68,68'};border-color:${gradeColor};">
+            <div class="bp-grade-num" style="color:${gradeColor};">${overallGrade}</div>
+            <div class="bp-grade-label">OVERALL</div>
+          </div>
         </div>
       </div>
     </div>
@@ -12499,9 +12687,15 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     <!-- ═══ METRICS STRIP ═══ -->
     <div class="bp-metrics-strip">
       <div class="bp-metric-chip" style="border-top-color:${trendColor};">
-        <div class="bp-metric-label">2-YEAR WINDOW</div>
-        <div class="bp-metric-val">${clock.now} <span style="color:${trendColor};font-size:14px;">${trendIcon}</span> ${clock.future}</div>
-        <div class="bp-metric-sub">${_trendSub}</div>
+        <div class="bp-metric-label">3-YEAR WINDOW</div>
+        <div class="bp-win-phases">
+          <span class="bp-win-phase-pill" style="color:rgba(255,255,255,0.6);">${clock.now}</span>
+          <span style="color:${trendColor};font-size:10px;">→</span>
+          <span class="bp-win-phase-pill" style="color:rgba(255,255,255,0.45);">${clock.y1}</span>
+          <span style="color:${trendColor};font-size:10px;">→</span>
+          <span class="bp-win-phase-pill" style="color:${trendColor};">${clock.y3}</span>
+        </div>
+        ${_bpWindowChartSVG(clock, trendColor)}
       </div>
       <div class="bp-metric-chip" style="border-top-color:#2dd4bf;">
         <div class="bp-metric-label">PROJECTED FINISH</div>
@@ -12575,7 +12769,6 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         <div class="bp-panel" style="--bpa:#94a3b8;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#94a3b8;"></span>DRAFT CAPITAL<span class="bp-panel-sub">future picks owned</span></div>
           ${capitalHTML}
-          <div style="margin-top:8px;font-size:9px;color:rgba(255,255,255,0.35);">${_pickLine}</div>
         </div>
       </div>
 
@@ -12618,28 +12811,37 @@ function _bpFsHeroBlock(d) {
   return `<div class="bp-fs-hero">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
       <div style="flex:1;min-width:0;">
-        <div style="font-family:var(--display);font-size:20px;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;color:#fff;margin-bottom:8px;line-height:1;">${d.teamRow.name}</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="font-family:var(--display);font-size:20px;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;color:#fff;line-height:1;margin-bottom:4px;">${d.teamRow.name}</div>
+        <div style="font-family:var(--display);font-size:14px;letter-spacing:0.1em;text-transform:uppercase;color:${d.phStyle.color};margin-bottom:2px;">${d.archetype}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.38);font-style:italic;margin-bottom:8px;">${d.windowDesc}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span class="bp-phase-badge" style="color:${d.phStyle.color};border-color:${d.phStyle.border};background:${d.phStyle.bg};">${d.phase}</span>
-          <span style="font-family:var(--mono);font-size:9px;color:#fb7185;letter-spacing:0.1em;font-weight:600;">◆ ${d.archetype}</span>
-          <span style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:0.06em;">${d.windowDesc}</span>
+          <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.06em;">${wl} · Age ${avgAge} · Proj #${d.projRank} · Val #${d.valueRank}</span>
         </div>
-        <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.3);letter-spacing:0.06em;">${wl} · Age ${avgAge} · Proj #${d.projRank} · Val #${d.valueRank}</div>
       </div>
-      <div class="bp-grade-ring" style="--grade-color:${d.gradeColor};border-color:${d.gradeColor};width:72px;height:72px;">
-        <div style="font-family:var(--display);font-size:22px;font-weight:900;color:${d.gradeColor};line-height:1;">${d.overallGrade}</div>
-        <div style="font-family:var(--mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-top:2px;">OVERALL</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;flex-shrink:0;">
+        ${_bpWindowRingSVG(d.phase, d.trendColor)}
+        <div class="bp-grade-ring" style="--grade-color:${d.gradeColor};border-color:${d.gradeColor};width:72px;height:72px;">
+          <div style="font-family:var(--display);font-size:22px;font-weight:900;color:${d.gradeColor};line-height:1;">${d.overallGrade}</div>
+          <div style="font-family:var(--mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-top:2px;">OVERALL</div>
+        </div>
       </div>
     </div>
   </div>`;
 }
 
 function _bpFsMetricBlock(d) {
-  const _tSub = d.clock.trend==='rising'?'Improving':d.clock.trend==='declining'?'Declining':'Stable';
   return `<div class="bp-fs-mstrip">
-    <div class="bp-fs-mrow" style="border-left-color:${d.trendColor};">
-      <div><div class="bp-fs-ml">2-YEAR WINDOW</div><div class="bp-fs-ms">${_tSub}</div></div>
-      <div class="bp-fs-mv">${d.clock.now} <span style="color:${d.trendColor};font-size:12px;">${d.trendIcon}</span> ${d.clock.future}</div>
+    <div class="bp-fs-mrow" style="border-left-color:${d.trendColor};flex-direction:column;align-items:flex-start;gap:2px;">
+      <div class="bp-fs-ml">3-YEAR WINDOW</div>
+      <div style="display:flex;align-items:center;gap:5px;margin:2px 0;flex-wrap:wrap;">
+        <span style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.6);padding:2px 5px;background:rgba(255,255,255,0.06);border-radius:4px;">${d.clock.now}</span>
+        <span style="color:${d.trendColor};font-size:10px;">→</span>
+        <span style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.45);padding:2px 5px;background:rgba(255,255,255,0.06);border-radius:4px;">${d.clock.y1??d.clock.now}</span>
+        <span style="color:${d.trendColor};font-size:10px;">→</span>
+        <span style="font-family:var(--mono);font-size:9px;color:${d.trendColor};padding:2px 5px;background:rgba(255,255,255,0.06);border-radius:4px;">${d.clock.y3??d.clock.future}</span>
+      </div>
+      ${_bpWindowChartSVG(d.clock, d.trendColor)}
     </div>
     <div class="bp-fs-mrow" style="border-left-color:#2dd4bf;">
       <div><div class="bp-fs-ml">PROJECTED FINISH</div><div class="bp-fs-ms">${d.finish.playoffOdds}% playoff odds · ${d.finish.playoffTeams} spots</div></div>
@@ -12739,7 +12941,6 @@ function openBlueprintFullscreen() {
           <div class="bp-fs-p" style="--bpa:#94a3b8;">
             <div class="bp-fs-pt"><span class="bp-pdot" style="background:#94a3b8;"></span>DRAFT CAPITAL<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">future picks owned</span></div>
             ${d.capitalHTML}
-            <div style="margin-top:8px;font-size:9px;color:rgba(255,255,255,0.3);">${_pickLine}</div>
           </div>
         </div>
 
