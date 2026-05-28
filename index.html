@@ -11885,17 +11885,79 @@ function _bpGradeColor(grade) {
 }
 
 function _bpPhase(teamRow, allTeams) {
-  const rank = allTeams.findIndex(t => t.roster_id === teamRow.roster_id) + 1;
-  const total = allTeams.length || 1;
-  const valuePct   = (rank - 1) / Math.max(total - 1, 1); // 0=best, 1=worst
-  const pickRatio  = teamRow.totalValue > 0 ? teamRow.pickValue / teamRow.totalValue : 0;
-  const age        = teamRow.avgAge ?? 27;
+  // ─── Phase classification parameters ────────────────────────────────────────
+  //
+  //  Three inputs drive classification:
+  //    valuePct  — dynasty value rank as 0–1 percentile (0 = best, 1 = worst)
+  //    projPct   — production/projection rank as 0–1 percentile (0 = best, 1 = worst)
+  //                derived from leagueRankings.overallRank or leagueProjData totalPpg
+  //    pickRatio — picks as share of total roster value (0–1)
+  //    age       — roster average age
+  //
+  //  Thresholds (12-team reference, scales with league size):
+  //
+  //  REBUILDING  → young team not yet producing
+  //    A) age ≤ 25.5  AND  projPct ≥ 0.60  (young + bottom-40% production)
+  //    B) age ≤ 26    AND  valuePct ≥ 0.55  AND  pickRatio ≥ 0.18  (young + poor value + hoarding picks)
+  //    C) age < 27    AND  valuePct ≥ 0.65  AND  pickRatio ≥ 0.22  (explicit tank)
+  //
+  //  AGING OUT   → old and declining
+  //    A) age ≥ 28.5  AND  valuePct ≥ 0.50  (old + below-average value)
+  //    B) age ≥ 30    AND  projPct ≥ 0.50   (very old + below-average production)
+  //
+  //  WIN NOW     → aging core still competing
+  //    age ≥ 27.5  AND  valuePct ≤ 0.40  AND  projPct ≤ 0.55
+  //
+  //  CONTENDING  → elite value + competitive production + manageable age
+  //    valuePct ≤ 0.28  AND  projPct ≤ 0.42  AND  age < 30
+  //
+  //  RELOAD      → young core building toward a window
+  //    A) age ≤ 26.5  AND  valuePct ≤ 0.58  AND  projPct ≥ 0.38  (young + decent value + not there yet)
+  //    B) age ≤ 26.5  AND  pickRatio ≥ 0.22  (young team stacking picks)
+  //
+  //  FRINGE      → everything else; middle age, middle value, genuinely on the bubble
+  // ────────────────────────────────────────────────────────────────────────────
 
-  if (valuePct < 0.30 && age < 27.5)                      return 'CONTENDING';
-  if (valuePct < 0.45 && age >= 27.5)                     return 'WIN NOW';
-  if (valuePct >= 0.60 && pickRatio >= 0.20)              return 'REBUILDING';
-  if (valuePct <= 0.65 && pickRatio >= 0.22 && age < 26.5) return 'RELOAD';
-  if (age >= 28.5 && valuePct >= 0.40)                    return 'AGING OUT';
+  const rosterId = teamRow.roster_id;
+  const rank  = allTeams.findIndex(t => t.roster_id === rosterId) + 1;
+  const total = allTeams.length || 1;
+
+  const valuePct  = (rank - 1) / Math.max(total - 1, 1);
+  const pickRatio = teamRow.totalValue > 0 ? teamRow.pickValue / teamRow.totalValue : 0;
+  const age       = teamRow.avgAge ?? 27;
+
+  // Projection rank — prefer leagueRankings.overallRank (production-based),
+  // fall back to PPG sort from leagueProjData, then fall back to value rank
+  const projRankRaw = leagueRankings[rosterId]?.overallRank ?? (() => {
+    if (!leagueProjData?.length) return null;
+    const sorted = [...leagueProjData].sort((a, b) => (b.totalPpg ?? 0) - (a.totalPpg ?? 0));
+    const idx = sorted.findIndex(t => t.roster_id === rosterId);
+    return idx >= 0 ? idx + 1 : null;
+  })();
+  const projPct = projRankRaw != null
+    ? (projRankRaw - 1) / Math.max(total - 1, 1)
+    : valuePct; // fallback: treat value rank as proxy for production
+
+  // ── REBUILDING (check young teams FIRST — before any other classification) ──
+  if (age <= 25.5 && projPct >= 0.60)                              return 'REBUILDING'; // A
+  if (age <= 26   && valuePct >= 0.55 && pickRatio >= 0.18)        return 'REBUILDING'; // B
+  if (age <  27   && valuePct >= 0.65 && pickRatio >= 0.22)        return 'REBUILDING'; // C
+
+  // ── AGING OUT (old AND not competitive) ──────────────────────────────────
+  if (age >= 28.5 && valuePct >= 0.50)                             return 'AGING OUT';  // A
+  if (age >= 30   && projPct  >= 0.50)                             return 'AGING OUT';  // B
+
+  // ── WIN NOW (aging core still has elite talent) ───────────────────────────
+  if (age >= 27.5 && valuePct <= 0.40 && projPct <= 0.55)         return 'WIN NOW';
+
+  // ── CONTENDING (elite value + competitive output + not too old) ───────────
+  if (valuePct <= 0.28 && projPct <= 0.42 && age < 30)            return 'CONTENDING';
+
+  // ── RELOAD (young core, building toward window, not there yet) ───────────
+  if (age <= 26.5 && valuePct <= 0.58 && projPct >= 0.38)         return 'RELOAD';     // A
+  if (age <= 26.5 && pickRatio >= 0.22)                            return 'RELOAD';     // B
+
+  // ── FRINGE (true bubble: middle age, middle value, ambiguous trajectory) ──
   return 'FRINGE';
 }
 
@@ -11930,12 +11992,12 @@ function _bpArchetype(teamRow, isSF) {
 
 function _bpWindowDesc(phase) {
   const map = {
-    'CONTENDING': 'Championship window open',
-    'WIN NOW':    'Aging core, win now or reset',
-    'RELOAD':     'Young core, loaded with picks',
-    'REBUILDING': 'Tearing it down, building futures',
-    'AGING OUT':  'Aging roster without cap to compete',
-    'FRINGE':     'On the bubble — needs a spark',
+    'CONTENDING': 'Championship window is open — compete now',
+    'WIN NOW':    'Aging core, win now or begin reset',
+    'RELOAD':     'Young core building toward a window',
+    'REBUILDING': 'Accumulating youth and picks — window not yet open',
+    'AGING OUT':  'Aging out — value declining, decision needed',
+    'FRINGE':     'On the bubble — needs decisive direction',
   };
   return map[phase] ?? '';
 }
