@@ -2747,6 +2747,34 @@
   .bp-fs-hero { border: 1px solid rgba(255,255,255,0.1) !important; }
   .bp-fs-mstrip { border: 1px solid rgba(255,255,255,0.09) !important; }
 
+  /* ── Blueprint: player thumbnails ── */
+  .bp-thumb {
+    width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+    flex-shrink: 0; border: 1.5px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06); vertical-align: middle;
+  }
+  .bp-thumb-md { width: 32px !important; height: 32px !important; }
+  .bp-thumb-lg { width: 38px !important; height: 38px !important; }
+
+  /* ── Blueprint: entry animations ── */
+  @keyframes bp-bar-in  { from{transform:scaleX(0)} to{transform:scaleX(1)} }
+  @keyframes bp-dot-pop { 0%{transform:scale(0);opacity:0} 70%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
+  @keyframes bp-radar-in{ from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+  @keyframes bp-row-in  { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+  .bp-cs-bar, .bp-roster-bar, .bp-age-bar-fill {
+    animation: bp-bar-in 0.55s cubic-bezier(0.25,0.46,0.45,0.94) both;
+    transform-origin: left;
+  }
+  .bp-radar-poly {
+    animation: bp-radar-in 0.65s cubic-bezier(0.34,1.56,0.64,1) both;
+    transform-origin: 90px 90px;
+  }
+  .bp-pick-dot { animation: bp-dot-pop 0.35s both; }
+  .bp-cornerstone-row, .bp-lineup-row, .bp-bsh-row, .bp-roster-row, .bp-swing-row {
+    animation: bp-row-in 0.3s both ease;
+    animation-delay: var(--rd, 0s);
+  }
+
 </style>
 </head>
 <body>
@@ -11789,7 +11817,7 @@ function _bpRadarSVG(scores) {
   return `<svg viewBox="0 0 180 180" width="160" height="160" style="overflow:visible;">
     ${rings}${spokes}
     <polygon points="${outerStr}" fill="rgba(251,113,133,0.04)" stroke="rgba(251,113,133,0.2)" stroke-width="1"/>
-    <polygon points="${innerStr}" fill="rgba(251,113,133,0.22)" stroke="#fb7185" stroke-width="1.5"/>
+    <polygon class="bp-radar-poly" points="${innerStr}" fill="rgba(251,113,133,0.22)" stroke="#fb7185" stroke-width="1.5"/>
     ${labels}
   </svg>`;
 }
@@ -11881,7 +11909,7 @@ function _bpShapeRadarSVG(scores) {
   return `<svg viewBox="0 0 180 180" width="160" height="160" style="overflow:visible;">
     ${rings}${spokes}
     <polygon points="${outerStr}" fill="rgba(167,139,250,0.04)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/>
-    <polygon points="${innerStr}" fill="rgba(167,139,250,0.22)" stroke="#a78bfa" stroke-width="1.5"/>
+    <polygon class="bp-radar-poly" points="${innerStr}" fill="rgba(167,139,250,0.22)" stroke="#a78bfa" stroke-width="1.5"/>
     ${labels}
   </svg>`;
 }
@@ -12281,10 +12309,11 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── Optimal lineup ────────────────────────────────────────────────────────
   const teamProj = leagueProjData.find(t => t.roster_id === rosterId);
   const posSlotLbl = s => s === 'SUPER_FLEX' ? 'SF' : s === 'FLEX' ? 'FLX' : s === 'WRRB_FLEX' ? 'FLX' : s === 'REC_FLEX' ? 'FLX' : s;
-  const lineupRowsHTML = (teamProj?.lineup ?? []).map(p => {
+  const lineupRowsHTML = (teamProj?.lineup ?? []).map((p, i) => {
     const c = posColors[p.pos] ?? 'var(--text-dim)';
     const ppg = getEffectivePpg(p);
-    return `<div class="bp-lineup-row">
+    return `<div class="bp-lineup-row" style="--rd:${(i*0.05).toFixed(2)}s;">
+      <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
       <span class="bp-lineup-slot" style="color:${c};">${posSlotLbl(p.slot)}</span>
       <span class="bp-lineup-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name}</span>
       <span class="bp-lineup-ppg" style="color:${c};">${ppg.toFixed(1)} ppg</span>
@@ -12297,9 +12326,10 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
 
   // ── Buy / Sell / Hold ─────────────────────────────────────────────────────
   const bshData = _bpBuySellHold(rosterId);
-  const bshHTML = bshData.length ? bshData.map(p => {
+  const bshHTML = bshData.length ? bshData.map((p, i) => {
     const tagBg = p.tag === 'SELL' ? 'rgba(239,68,68,0.18)' : p.tag === 'BUY' ? 'rgba(45,214,168,0.18)' : 'rgba(56,196,232,0.15)';
-    return `<div class="bp-bsh-row">
+    return `<div class="bp-bsh-row" style="--rd:${(i*0.05).toFixed(2)}s;">
+      <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
       <span class="bp-bsh-tag" style="color:${p.color};background:${tagBg};">${p.tag}</span>
       <span class="bp-bsh-pos" style="color:${posColors[p.pos] ?? 'var(--text-dim)'};">${p.pos}</span>
       <span class="bp-bsh-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name}</span>
@@ -12310,11 +12340,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── Cornerstones ──────────────────────────────────────────────────────────
   const cornerstones = _bpCornerstones(rosterId);
   const maxCsVal = cornerstones[0]?.value ?? 1;
-  const csRowsHTML = cornerstones.length ? cornerstones.map(p => {
+  const csRowsHTML = cornerstones.length ? cornerstones.map((p, i) => {
     const barW = Math.round(p.value / maxCsVal * 100);
     const ageStr = p.age != null ? p.age.toFixed(0) : '?';
     const pc = posColors[p.pos] ?? 'var(--text-dim)';
-    return `<div class="bp-cornerstone-row">
+    return `<div class="bp-cornerstone-row" style="--rd:${(i*0.07).toFixed(2)}s;">
+      <img class="bp-thumb bp-thumb-md" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
       <span class="bp-cs-pos" style="color:${pc};">${p.pos}</span>
       <span class="bp-cs-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
       <span class="bp-cs-age" style="color:${p.age&&p.age<26?'var(--green)':p.age&&p.age>29?'var(--red)':'var(--text-dim)'};">${ageStr}</span>
@@ -12329,8 +12360,8 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   for (const p of picks) { if (!picksByYear[p.season]) picksByYear[p.season] = []; picksByYear[p.season].push(p); }
   const tierColors = { early:'#fbbf24', mid:'#94a3b8', late:'rgba(148,163,184,0.45)' };
   const capitalHTML = Object.keys(picksByYear).sort().length ? Object.keys(picksByYear).sort().map(yr => {
-    const dots = picksByYear[yr].map(p =>
-      `<div class="bp-pick-dot" style="background:${tierColors[p.tier]??'rgba(148,163,184,0.4)'};" title="${p.label}">${p.round}</div>`
+    const dots = picksByYear[yr].map((p, i) =>
+      `<div class="bp-pick-dot" style="background:${tierColors[p.tier]??'rgba(148,163,184,0.4)'};animation-delay:${(i*0.08).toFixed(2)}s;" title="${p.label}">${p.round}</div>`
     ).join('');
     return `<div class="bp-picks-year-row">
       <span class="bp-picks-year">${String(yr).slice(2)}'</span>
@@ -12356,8 +12387,9 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
 
   // ── Swing players ─────────────────────────────────────────────────────────
   const swings = _bpSwingPlayers(rosterId);
-  const swingHTML = swings.length ? swings.map(s =>
-    `<div class="bp-swing-row">
+  const swingHTML = swings.length ? swings.map((s, i) =>
+    `<div class="bp-swing-row" style="--rd:${(i*0.06).toFixed(2)}s;">
+      <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${s.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
       <span class="bp-swing-icon" style="color:${s.color};">${s.icon}</span>
       <span class="bp-swing-pos" style="color:${s.color};">${s.pos}</span>
       <span class="bp-swing-name" onclick="searchAndOpenProfile('${(s.name||'').replace(/'/g,"\\'")}'">${s.name ?? '—'}</span>
@@ -12401,7 +12433,8 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       const barW  = maxV > 0 ? Math.round(p.value / maxV * 100) : 0;
       const ageStr = p.age != null ? p.age.toFixed(0) : '?';
       const ageC  = p.age&&p.age<24 ? 'var(--green)' : p.age&&p.age>30 ? 'var(--red)' : 'var(--text-dim)';
-      return `<div class="bp-roster-row${i < nStarters ? ' bp-roster-starter' : ''}">
+      return `<div class="bp-roster-row${i < nStarters ? ' bp-roster-starter' : ''}" style="--rd:${(i*0.04).toFixed(2)}s;">
+        <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;">
         <span class="bp-roster-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
         <span class="bp-roster-age" style="color:${ageC};">${ageStr}</span>
         <div class="bp-roster-bar-wrap"><div class="bp-roster-bar" style="width:${barW}%;background:${c};"></div></div>
