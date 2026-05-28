@@ -2430,7 +2430,7 @@
   .bp-metrics-strip { display:flex!important; gap:0!important; flex-wrap:nowrap!important;
     border-bottom:1px solid rgba(255,255,255,0.07)!important;
     background:rgba(0,0,0,0.2)!important; }
-  .bp-metric-chip { flex:1; min-width:0; padding:15px 18px!important;
+  .bp-metric-chip { flex:1; min-width:0; padding:13px 14px!important;
     border-right:1px solid rgba(255,255,255,0.07)!important; border-radius:0!important;
     background:transparent!important; border-top:3px solid transparent!important;
     transition:background 0.2s; }
@@ -2838,6 +2838,73 @@
   .bp-deal-offer-players { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
   .bp-deal-offer-line { font-size:9px; color:rgba(255,255,255,0.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .bp-deal-offer-line span { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.3); margin-left:4px; }
+
+  /* ── Blueprint Code badge ── */
+  .bp-code-badge { font-family:var(--mono); font-size:8.5px; letter-spacing:0.18em; padding:3px 9px; border-radius:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.55); }
+
+  /* ── Value Landscape panel ── */
+  .bp-landscape-grid { display:grid; grid-template-columns:2fr 1fr; gap:14px; }
+  @media (max-width:680px) { .bp-landscape-grid { grid-template-columns:1fr; } }
+
+  /* ── Risers & Fallers ── */
+  .bp-rf-row { display:flex; align-items:center; gap:7px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .bp-rf-row:last-child { border-bottom:none; }
+  .bp-rf-arrow { font-size:11px; font-weight:900; width:13px; flex-shrink:0; text-align:center; }
+  .bp-rf-name { flex:1; font-size:10px; color:rgba(255,255,255,0.8); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-rf-name:hover { color:var(--accent); }
+  .bp-rf-pct { font-family:var(--mono); font-size:9px; font-weight:700; flex-shrink:0; width:38px; text-align:right; }
+  .bp-rf-pos { font-family:var(--mono); font-size:7.5px; width:24px; flex-shrink:0; color:rgba(255,255,255,0.35); }
+  .bp-rf-age { font-family:var(--mono); font-size:7.5px; width:20px; flex-shrink:0; color:rgba(255,255,255,0.28); }
+  .bp-rf-divider { font-family:var(--mono); font-size:7px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,255,255,0.25); padding:5px 0 3px; margin-top:2px; border-top:1px solid rgba(255,255,255,0.06); }
+
+  /* ── Suggested Moves (SELL → BUY) ── */
+  .bp-sm-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 12px; margin-bottom:8px; transition:border-color 0.2s; }
+  .bp-sm-card:hover { border-color:rgba(255,255,255,0.13); }
+  .bp-sm-card:last-child { margin-bottom:0; }
+  .bp-sm-sell-tag { background:rgba(239,68,68,0.18); color:#f87171; border:1px solid rgba(239,68,68,0.28); padding:2px 7px; border-radius:3px; font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.08em; }
+  .bp-sm-buy-tag  { background:rgba(74,222,128,0.15); color:#4ade80; border:1px solid rgba(74,222,128,0.25); padding:2px 7px; border-radius:3px; font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.08em; }
+  .bp-sm-hold-tag { background:rgba(251,191,36,0.13); color:#fbbf24; border:1px solid rgba(251,191,36,0.22); padding:2px 7px; border-radius:3px; font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.08em; }
+  .bp-sm-sell-row { display:flex; align-items:center; gap:7px; margin-bottom:7px; padding-bottom:7px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .bp-sm-buy-row  { display:flex; align-items:center; gap:6px; padding:3px 0; }
+  .bp-sm-player-name { flex:1; font-size:10px; color:rgba(255,255,255,0.8); cursor:pointer; }
+  .bp-sm-player-name:hover { color:var(--accent); }
+  .bp-sm-val { font-family:var(--mono); font-size:8.5px; color:rgba(255,255,255,0.38); flex-shrink:0; }
+  .bp-sm-age { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.28); flex-shrink:0; }
+  .bp-sm-reason { font-size:9px; color:rgba(255,255,255,0.35); line-height:1.4; margin-top:3px; font-style:italic; }
+  .bp-sm-or-sep { font-family:var(--mono); font-size:7px; letter-spacing:0.1em; color:rgba(255,255,255,0.22); padding:0 4px; flex-shrink:0; }
+  .bp-sm-team { font-family:var(--mono); font-size:7.5px; color:rgba(255,255,255,0.28); flex-shrink:0; }
+
+  /* ── Purgatory Alert (FRINGE teams) ── */
+  .bp-purgatory-alert { background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.28); border-radius:8px; padding:10px 14px; margin-bottom:12px; }
+  .bp-purgatory-title { font-family:var(--display); font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:#f87171; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+  .bp-purgatory-sub { font-size:9.5px; color:rgba(255,255,255,0.42); line-height:1.4; margin-bottom:8px; }
+  .bp-purgatory-paths { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .bp-purgatory-path { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:6px; padding:7px 9px; }
+  .bp-purgatory-path-label { font-family:var(--mono); font-size:7.5px; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:3px; font-weight:700; }
+  .bp-purgatory-path-desc { font-size:9px; color:rgba(255,255,255,0.38); line-height:1.4; }
+
+  /* ── Phase overview paragraph ── */
+  .bp-ts-overview-para { font-size:10.5px; color:rgba(255,255,255,0.6); line-height:1.65; margin-bottom:14px; padding:10px 14px 10px 16px; background:rgba(255,255,255,0.025); border-left:3px solid var(--bpa,rgba(255,255,255,0.2)); border-radius:0 6px 6px 0; }
+
+  /* ── Holds panel ── */
+  .bp-hold-row { display:flex; align-items:flex-start; gap:7px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .bp-hold-row:last-child { border-bottom:none; }
+  .bp-hold-tag { background:rgba(56,189,248,0.13); color:#38bdf8; border:1px solid rgba(56,189,248,0.22); font-family:var(--mono); font-size:6.5px; font-weight:700; padding:2px 5px; border-radius:3px; white-space:nowrap; flex-shrink:0; }
+  .bp-hold-name { font-size:10px; color:rgba(255,255,255,0.8); cursor:pointer; }
+  .bp-hold-name:hover { color:var(--accent); }
+  .bp-hold-reason { font-size:9px; color:rgba(255,255,255,0.32); line-height:1.4; margin-top:2px; font-style:italic; }
+
+  /* ── Age cliff badge (cornerstones) ── */
+  .bp-cliff-badge { background:rgba(239,68,68,0.14); color:#f87171; border:1px solid rgba(239,68,68,0.22); font-family:var(--mono); font-size:6.5px; padding:1px 5px; border-radius:3px; flex-shrink:0; white-space:nowrap; }
+
+  /* ── Pick hit rate bar ── */
+  .bp-hit-rate-row { display:flex; align-items:center; gap:5px; margin-top:4px; }
+  .bp-hit-rate-bar { flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden; }
+  .bp-hit-rate-fill { height:100%; border-radius:2px; }
+  .bp-hit-rate-pct { font-family:var(--mono); font-size:7px; color:rgba(255,255,255,0.38); flex-shrink:0; width:28px; text-align:right; }
+  .bp-expected-starters { display:flex; align-items:center; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.07); }
+  .bp-expected-num { font-family:var(--display); font-size:18px; font-weight:900; color:#fbbf24; line-height:1; }
+  .bp-expected-label { font-family:var(--mono); font-size:7.5px; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.35); line-height:1.3; }
 
   /* ── Trade strategy overview box ── */
   .bp-ts-overview { background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.09); border-radius:10px; padding:11px 14px; margin-bottom:14px; display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }
@@ -12480,6 +12547,309 @@ function searchAndOpenProfile(name) {
   loadPlayerProfile(match.pid);
 }
 
+// ── Blueprint Code Badge ──────────────────────────────────────────────────────
+function _bpBlueprintCode(phase, clock, total, isSF, archetype) {
+  const phCode = p => ({ 'WIN NOW':'W', CONTENDING:'C', RELOAD:'R', FRINGE:'F', 'AGING OUT':'A', REBUILDING:'B' }[p] ?? 'X');
+  const traj = `${phCode(clock.now)}${phCode(clock.y1 ?? clock.now)}${phCode(clock.y3 ?? clock.now)}`;
+  const fmt  = isSF ? 'SF' : '1Q';
+  const words = (archetype || '').toUpperCase().split(/\s+/);
+  const archCode = words.map(w => w[0] ?? '').join('').slice(0, 3) || 'XX';
+  return `${archCode}-${traj}-${total}-${fmt}`;
+}
+
+// ── Production & Value Share ──────────────────────────────────────────────────
+function _bpProductionValueShare(rosterId, allTeams) {
+  const totalPPG = leagueProjData.reduce((s, t) => s + (t.totalPpg ?? 0), 0);
+  const myPPG    = leagueProjData.find(t => t.roster_id === rosterId)?.totalPpg ?? 0;
+  const totalVal = allTeams.reduce((s, t) => s + (t.totalValue ?? 0), 0);
+  const myVal    = allTeams.find(t => t.roster_id === rosterId)?.totalValue ?? 0;
+  const prodShare = totalPPG > 0 ? (myPPG / totalPPG) * 100 : 0;
+  const valShare  = totalVal > 0 ? (myVal / totalVal) * 100 : 0;
+  const fairShare = allTeams.length > 0 ? 100 / allTeams.length : 0;
+  const prodRanked = [...leagueProjData].sort((a, b) => (b.totalPpg ?? 0) - (a.totalPpg ?? 0));
+  const prodRank   = prodRanked.findIndex(t => t.roster_id === rosterId) + 1;
+  return { prodShare: +prodShare.toFixed(1), valShare: +valShare.toFixed(1), prodRank, fairShare: +fairShare.toFixed(1) };
+}
+
+// ── Risers & Fallers ──────────────────────────────────────────────────────────
+function _bpRisersFallers(rosterId) {
+  const pids   = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
+  const ageAdj = a => a<=21?1.22:a<=23?1.13:a<=25?1.04:a<=27?0.94:a<=29?0.83:0.65;
+  const changes = [];
+  for (const pid of pids) {
+    const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+    if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) continue;
+    const age = _bpAge(sp?.birth_date);
+    if (!age) continue;
+    const cur = ageAdj(age), fut = ageAdj(age + 1);
+    const pct  = ((fut - cur) / cur) * 100;
+    if (Math.abs(pct) < 1.5) continue;
+    changes.push({ pid, name: fc.name, pos: fc.position, pct: +pct.toFixed(1), value: fc.value, age: +age.toFixed(1) });
+  }
+  changes.sort((a, b) => b.pct - a.pct);
+  return {
+    risers:  changes.filter(p => p.pct > 0).slice(0, 3),
+    fallers: changes.filter(p => p.pct < 0).sort((a,b) => a.pct - b.pct).slice(0, 3),
+  };
+}
+
+// ── Value Matrix SVG ──────────────────────────────────────────────────────────
+function _bpValueMatrixSVG(rosterId, allTeams, total, phStyle) {
+  const ageAdj = a => a<=21?1.22:a<=23?1.13:a<=25?1.04:a<=27?0.94:a<=29?0.83:0.65;
+
+  // X-axis: current production percentile (high = right)
+  const prodSorted = [...leagueProjData].sort((a, b) => (b.totalPpg ?? 0) - (a.totalPpg ?? 0));
+
+  // Y-axis: future value percentile (age-adjusted + picks, high = top)
+  const futureScores = allTeams.map(t => {
+    const pids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+    let fv = (t.pickValue ?? 0) * 0.55;
+    for (const pid of pids) {
+      const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+      if (!fc || !['QB','RB','WR','TE'].includes(fc.position ?? '')) continue;
+      const age = _bpAge(sp?.birth_date) ?? 27;
+      fv += (fc.value ?? 0) * ageAdj(age + 1);
+    }
+    return { roster_id: t.roster_id, fv };
+  });
+  const futureSorted = [...futureScores].sort((a, b) => b.fv - a.fv);
+
+  const toProdPct = rid => {
+    const i = prodSorted.findIndex(t => t.roster_id === rid);
+    return i < 0 ? 50 : (1 - i / Math.max(total - 1, 1)) * 100;
+  };
+  const toFutPct = rid => {
+    const i = futureSorted.findIndex(t => t.roster_id === rid);
+    return i < 0 ? 50 : (1 - i / Math.max(total - 1, 1)) * 100;
+  };
+
+  const W = 260, H = 180, pad = 28;
+  const iw = W - pad * 2, ih = H - pad * 2;
+  const toX = pct => pad + (pct / 100) * iw;
+  const toY = pct => H - pad - (pct / 100) * ih;
+
+  // Quadrant shading
+  const qMid = { x: toX(50), y: toY(50) };
+  const quads = [
+    { x:toX(50), y:toY(100), w:iw/2, h:ih/2, fill:'rgba(74,222,128,0.04)', label:'DYNASTY ELITE', lx:toX(75), ly:toY(75) },
+    { x:toX(0),  y:toY(100), w:iw/2, h:ih/2, fill:'rgba(56,189,248,0.04)', label:'REBUILDING',    lx:toX(25), ly:toY(75) },
+    { x:toX(50), y:toY(50),  w:iw/2, h:ih/2, fill:'rgba(251,146,60,0.04)', label:'AGING OUT',     lx:toX(75), ly:toY(25) },
+    { x:toX(0),  y:toY(50),  w:iw/2, h:ih/2, fill:'rgba(148,163,184,0.04)',label:'FRINGE',        lx:toX(25), ly:toY(25) },
+  ];
+  const quadSVG = quads.map(q =>
+    `<rect x="${q.x.toFixed(1)}" y="${q.y.toFixed(1)}" width="${(iw/2).toFixed(1)}" height="${(ih/2).toFixed(1)}" fill="${q.fill}"/>
+     <text x="${q.lx.toFixed(1)}" y="${q.ly.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-size="6" fill="rgba(255,255,255,0.1)" letter-spacing="0.12em">${q.label}</text>`
+  ).join('');
+
+  // Grid lines
+  const gridSVG = [25,50,75].map(pct =>
+    `<line x1="${toX(pct).toFixed(1)}" y1="${toY(0).toFixed(1)}" x2="${toX(pct).toFixed(1)}" y2="${toY(100).toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+     <line x1="${toX(0).toFixed(1)}" y1="${toY(pct).toFixed(1)}" x2="${toX(100).toFixed(1)}" y2="${toY(pct).toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>`
+  ).join('');
+
+  // Divider lines at midpoint
+  const dividerSVG = `
+    <line x1="${toX(50).toFixed(1)}" y1="${toY(0).toFixed(1)}" x2="${toX(50).toFixed(1)}" y2="${toY(100).toFixed(1)}" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="3,3"/>
+    <line x1="${toX(0).toFixed(1)}" y1="${toY(50).toFixed(1)}" x2="${toX(100).toFixed(1)}" y2="${toY(50).toFixed(1)}" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="3,3"/>`;
+
+  // Axis labels
+  const axisLabels = `
+    <text x="${toX(50).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" font-family="monospace" font-size="7" fill="rgba(255,255,255,0.25)" letter-spacing="0.1em">PRODUCTION →</text>
+    <text x="9" y="${toY(50).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-size="7" fill="rgba(255,255,255,0.25)" letter-spacing="0.1em" transform="rotate(-90,9,${toY(50).toFixed(1)})">FUTURE ↑</text>`;
+
+  // All team dots
+  const myProd = toProdPct(rosterId);
+  const myFut  = toFutPct(rosterId);
+  const dotsSVG = allTeams.map(t => {
+    if (t.roster_id === rosterId) return ''; // draw me last
+    const px = toX(toProdPct(t.roster_id));
+    const py = toY(toFutPct(t.roster_id));
+    const label = (t.name || '').split(/[\s_]+/).pop().slice(0,4).toUpperCase();
+    return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.5" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>`;
+  }).join('');
+
+  // My dot (highlighted)
+  const myX = toX(myProd), myY = toY(myFut);
+  const myDotSVG = `
+    <circle cx="${myX.toFixed(1)}" cy="${myY.toFixed(1)}" r="6" fill="${phStyle.color}" opacity="0.25"/>
+    <circle cx="${myX.toFixed(1)}" cy="${myY.toFixed(1)}" r="4" fill="${phStyle.color}" stroke="rgba(255,255,255,0.6)" stroke-width="1.2"/>
+    <text x="${(myX+8).toFixed(1)}" y="${(myY+1).toFixed(1)}" dominant-baseline="middle" font-family="monospace" font-size="7" fill="rgba(255,255,255,0.7)" font-weight="700">YOU</text>`;
+
+  // Border rect
+  const borderSVG = `<rect x="${toX(0).toFixed(1)}" y="${toY(100).toFixed(1)}" width="${iw.toFixed(1)}" height="${ih.toFixed(1)}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" rx="2"/>`;
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible;">
+    ${quadSVG}${gridSVG}${dividerSVG}${borderSVG}${dotsSVG}${myDotSVG}${axisLabels}
+  </svg>`;
+}
+
+// ── Phase Overview Paragraph ──────────────────────────────────────────────────
+function _bpOverviewParagraph(teamRow, phase, clock, ranks, total, isSF, archetype, strengthPositions, weaknessPositions) {
+  const posName = { QB:'quarterback', RB:'running back', WR:'wide receiver', TE:'tight end' };
+  const avgAge  = teamRow.avgAge ?? 27;
+  const pickR   = teamRow.totalValue > 0 ? teamRow.pickValue / teamRow.totalValue : 0;
+
+  // Phase-specific opener
+  const openers = {
+    'WIN NOW':    `This roster is all-in. With an aging core and a championship window closing fast, every move must prioritize winning now.`,
+    CONTENDING:   `This team is firing on all cylinders — a legitimate title contender with the talent and age to sustain it over the next 1–2 seasons.`,
+    RELOAD:       `The foundation is strong. With young cornerstones locked in and draft capital building, this team is positioned to extend its window into next season and beyond.`,
+    REBUILDING:   `The rebuild is underway. The focus should be purely on accumulating youth and draft capital — avoid win-now moves and let the process work.`,
+    'AGING OUT':  `Time is running out. The roster is aging, value is declining, and decisive action is needed — either liquidate aging assets into picks, or go all-in for one final run.`,
+    FRINGE:       `This team sits at the crossroads. Not bad enough to rebuild, not good enough to contend — decisive direction is essential before the roster falls further behind.`,
+  };
+  const opener = openers[phase] ?? `This is a roster in transition, evaluating its direction as the dynasty landscape shifts.`;
+
+  // Strength sentence
+  let strengthSentence = '';
+  if (strengthPositions.length >= 2) {
+    const posStr = strengthPositions.map(p => posName[p] ?? p).join(' and ');
+    strengthSentence = ` The ${posStr} groups are the team's biggest assets — leverage that surplus when targeting needs.`;
+  } else if (strengthPositions.length === 1) {
+    strengthSentence = ` The ${posName[strengthPositions[0]] ?? strengthPositions[0]} room stands out as the clear strength — a tradeable asset if the price is right.`;
+  }
+
+  // Weakness sentence
+  let weaknessSentence = '';
+  if (weaknessPositions.length >= 2) {
+    const wkStr = weaknessPositions.map(p => posName[p] ?? p).join(' and ');
+    weaknessSentence = ` The ${wkStr} positions are glaring holes that cap the ceiling — addressing even one would unlock meaningful upside.`;
+  } else if (weaknessPositions.length === 1) {
+    weaknessSentence = ` The biggest gap is at ${posName[weaknessPositions[0]] ?? weaknessPositions[0]} — this is the position to prioritize in any trade discussion.`;
+  }
+
+  // Age/trajectory sentence
+  let trendSentence = '';
+  if (avgAge < 25.5) {
+    trendSentence = ` At an average age of ${avgAge.toFixed(1)}, the roster skews young — production may dip short-term but the trajectory is bright.`;
+  } else if (avgAge >= 28.5) {
+    trendSentence = ` With a roster averaging ${avgAge.toFixed(1)} years old, urgency is real — the window to compete is measured in seasons, not years.`;
+  } else if (clock.trend === 'rising') {
+    trendSentence = ` The 3-year window is improving — this team should be gaining confidence, not trading away future assets.`;
+  } else if (clock.trend === 'declining') {
+    trendSentence = ` The trajectory is declining — don't wait for the right deal. Act while the aging core still commands trade value.`;
+  }
+
+  return `<div class="bp-ts-overview-para">${opener}${strengthSentence}${weaknessSentence}${trendSentence}</div>`;
+}
+
+// ── Suggested Moves (SELL → BUY) ─────────────────────────────────────────────
+function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
+  const myPids   = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
+  const myPidSet = new Set(myPids);
+  const ranks    = leagueRankings[rosterId] ?? {};
+  const ageCliff = { QB:35, RB:27, WR:30, TE:30 };
+  const posColors= { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' };
+
+  // Identify sell candidates
+  const sellCandidates = myPids.map(pid => {
+    const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+    if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) return null;
+    const age  = _bpAge(sp?.birth_date); if (!age) return null;
+    const pos  = fc.position; const val = fc.value;
+    const cliff= ageCliff[pos] ?? 30;
+    const posRank = fc.positionRank ?? 99;
+
+    let sellReason = null;
+    // Aging at cliff with still-decent value
+    if (age >= cliff - 1 && val >= 2000) {
+      sellReason = `Age ${age.toFixed(0)} — approaching the ${pos} value cliff. Sell while the market still pays a premium.`;
+    }
+    // Surplus position (strong positional rank) — not if it's their #1
+    const posRankComp = ranks[`${pos}Comp`] ?? Math.ceil(total/2);
+    const posPct = (posRankComp - 1) / Math.max(total - 1, 1);
+    if (!sellReason && posPct <= 0.25 && posRank > 3 && val >= 3000) {
+      sellReason = `Surplus ${pos} depth — ranked top-25% at ${pos} already. Flip redundancy into a need.`;
+    }
+    if (!sellReason) return null;
+    return { pid, name: fc.name, pos, age: +age.toFixed(1), val, posRank, sellReason };
+  }).filter(Boolean).sort((a, b) => b.val - a.val).slice(0, 2);
+
+  if (!sellCandidates.length) return [];
+
+  // For each sell, find 2 buy targets at weak positions
+  const weakPositions = ['QB','RB','WR','TE'].filter(pos => {
+    const r = ranks[`${pos}Comp`];
+    return r && (r - 1) / Math.max(total - 1, 1) >= 0.55;
+  });
+
+  const moves = [];
+  for (const sell of sellCandidates) {
+    const buys = [];
+    const targetPositions = weakPositions.length ? weakPositions : ['QB','RB','WR','TE'].filter(p => p !== sell.pos);
+
+    for (const targetPos of targetPositions.slice(0, 2)) {
+      // Find a team with surplus at targetPos willing to part with a non-cornerstone
+      const surplusTeams = allTeams
+        .filter(t => t.roster_id !== rosterId)
+        .filter(t => {
+          const r = leagueRankings[t.roster_id]?.[`${targetPos}Comp`];
+          return r && (r - 1) / Math.max(total - 1, 1) <= 0.30;
+        });
+
+      for (const t of surplusTeams) {
+        const tPids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+        const candidates = tPids.map(pid => {
+          const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+          if (!fc || fc.position !== targetPos || myPidSet.has(pid)) return null;
+          const age = _bpAge(sp?.birth_date) ?? 27;
+          return { pid, name: fc.name, val: fc.value ?? 0, age: +age.toFixed(1), team: t.name.split(/[\s_]+/).pop(), roster_id: t.roster_id };
+        }).filter(Boolean).sort((a, b) => b.val - a.val);
+
+        // Skip their #1, offer for their #2 or a solid non-cornerstone
+        const cand = candidates.length > 1 ? candidates[1]
+                   : (candidates[0] && candidates[0].val < 8500) ? candidates[0]
+                   : null;
+        if (cand && !buys.find(b => b.pid === cand.pid)) {
+          buys.push({ ...cand, pos: targetPos });
+          break;
+        }
+      }
+    }
+    if (buys.length) moves.push({ sell, buys });
+  }
+  return moves;
+}
+
+// ── Holds (Developing / Handcuff / Monitor) ───────────────────────────────────
+function _bpHolds(rosterId) {
+  const pids     = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
+  const teamProj = leagueProjData.find(t => t.roster_id === rosterId);
+  const holds    = [];
+
+  for (const pid of pids) {
+    const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+    if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) continue;
+    const age  = _bpAge(sp?.birth_date); if (!age) continue;
+    const pos  = fc.position; const val = fc.value;
+    const pProj = teamProj?.players?.find(p => p.pid === pid);
+    const ppg   = pProj?.basePpg ?? null;
+
+    let tag = null, reason = null;
+
+    // DEVELOPING: young, has value, minimal current production
+    if (age <= 24 && val >= 2500 && (ppg == null || ppg < 8)) {
+      tag = 'DEVELOPING';
+      reason = `Age ${age.toFixed(0)} with ${(val/1000).toFixed(1)}k value — hold and let the situation develop before trading.`;
+    }
+    // HANDCUFF: RB who could start if injury occurs
+    else if (pos === 'RB' && age <= 28 && val >= 1200 && val < 4500 && (ppg == null || ppg < 7)) {
+      tag = 'HANDCUFF';
+      reason = `Backup RB with starter upside — could spike in value with an injury to the depth chart above.`;
+    }
+    // MONITOR: decent value, underperforming relative to age/position
+    else if (val >= 3500 && age <= 27 && (ppg == null || ppg < (pos === 'QB' ? 16 : 9))) {
+      tag = 'MONITOR';
+      reason = `${(val/1000).toFixed(1)}k value but currently underproducing — track usage trends before selling low.`;
+    }
+
+    if (tag) holds.push({ pid, name: fc.name, pos, age: +age.toFixed(1), val, ppg, tag, reason });
+  }
+
+  holds.sort((a, b) => b.val - a.val);
+  return holds.slice(0, 5);
+}
+
 // ── Main render ───────────────────────────────────────────────────────────────
 
 let _blueprintRosterId = null;
@@ -12654,20 +13024,25 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     return best && best.basePpg >= 5 ? `${best.name} (${best.basePpg.toFixed(1)})` : null;
   }).filter(Boolean);
 
-  // ── (Sell/Hold panel removed — trade strategy handles all asset decisions) ─
-
-  // ── Cornerstones ──────────────────────────────────────────────────────────
+  // ── Cornerstones (with age cliff badges) ────────────────────────────────────
   const cornerstones = _bpCornerstones(rosterId);
   const maxCsVal = cornerstones[0]?.value ?? 1;
+  const ageCliffs = { QB:35, RB:27, WR:30, TE:30 };
   const csRowsHTML = cornerstones.length ? cornerstones.map((p, i) => {
-    const barW = Math.round(p.value / maxCsVal * 100);
+    const barW   = Math.round(p.value / maxCsVal * 100);
     const ageStr = p.age != null ? p.age.toFixed(0) : '?';
-    const pc = posColors[p.pos] ?? 'var(--text-dim)';
+    const pc     = posColors[p.pos] ?? 'var(--text-dim)';
+    const cliff  = ageCliffs[p.pos] ?? 30;
+    const atCliff = p.age != null && p.age >= cliff - 1;
+    const cliffBadge = atCliff
+      ? `<span class="bp-cliff-badge">⚠ AGE CLIFF</span>`
+      : '';
     return `<div class="bp-cornerstone-row" style="--rd:${(i*0.07).toFixed(2)}s;">
       <img class="bp-thumb bp-thumb-md" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
       <span class="bp-cs-pos" style="color:${pc};">${p.pos}</span>
       <span class="bp-cs-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
       <span class="bp-cs-age" style="color:${p.age&&p.age<26?'var(--green)':p.age&&p.age>29?'var(--red)':'var(--text-dim)'};">${ageStr}</span>
+      ${cliffBadge}
       <div class="bp-cs-bar-wrap"><div class="bp-cs-bar" style="width:${barW}%;background:${pc};"></div></div>
       <span class="bp-cs-val">${(p.value/1000).toFixed(1)}k</span>
     </div>`;
@@ -12710,18 +13085,41 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     </div>
   </div>`;
 
+  // Pick hit rates (Dynasty Guru research: early R1 ~75%, mid R1 ~50%, late R1 ~35%, R2 ~30%, R3+ ~9%)
+  const pickHitRate = p => {
+    if (p.tier === 'early') return p.round === 1 ? 0.75 : 0.30;
+    if (p.tier === 'mid')   return p.round === 1 ? 0.50 : p.round === 2 ? 0.30 : 0.09;
+    return p.round <= 2 ? 0.09 : 0.05;
+  };
+  const expectedStarters = picks.reduce((sum, p) => sum + pickHitRate(p), 0);
+
   const _capYears = Object.keys(picksByYear).sort().map(yr => {
-    const dots = picksByYear[yr].map((p, i) =>
-      `<div class="bp-pick-dot" style="background:${tierColors[p.tier]??'rgba(148,163,184,0.4)'};animation-delay:${(i*0.08).toFixed(2)}s;" title="${p.label}">${p.round}</div>`
-    ).join('');
-    return `<div class="bp-picks-year-row">
+    const dots = picksByYear[yr].map((p, i) => {
+      const hr = pickHitRate(p);
+      const hrColor = hr >= 0.60 ? '#fbbf24' : hr >= 0.35 ? '#94a3b8' : 'rgba(148,163,184,0.5)';
+      const hrPct   = Math.round(hr * 100);
+      return `<div style="margin-bottom:5px;">
+        <div class="bp-pick-dot" style="background:${tierColors[p.tier]??'rgba(148,163,184,0.4)'};animation-delay:${(i*0.08).toFixed(2)}s;" title="${p.label} · ${hrPct}% hit rate">${p.round}</div>
+        <div class="bp-hit-rate-row">
+          <div class="bp-hit-rate-bar"><div class="bp-hit-rate-fill" style="width:${hrPct}%;background:${hrColor};"></div></div>
+          <span class="bp-hit-rate-pct">${hrPct}%</span>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="bp-picks-year-row" style="align-items:flex-start;">
       <span class="bp-picks-year">${String(yr).slice(2)}'</span>
-      <div class="bp-picks-dots">${dots}</div>
+      <div class="bp-picks-dots" style="flex-wrap:wrap;gap:8px;">${dots}</div>
       <span class="bp-picks-count">${picksByYear[yr].length}</span>
     </div>`;
   }).join('');
 
-  const capitalHTML = _capHero + (totalPicks > 0 ? _capYears : `<div style="color:var(--text-dim);font-size:11px;padding:4px 0;">No future picks on record.</div>`);
+  const _expStarters = totalPicks > 0 ? `<div class="bp-expected-starters">
+    <div class="bp-expected-num">${expectedStarters.toFixed(1)}</div>
+    <div class="bp-expected-label">EXPECTED<br>STARTERS</div>
+    <div style="font-size:9px;color:rgba(255,255,255,0.28);flex:1;padding-left:6px;">estimated starter probability across all picks</div>
+  </div>` : '';
+
+  const capitalHTML = _capHero + (totalPicks > 0 ? _capYears + _expStarters : `<div style="color:var(--text-dim);font-size:11px;padding:4px 0;">No future picks on record.</div>`);
 
   // ── Trade strategy ────────────────────────────────────────────────────────
   const trade = _bpTradeStrategy(rosterId, allTeams, total);
@@ -12812,6 +13210,121 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   }).join('')
   : `<div style="color:rgba(255,255,255,0.25);font-size:10px;padding:6px 0;font-style:italic;">Portfolio allocation is balanced.</div>`;
 
+  // ── NEW: Blueprint code badge ─────────────────────────────────────────────
+  const blueprintCode = _bpBlueprintCode(phase, clock, total, isSF, archetype);
+
+  // ── NEW: Production & Value Share ─────────────────────────────────────────
+  const shareStats = _bpProductionValueShare(rosterId, allTeams);
+  const fairShare  = shareStats.fairShare;
+  const prodShareColor = shareStats.prodShare >= fairShare * 1.1 ? 'var(--green)' : shareStats.prodShare < fairShare * 0.85 ? 'var(--red)' : 'var(--text-dim)';
+  const valShareColor  = shareStats.valShare  >= fairShare * 1.1 ? 'var(--green)' : shareStats.valShare  < fairShare * 0.85 ? 'var(--red)' : 'var(--text-dim)';
+
+  // ── NEW: Risers & Fallers ─────────────────────────────────────────────────
+  const rf = _bpRisersFallers(rosterId);
+  const rfHTML = (() => {
+    const riserRows = rf.risers.map(p =>
+      `<div class="bp-rf-row">
+        <span class="bp-rf-arrow" style="color:var(--green);">▲</span>
+        <span class="bp-rf-pos" style="color:${posColors[p.pos]??'var(--text-dim)'};">${p.pos}</span>
+        <span class="bp-rf-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name}</span>
+        <span class="bp-rf-age" style="color:rgba(255,255,255,0.32);">${p.age}</span>
+        <span class="bp-rf-pct" style="color:var(--green);">+${p.pct}%</span>
+      </div>`
+    ).join('');
+    const fallerRows = rf.fallers.map(p =>
+      `<div class="bp-rf-row">
+        <span class="bp-rf-arrow" style="color:var(--red);">▼</span>
+        <span class="bp-rf-pos" style="color:${posColors[p.pos]??'var(--text-dim)'};">${p.pos}</span>
+        <span class="bp-rf-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name}</span>
+        <span class="bp-rf-age" style="color:rgba(255,255,255,0.32);">${p.age}</span>
+        <span class="bp-rf-pct" style="color:var(--red);">${p.pct}%</span>
+      </div>`
+    ).join('');
+    const hasRisers = rf.risers.length > 0, hasFallers = rf.fallers.length > 0;
+    return `
+      ${hasRisers ? riserRows : ''}
+      ${hasRisers && hasFallers ? '<div class="bp-rf-divider">▼ DECLINING</div>' : ''}
+      ${hasFallers ? fallerRows : ''}
+      ${!hasRisers && !hasFallers ? '<div style="color:var(--text-dim);font-size:10px;padding:6px 0;">No strong age trajectories detected.</div>' : ''}
+    `;
+  })();
+
+  // ── NEW: Value Matrix SVG ─────────────────────────────────────────────────
+  const valueMatrixSVG = _bpValueMatrixSVG(rosterId, allTeams, total, phStyle);
+
+  // ── NEW: Phase Overview Paragraph ─────────────────────────────────────────
+  const overviewParaHTML = _bpOverviewParagraph(teamRow, phase, clock, ranks, total, isSF, archetype, trade.strengthPositions, trade.weaknessPositions);
+
+  // ── NEW: Suggested Moves (SELL → BUY) ─────────────────────────────────────
+  const suggestedMoves = _bpSuggestedMoves(rosterId, allTeams, total, phase);
+  const suggestedMovesHTML = suggestedMoves.length ? suggestedMoves.map(move => {
+    const sell = move.sell;
+    const pc   = posColors[sell.pos] ?? 'var(--text-dim)';
+    const buySections = move.buys.map((b, bi) => {
+      const bpc = posColors[b.pos] ?? 'var(--text-dim)';
+      return `${bi > 0 ? '<span class="bp-sm-or-sep">OR</span>' : ''}
+        <div class="bp-sm-buy-row">
+          <span class="bp-sm-buy-tag">BUY</span>
+          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${b.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:16px;height:16px;border-radius:50%;">
+          <span class="bp-sm-player-name" onclick="searchAndOpenProfile('${(b.name||'').replace(/'/g,"\\'")}'">${b.name}</span>
+          <span style="font-family:var(--mono);font-size:7.5px;color:${bpc};">${b.pos}</span>
+          <span class="bp-sm-age">${b.age}</span>
+          <span class="bp-sm-val">${(b.val/1000).toFixed(1)}k</span>
+          <span class="bp-sm-team">${b.team}</span>
+        </div>`;
+    }).join('');
+    return `<div class="bp-sm-card">
+      <div class="bp-sm-sell-row">
+        <span class="bp-sm-sell-tag">SELL</span>
+        <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${sell.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:18px;height:18px;border-radius:50%;">
+        <span class="bp-sm-player-name" onclick="searchAndOpenProfile('${(sell.name||'').replace(/'/g,"\\'")}'">${sell.name}</span>
+        <span style="font-family:var(--mono);font-size:7.5px;color:${pc};">${sell.pos}</span>
+        <span class="bp-sm-age">${sell.age}</span>
+        <span class="bp-sm-val">${(sell.val/1000).toFixed(1)}k</span>
+      </div>
+      <div class="bp-sm-reason">${sell.sellReason}</div>
+      <div style="margin-top:6px;">${buySections}</div>
+    </div>`;
+  }).join('')
+  : `<div style="color:rgba(255,255,255,0.25);font-size:10px;padding:6px 0;font-style:italic;">No urgent sell candidates identified — roster is well-positioned.</div>`;
+
+  // ── NEW: Purgatory Alert (FRINGE only) ───────────────────────────────────
+  const purgatoryHTML = phase === 'FRINGE' ? `<div class="bp-purgatory-alert">
+    <div class="bp-purgatory-title">⚠ PURGATORY ZONE</div>
+    <div class="bp-purgatory-sub">This team is stuck in no-man's land — not competitive enough to win now, not broken enough to rebuild freely. Staying still is the worst outcome. You must choose a direction.</div>
+    <div class="bp-purgatory-paths">
+      <div class="bp-purgatory-path">
+        <div class="bp-purgatory-path-label" style="color:var(--green);">PATH A → RELOAD</div>
+        <div class="bp-purgatory-path-desc">Trade aging vets for young players and early picks. Accept 1–2 seasons of rebuilding in exchange for a real championship window.</div>
+      </div>
+      <div class="bp-purgatory-path">
+        <div class="bp-purgatory-path-label" style="color:var(--orange);">PATH B → ALL IN</div>
+        <div class="bp-purgatory-path-desc">Consolidate picks and depth into 1–2 elite pieces. Accept a shorter window and higher risk — swing big or go home.</div>
+      </div>
+    </div>
+  </div>` : '';
+
+  // ── NEW: Holds ────────────────────────────────────────────────────────────
+  const holds = _bpHolds(rosterId);
+  const holdsHTML = holds.length ? holds.map(h => {
+    const pc = posColors[h.pos] ?? 'var(--text-dim)';
+    const tagColors = { DEVELOPING:'#38bdf8', HANDCUFF:'#a78bfa', MONITOR:'#fbbf24' };
+    const tc = tagColors[h.tag] ?? '#38bdf8';
+    return `<div class="bp-hold-row">
+      <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${h.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
+          <span class="bp-hold-tag" style="background:${tc}20;color:${tc};border-color:${tc}40;">${h.tag}</span>
+          <span style="font-family:var(--mono);font-size:7.5px;color:${pc};">${h.pos}</span>
+          <span class="bp-hold-name" onclick="searchAndOpenProfile('${(h.name||'').replace(/'/g,"\\'")}'">${h.name}</span>
+          <span style="font-family:var(--mono);font-size:7.5px;color:rgba(255,255,255,0.28);margin-left:auto;">${h.age} · ${(h.val/1000).toFixed(1)}k</span>
+        </div>
+        <div class="bp-hold-reason">${h.reason}</div>
+      </div>
+    </div>`;
+  }).join('')
+  : `<div style="color:rgba(255,255,255,0.22);font-size:10px;padding:6px 0;font-style:italic;">No development stash or handcuff holds flagged.</div>`;
+
   // ── Swing players (position-of-need focus) ────────────────────────────────
   const swings = _bpSwingPlayers(rosterId, total);
   const swingHTML = swings.length ? swings.map((s, i) =>
@@ -12896,6 +13409,10 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     lineupRowsHTML, benchBubbles, teamProj, csRowsHTML, capitalHTML,
     overviewHTML, buyTradeHTML, rebalanceHTML, swingHTML, needsHTML, rosterGridHTML,
     pickValueRank, w, l, total,
+    // new fields
+    blueprintCode, shareStats, rfHTML, valueMatrixSVG, overviewParaHTML,
+    suggestedMovesHTML, purgatoryHTML, holdsHTML,
+    prodShareColor, valShareColor, fairShare,
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -12921,6 +13438,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
           <div class="bp-meta-row">
             <span class="bp-phase-badge" style="color:${phStyle.color};border-color:${phStyle.border};background:${phStyle.bg};">${phase}</span>
             <span class="bp-record">${w}–${l} · Age ${(teamRow.avgAge??0).toFixed(1)} · Proj #${projRank} · Val #${valueRank}</span>
+            <span class="bp-code-badge">${blueprintCode}</span>
           </div>
         </div>
         <div class="bp-grade-ring" style="--grade-color:${gradeColor};--gc-rgb:${gradeColor==='#22d3ee'?'34,211,238':gradeColor==='#4ade80'?'74,222,128':gradeColor==='#facc15'?'250,204,21':gradeColor==='#fb923c'?'251,146,60':'239,68,68'};border-color:${gradeColor};">
@@ -12930,7 +13448,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       </div>
     </div>
 
-    <!-- ═══ METRICS STRIP ═══ -->
+    <!-- ═══ METRICS STRIP (5 chips) ═══ -->
     <div class="bp-metrics-strip">
       <div class="bp-metric-chip" style="border-top-color:${trendColor};">
         <div class="bp-metric-label">3-YEAR WINDOW</div>
@@ -12943,6 +13461,16 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         </div>
         ${_bpWindowChartSVG(clock, trendColor)}
       </div>
+      <div class="bp-metric-chip" style="border-top-color:${prodShareColor};">
+        <div class="bp-metric-label">PRODUCTION SHARE</div>
+        <div class="bp-metric-val" style="color:${prodShareColor};">${shareStats.prodShare}%</div>
+        <div class="bp-metric-sub">of league total PPG · fair share ${fairShare.toFixed(1)}%</div>
+      </div>
+      <div class="bp-metric-chip" style="border-top-color:${valShareColor};">
+        <div class="bp-metric-label">VALUE SHARE</div>
+        <div class="bp-metric-val" style="color:${valShareColor};">${shareStats.valShare}%</div>
+        <div class="bp-metric-sub">of total dynasty value · #${valueRank} of ${total}</div>
+      </div>
       <div class="bp-metric-chip" style="border-top-color:#2dd4bf;">
         <div class="bp-metric-label">PROJECTED FINISH</div>
         <div class="bp-metric-val">${finish.projWins.toFixed(0)}–${finish.projLosses.toFixed(0)}</div>
@@ -12951,14 +13479,30 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       <div class="bp-metric-chip" style="border-top-color:${eff.color};">
         <div class="bp-metric-label">VALUE EFFICIENCY</div>
         <div class="bp-metric-val" style="color:${eff.color};">${eff.label}</div>
-        <div class="bp-metric-sub">Value #${eff.valueRank} · Proj #${eff.projRank} · ${eff.delta>0?'+':''}${eff.delta} spots</div>
+        <div class="bp-metric-sub">Val #${eff.valueRank} · Proj #${eff.projRank} · ${eff.delta>0?'+':''}${eff.delta} spots</div>
       </div>
     </div>
 
     <!-- ═══ CONTENT ═══ -->
     <div class="bp-content">
 
-      <!-- ROW 1: Radars -->
+      <!-- VALUE LANDSCAPE: Matrix + Risers/Fallers -->
+      <div class="bp-panel" style="--bpa:#a78bfa;">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#a78bfa;"></span>VALUE LANDSCAPE<span class="bp-panel-sub">production vs future value · all teams</span></div>
+        <div class="bp-landscape-grid">
+          <div>
+            <div style="font-family:var(--mono);font-size:7px;letter-spacing:0.1em;color:rgba(255,255,255,0.25);margin-bottom:6px;">X = CURRENT PRODUCTION · Y = FUTURE VALUE (AGE-ADJUSTED)</div>
+            ${valueMatrixSVG}
+          </div>
+          <div>
+            <div class="bp-ts-section-title" style="margin-bottom:8px;">📈 RISERS &amp; FALLERS</div>
+            ${rf.risers.length ? '<div style="font-family:var(--mono);font-size:6.5px;letter-spacing:0.1em;color:rgba(74,222,128,0.6);margin-bottom:4px;">▲ RISING VALUE</div>' : ''}
+            ${rfHTML}
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW: Radars -->
       <div class="bp-row-split">
         <div class="bp-panel bp-panel-radar" style="--bpa:#fb7185;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub">positional league rank</span></div>
@@ -12972,7 +13516,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         </div>
       </div>
 
-      <!-- ROW 2: Grades+Age | Value+Construction -->
+      <!-- ROW: Grades+Age | Value+Construction -->
       <div class="bp-row-split">
         <div class="bp-panel" style="--bpa:#38bdf8;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub">STR+DEP composite vs ${total} teams</span></div>
@@ -12993,18 +13537,32 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         </div>
       </div>
 
-      <!-- ROW 3: Lineup (full-width) -->
+      <!-- ROW: Lineup (full-width) -->
       <div class="bp-panel" style="--bpa:#2dd4bf;">
         <div class="bp-panel-title"><span class="bp-pdot" style="background:#2dd4bf;"></span>OPTIMAL LINEUP<span class="bp-panel-sub">base projections</span></div>
         ${lineupRowsHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">Run projections first.</div>'}
         ${_ppgTotal}
       </div>
 
-      <!-- ROW 4: Trade Strategy (full-width with overview + smart deals + rebalancing) -->
+      <!-- ROW: Trade Strategy (full-width) -->
       <div class="bp-panel" style="--bpa:#4ade80;">
-        <div class="bp-panel-title"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY<span class="bp-panel-sub">phase-aware · smart matching</span></div>
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY<span class="bp-panel-sub">phase-aware · smart matching · suggested moves</span></div>
+
+        <!-- Phase overview paragraph -->
+        ${overviewParaHTML}
+
+        <!-- Purgatory alert (FRINGE only) -->
+        ${purgatoryHTML}
+
+        <!-- Team overview box -->
         ${overviewHTML}
-        <div class="bp-ts-body">
+
+        <!-- Suggested Moves section -->
+        <div class="bp-ts-section-title" style="margin-bottom:10px;">🔄 Suggested Moves</div>
+        ${suggestedMovesHTML}
+
+        <!-- 2-col: Acquisition Targets | Portfolio Rebalancing -->
+        <div class="bp-ts-body" style="margin-top:16px;">
           <div>
             <div class="bp-ts-section-title">▸ Acquisition Targets</div>
             ${buyTradeHTML}
@@ -13016,7 +13574,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         </div>
       </div>
 
-      <!-- ROW 5: Swing Players + Positional Needs -->
+      <!-- ROW: Swing Players | Needs + Holds -->
       <div class="bp-row-split">
         <div class="bp-panel" style="--bpa:#fb923c;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>SWING PLAYERS<span class="bp-panel-sub">positions of need</span></div>
@@ -13025,22 +13583,23 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         <div class="bp-panel" style="--bpa:#fb923c;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>POSITIONAL NEEDS<span class="bp-panel-sub">vs league</span></div>
           ${needsHTML}
+          ${holds.length ? `<div class="bp-panel-title" style="margin-top:14px;"><span class="bp-pdot" style="background:#38bdf8;"></span>HOLDS<span class="bp-panel-sub">developing · handcuff · monitor</span></div>${holdsHTML}` : ''}
         </div>
       </div>
 
-      <!-- ROW 6: Cornerstones | Draft Capital -->
+      <!-- ROW: Cornerstones (age cliff badges) | Draft Capital (hit rates) -->
       <div class="bp-row-split">
         <div class="bp-panel" style="--bpa:#f5c842;">
-          <div class="bp-panel-title"><span class="bp-pdot" style="background:#f5c842;"></span>CORNERSTONES<span class="bp-panel-sub">top assets by FC value</span></div>
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#f5c842;"></span>CORNERSTONES<span class="bp-panel-sub">top assets · ⚠ = age cliff approaching</span></div>
           ${csRowsHTML}
         </div>
         <div class="bp-panel" style="--bpa:#94a3b8;">
-          <div class="bp-panel-title"><span class="bp-pdot" style="background:#94a3b8;"></span>DRAFT CAPITAL<span class="bp-panel-sub">future picks owned</span></div>
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#94a3b8;"></span>DRAFT CAPITAL<span class="bp-panel-sub">picks owned · hit rate per pick</span></div>
           ${capitalHTML}
         </div>
       </div>
 
-      <!-- ROW 7: Full Roster -->
+      <!-- ROW: Full Roster -->
       <div class="bp-panel" style="--bpa:rgba(255,255,255,0.2);">
         <div class="bp-panel-title"><span class="bp-pdot" style="background:rgba(255,255,255,0.4);"></span>FULL ROSTER<span class="bp-panel-sub">by FC value · line = starter threshold</span></div>
         <div class="bp-roster-grid" style="margin-top:8px;">${rosterGridHTML}</div>
@@ -13075,6 +13634,8 @@ function _bpFsHeroBlock(d) {
 }
 
 function _bpFsMetricBlock(d) {
+  const psc = d.prodShareColor ?? 'var(--text-dim)';
+  const vsc = d.valShareColor  ?? 'var(--text-dim)';
   return `<div class="bp-fs-mstrip">
     <div class="bp-fs-mrow" style="border-left-color:${d.trendColor};flex-direction:column;align-items:flex-start;gap:2px;">
       <div class="bp-fs-ml">3-YEAR WINDOW</div>
@@ -13086,6 +13647,14 @@ function _bpFsMetricBlock(d) {
         <span style="font-family:var(--mono);font-size:9px;color:${d.trendColor};padding:2px 5px;background:rgba(255,255,255,0.06);border-radius:4px;">${d.clock.y3??d.clock.future}</span>
       </div>
       ${_bpWindowChartSVG(d.clock, d.trendColor)}
+    </div>
+    <div class="bp-fs-mrow" style="border-left-color:${psc};">
+      <div><div class="bp-fs-ml">PRODUCTION SHARE</div><div class="bp-fs-ms">of league total PPG · fair share ${(d.fairShare??0).toFixed(1)}%</div></div>
+      <div class="bp-fs-mv" style="color:${psc};">${d.shareStats?.prodShare ?? '—'}%</div>
+    </div>
+    <div class="bp-fs-mrow" style="border-left-color:${vsc};">
+      <div><div class="bp-fs-ml">VALUE SHARE</div><div class="bp-fs-ms">of total dynasty value · #${d.valueRank} of ${d.total}</div></div>
+      <div class="bp-fs-mv" style="color:${vsc};">${d.shareStats?.valShare ?? '—'}%</div>
     </div>
     <div class="bp-fs-mrow" style="border-left-color:#2dd4bf;">
       <div><div class="bp-fs-ml">PROJECTED FINISH</div><div class="bp-fs-ms">${d.finish.playoffOdds}% playoff odds · ${d.finish.playoffTeams} spots</div></div>
@@ -13118,7 +13687,10 @@ function openBlueprintFullscreen() {
         <span style="font-size:20px;">🗺️</span>
         <div>
           <div class="bp-fs-tname">${d.teamRow.name}</div>
-          <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.12em;color:rgba(255,255,255,0.32);margin-top:2px;">TEAM BLUEPRINT · ${d.phase} · ${d.archetype}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+            <span style="font-family:var(--mono);font-size:8px;letter-spacing:0.12em;color:rgba(255,255,255,0.32);">TEAM BLUEPRINT · ${d.phase} · ${d.archetype}</span>
+            <span class="bp-code-badge">${d.blueprintCode ?? ''}</span>
+          </div>
         </div>
         <span class="bp-phase-badge" style="color:${d.phStyle.color};border-color:${d.phStyle.border};background:${d.phStyle.bg};">${d.phase}</span>
       </div>
@@ -13194,8 +13766,12 @@ function openBlueprintFullscreen() {
         <div class="bp-fs-col">
           <div class="bp-fs-p" style="--bpa:#4ade80;">
             <div class="bp-fs-pt"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">phase-aware · smart matching</span></div>
+            ${d.overviewParaHTML ?? ''}
+            ${d.purgatoryHTML ?? ''}
             ${d.overviewHTML}
-            <div class="bp-ts-body">
+            <div class="bp-ts-section-title" style="margin-bottom:8px;">🔄 Suggested Moves</div>
+            ${d.suggestedMovesHTML ?? ''}
+            <div class="bp-ts-body" style="margin-top:14px;">
               <div>
                 <div class="bp-ts-section-title">▸ Acquisition Targets</div>
                 ${d.buyTradeHTML}
