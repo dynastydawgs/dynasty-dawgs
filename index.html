@@ -12909,28 +12909,42 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
   // we want futures. Show them as acquirable targets so rebuilders know what to ask for.
   const isRebuildPhase = ['REBUILDING', 'AGING OUT', 'FRINGE'].includes(phase);
   if (isRebuildPhase) {
-    const winNowTeams = new Set(
+    // WIN NOW + CONTENDING teams will trade picks for proven production.
+    // FRINGE teams that are NOT depleted (have value + picks) are also pushing chips in
+    // and may be willing to move a 1st or 2nd to make a run.
+    const pickSourceTeams = new Set(
       allTeams.filter(t => {
+        if (t.roster_id === rosterId) return false;
         const p = _bpPhase(t, allTeams);
-        return p === 'WIN NOW' || p === 'CONTENDING';
+        if (p === 'WIN NOW' || p === 'CONTENDING') return true;
+        if (p === 'FRINGE') {
+          // Include FRINGE teams that still have real pick capital (not depleted)
+          const goodPicks = (t.allPicks ?? []).filter(pk => (pk.round ?? 99) <= 2).length;
+          return goodPicks >= 2;
+        }
+        return false;
       }).map(t => t.roster_id)
     );
 
     const availablePicks = allTeams
-      .filter(t => winNowTeams.has(t.roster_id))
+      .filter(t => pickSourceTeams.has(t.roster_id))
       .flatMap(t => {
+        const tPhase = _bpPhase(t, allTeams);
         const teamShort = (t.name || '').split(/[\s_]+/).pop();
+        // WIN NOW/CONTENDING: show R1 and R2 picks; FRINGE: R1 only (they're more protective of R2s)
+        const maxRound = (tPhase === 'WIN NOW' || tPhase === 'CONTENDING') ? 2 : 1;
         return (t.allPicks ?? [])
-          .filter(pk => (pk.round ?? 99) === 1)
+          .filter(pk => (pk.round ?? 99) <= maxRound)
           .map(pk => ({
             ...pk,
             val: _bpPickVal(pk),
             fromTeam: teamShort,
             fromRosterId: t.roster_id,
+            sourcePhase: tPhase,
             label: pk.label ?? `${pk.season ?? ''} R${pk.round ?? '?'}`,
           }));
       })
-      .filter(pk => pk.val >= 1000)
+      .filter(pk => pk.val >= 900)
       .sort((a, b) => b.val - a.val);
 
     if (availablePicks.length) {
@@ -12941,9 +12955,9 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
       const latePicks  = availablePicks.slice(earlyPicks.length + midPicks.length);
 
       const pickTiers = [
-        earlyPicks.length && { label:'EARLY 1ST', tier:'premium', picks: earlyPicks.slice(0, 3) },
-        midPicks.length   && { label:'MID 1ST',   tier:'value',   picks: midPicks.slice(0, 3)   },
-        latePicks.length  && { label:'LATE 1ST',  tier:'budget',  picks: latePicks.slice(0, 3)  },
+        earlyPicks.length && { label:'EARLY PICKS', tier:'premium', picks: earlyPicks.slice(0, 4) },
+        midPicks.length   && { label:'MID PICKS',   tier:'value',   picks: midPicks.slice(0, 4)   },
+        latePicks.length  && { label:'LATE PICKS',  tier:'budget',  picks: latePicks.slice(0, 4)  },
       ].filter(Boolean);
 
       if (pickTiers.length) buys.push({ pos:'PICKS', color:'#fbbf24', isPicks:true, tiers:pickTiers });
@@ -14769,7 +14783,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;">
             <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:rgba(255,255,255,0.78);">${(pk.val/1000).toFixed(1)}k</span>
-            <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.28);">R${pk.round} pick</span>
+            <span style="font-family:var(--mono);font-size:8px;color:${pk.round === 1 ? '#fbbf24' : '#94a3b8'};">R${pk.round} · ${pk.sourcePhase ?? ''}</span>
           </div>
         </div>`).join('');
         return `<div style="margin-bottom:6px;">${pickCards}</div>`;
@@ -14793,8 +14807,8 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     }).join('');
 
     const header = b.isPicks
-      ? `<span class="bp-trade-action" style="color:#fbbf24;font-size:9px;letter-spacing:0.1em;">🎟 TARGET: 1ST ROUND PICKS</span>
-         <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.25);margin-left:6px;">from WIN NOW teams looking to trade picks for production</span>`
+      ? `<span class="bp-trade-action" style="color:#fbbf24;font-size:9px;letter-spacing:0.1em;">🎟 TARGET: DRAFT CAPITAL</span>
+         <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.25);margin-left:6px;">WIN NOW &amp; FRINGE teams pushing chips in — ask for picks in every deal</span>`
       : `<span class="bp-trade-action" style="color:${b.color};font-size:9px;letter-spacing:0.1em;">▸ NEED ${b.pos}</span>`;
 
     return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:4px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
