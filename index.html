@@ -2918,15 +2918,15 @@
   /* ── Age cliff badge (cornerstones) ── */
   .bp-cliff-badge { background:rgba(239,68,68,0.14); color:#f87171; border:1px solid rgba(239,68,68,0.22); font-family:var(--mono); font-size:6.5px; padding:1px 5px; border-radius:3px; flex-shrink:0; white-space:nowrap; }
 
-  /* ── Dead Capital Alert ── */
-  .bp-dc-alert { background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.28); border-left:3px solid #ef4444; border-radius:8px; padding:12px 14px; margin-bottom:14px; }
-  .bp-dc-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; padding-bottom:9px; border-bottom:1px solid rgba(239,68,68,0.13); }
-  .bp-dc-title { font-family:var(--display); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:#f87171; margin-bottom:3px; }
-  .bp-dc-subtitle { font-size:9px; color:rgba(255,255,255,0.42); line-height:1.45; }
-  .bp-dc-total-val { color:#f87171; font-family:var(--mono); font-weight:700; }
-  .bp-dc-row { display:flex; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid rgba(239,68,68,0.08); }
+  /* ── Trade Chips (formerly Dead Capital) ── */
+  .bp-dc-alert { margin-bottom:12px; }
+  .bp-dc-header { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .bp-dc-title { font-family:var(--mono); font-size:8px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:rgba(255,255,255,0.45); }
+  .bp-dc-subtitle { display:none; }
+  .bp-dc-total-val { color:rgba(255,255,255,0.7); font-family:var(--mono); font-weight:700; }
+  .bp-dc-row { display:flex; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
   .bp-dc-row:last-child { border-bottom:none; }
-  .bp-dc-sell-tag { background:rgba(239,68,68,0.18); color:#f87171; border:1px solid rgba(239,68,68,0.28); padding:2px 7px; border-radius:3px; font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.08em; flex-shrink:0; }
+  .bp-dc-sell-tag { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.1); padding:2px 7px; border-radius:3px; font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.08em; flex-shrink:0; }
   .bp-dc-name { flex:1; font-size:10px; color:rgba(255,255,255,0.82); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .bp-dc-name:hover { color:var(--accent); }
   .bp-dc-val { font-family:var(--mono); font-size:8.5px; color:rgba(255,255,255,0.38); flex-shrink:0; }
@@ -14780,15 +14780,8 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     }).join('');
     return `<div class="bp-dc-alert">
       <div class="bp-dc-header">
-        <div style="font-size:20px;line-height:1;flex-shrink:0;margin-top:1px;">💀</div>
-        <div style="flex:1;min-width:0;">
-          <div class="bp-dc-title">Dead Capital Detected</div>
-          <div class="bp-dc-subtitle">You have <span class="bp-dc-total-val">${(totalDC/1000).toFixed(1)}k</span> in dead capital — high-value assets earning $0 in production. The clearest sell signals on your roster.</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0;margin-left:10px;">
-          <div style="font-family:var(--display);font-size:22px;font-weight:900;color:#f87171;line-height:1;">${(totalDC/1000).toFixed(1)}k</div>
-          <div style="font-family:var(--mono);font-size:7px;color:rgba(239,68,68,0.5);letter-spacing:0.1em;margin-top:2px;">DEAD CAPITAL</div>
-        </div>
+        <span class="bp-dc-title">Trade Chips</span>
+        <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.2);">${(totalDC/1000).toFixed(1)}k idle value · clearest sell signals</span>
       </div>
       ${rows}
     </div>`;
