@@ -13452,7 +13452,8 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     return null;
   };
 
-  // VALUE SPREAD: Trade your top asset for 3 lesser pieces whose cumulative value beats the sale price.
+  // VALUE SPREAD: Trade your top asset for 2+ pieces whose cumulative value beats the sale price.
+  // Tries: player+pick, player+player, then player+player+pick, player+player+player
   // For depleted FRINGE teams: you need volume + currency, not concentration in one star.
   const valueSpreadMove = () => {
     const seller = tradeable.filter(p => p.val >= 3500).sort((a,b) => b.val - a.val)[0];
@@ -13462,6 +13463,8 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
         const r = leagueRankings[t.roster_id]?.[`${seller.pos}Comp`];
         return r && (r - 1) / Math.max(total - 1, 1) >= 0.35;
       });
+    const minReturn = seller.val * 1.05;
+    const maxReturn = seller.val * 1.70;
     for (const buyer of buyerTeams.slice(0, 8)) {
       const bPids = rostersData?.find(r => r.roster_id === buyer.roster_id)?.players ?? [];
       const bPlayers = bPids.map(pid => {
@@ -13473,17 +13476,44 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
         return { pid, name:fc.name, pos:fc.position, val:fc.value??0, age:+age.toFixed(1),
                  team:(buyer.name||'').split(/[\s_]+/).pop() };
       }).filter(Boolean).sort((a,b) => b.val - a.val);
-      const topVal = bPlayers[0]?.val ?? Infinity;
+      const bPicks = (buyer.allPicks ?? [])
+        .map(pk => ({...pk, val:_bpPickVal(pk), isPick:true, name: pk.label ?? ((pk.tier?.charAt(0).toUpperCase()||'')+'R'+(pk.round??'?')+' Pick'), pid:'pick_'+pk.round }))
+        .filter(pk => pk.val >= 1000)
+        .sort((a,b) => b.val - a.val);
+      const fromTeam = buyer.name;
+      const mkHaul = (pieces, total) => ({ pieces, total, fromTeam });
+      const mkResult = haul => ({ type:'value_spread', sell:seller, haul,
+        rationale:`Trade ${seller.name} (${(seller.val/1000).toFixed(1)}k) for ${haul.pieces.length} pieces worth ${(haul.total/1000).toFixed(1)}k combined. You walk away with more total value AND the trade currency to keep making moves.` });
+
+      // 1. Player + pick (simplest clean deal)
+      for (const p of bPlayers.slice(0, 8)) {
+        for (const pk of bPicks.slice(0, 4)) {
+          const sum = p.val + pk.val;
+          if (sum >= minReturn && sum <= maxReturn) return mkResult(mkHaul([p, pk], sum));
+        }
+      }
+      // 2. Two players
+      for (let i = 0; i < Math.min(bPlayers.length, 8); i++) {
+        for (let j = i+1; j < Math.min(bPlayers.length, 8); j++) {
+          const sum = bPlayers[i].val + bPlayers[j].val;
+          if (sum >= minReturn && sum <= maxReturn) return mkResult(mkHaul([bPlayers[i], bPlayers[j]], sum));
+        }
+      }
+      // 3. Two players + pick
+      for (let i = 0; i < Math.min(bPlayers.length, 6); i++) {
+        for (let j = i+1; j < Math.min(bPlayers.length, 6); j++) {
+          for (const pk of bPicks.slice(0, 3)) {
+            const sum = bPlayers[i].val + bPlayers[j].val + pk.val;
+            if (sum >= minReturn && sum <= maxReturn) return mkResult(mkHaul([bPlayers[i], bPlayers[j], pk], sum));
+          }
+        }
+      }
+      // 4. Three players
       for (let i = 0; i < Math.min(bPlayers.length, 7); i++) {
-        if (bPlayers[i].val > topVal * 0.88) continue;
         for (let j = i+1; j < Math.min(bPlayers.length, 7); j++) {
           for (let k = j+1; k < Math.min(bPlayers.length, 7); k++) {
             const sum = bPlayers[i].val + bPlayers[j].val + bPlayers[k].val;
-            if (sum >= seller.val * 1.05 && sum <= seller.val * 1.65) {
-              const haul = { players:[bPlayers[i], bPlayers[j], bPlayers[k]], total:sum, fromTeam:buyer.name };
-              return { type:'value_spread', sell:seller, haul,
-                rationale:`Trade ${seller.name} (${(seller.val/1000).toFixed(1)}k) for 3 pieces worth ${(sum/1000).toFixed(1)}k combined. You walk away with more total value AND the trade currency to keep making moves.` };
-            }
+            if (sum >= minReturn && sum <= maxReturn) return mkResult(mkHaul([bPlayers[i], bPlayers[j], bPlayers[k]], sum));
           }
         }
       }
@@ -13709,13 +13739,14 @@ function _bpRenderDualPaths(pathA, pathB, rebuildTier) {
     let offerRow = '', getRow = '';
 
     if (type === 'value_spread') {
-      // DOWN-TIER: sell a star for 3 lesser pieces — more total value + trade currency
+      // DOWN-TIER: sell a star for 2+ pieces — more total value + trade currency
       const fromNote  = haul?.fromTeam ? `<span class="bp-pm-from">from ${haul.fromTeam.split(/[\s_]+/).pop()}</span>` : '';
-      const haulParts = (haul?.players??[]).map(rPlayer).join(plus);
+      const pieces = haul?.pieces ?? [];
+      const haulParts = pieces.map(p => p.isPick ? rPick(p) : rPlayer(p)).join(plus);
       const haulTot = `<span style="font-family:var(--mono);font-size:7px;color:rgba(74,222,128,0.45);margin-left:auto;">${(haul.total/1000).toFixed(1)}k</span>`;
       const sellTot = `<span style="font-family:var(--mono);font-size:7px;color:rgba(251,146,60,0.45);margin-left:auto;">${(sell.val/1000).toFixed(1)}k</span>`;
       offerRow = `<div class="bp-pm-row"><span class="bp-pm-tag sell">SELL</span>${rPlayer(sell)}${sellTot}</div>`;
-      getRow   = `<div class="bp-pm-row"><span class="bp-pm-tag get">GET ×3</span>${haulParts}${fromNote}${haulTot}</div>`;
+      getRow   = `<div class="bp-pm-row"><span class="bp-pm-tag get">GET ×${pieces.length}</span>${haulParts}${fromNote}${haulTot}</div>`;
 
     } else if (type === 'sell_aging') {
       // SELL aging player → GET pick haul
