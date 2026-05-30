@@ -12902,8 +12902,56 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
 
       if (tiers.length) buys.push({ pos, color: posColors[pos], tiers });
     }
+  }
 
-    // REBALANCE: over-concentrated by >7% at this position (was 12% — too high to ever trigger)
+  // ── PICKS section (rebuild phases only) ─────────────────────────────────────
+  // Find 1st-round picks sitting on WIN NOW / CONTENDING teams — they want production,
+  // we want futures. Show them as acquirable targets so rebuilders know what to ask for.
+  const isRebuildPhase = ['REBUILDING', 'AGING OUT', 'FRINGE'].includes(phase);
+  if (isRebuildPhase) {
+    const winNowTeams = new Set(
+      allTeams.filter(t => {
+        const p = _bpPhase(t, allTeams);
+        return p === 'WIN NOW' || p === 'CONTENDING';
+      }).map(t => t.roster_id)
+    );
+
+    const availablePicks = allTeams
+      .filter(t => winNowTeams.has(t.roster_id))
+      .flatMap(t => {
+        const teamShort = (t.name || '').split(/[\s_]+/).pop();
+        return (t.allPicks ?? [])
+          .filter(pk => (pk.round ?? 99) === 1)
+          .map(pk => ({
+            ...pk,
+            val: _bpPickVal(pk),
+            fromTeam: teamShort,
+            fromRosterId: t.roster_id,
+            label: pk.label ?? `${pk.season ?? ''} R${pk.round ?? '?'}`,
+          }));
+      })
+      .filter(pk => pk.val >= 1000)
+      .sort((a, b) => b.val - a.val);
+
+    if (availablePicks.length) {
+      // Split into early (top 40%), mid (next 40%), late (rest)
+      const n = availablePicks.length;
+      const earlyPicks = availablePicks.slice(0, Math.max(1, Math.ceil(n * 0.40)));
+      const midPicks   = availablePicks.slice(earlyPicks.length, earlyPicks.length + Math.max(1, Math.ceil(n * 0.40)));
+      const latePicks  = availablePicks.slice(earlyPicks.length + midPicks.length);
+
+      const pickTiers = [
+        earlyPicks.length && { label:'EARLY 1ST', tier:'premium', picks: earlyPicks.slice(0, 3) },
+        midPicks.length   && { label:'MID 1ST',   tier:'value',   picks: midPicks.slice(0, 3)   },
+        latePicks.length  && { label:'LATE 1ST',  tier:'budget',  picks: latePicks.slice(0, 3)  },
+      ].filter(Boolean);
+
+      if (pickTiers.length) buys.push({ pos:'PICKS', color:'#fbbf24', isPicks:true, tiers:pickTiers });
+    }
+  }
+
+  // REBALANCE: separate pass — over-concentrated positions
+  for (const pos of ['QB','RB','WR','TE']) {
     const excess = myConc[pos] - idealAlloc[pos];
     if (excess > 0.07 && myTeamRow) {
       const myPosPlayers = [...myPids]
@@ -14705,11 +14753,31 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     const tiers = b.tiers ?? [];
     if (!tiers.length) return '';
     const tierColors = { premium:'var(--accent)', value:'#38bdf8', budget:'#94a3b8' };
-    const posC = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' }[b.pos] ?? 'var(--text-dim)';
+    const posC = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' }[b.pos] ?? '#fbbf24';
+
     const tierBlocks = tiers.map(t => {
       const tc = tierColors[t.tier] ?? 'var(--text-dim)';
+
+      if (b.isPicks) {
+        // Pick rows: show pick label + from team + value
+        const pickCards = (t.picks ?? []).map((pk, i) => `<div class="bp-acq-card" style="${i > 0 ? 'margin-top:3px;' : ''}">
+          ${i === 0 ? `<span class="bp-acq-tier" style="color:${tc};">${t.label}</span>` : `<span class="bp-acq-tier" style="color:transparent;">·</span>`}
+          <span style="font-size:14px;flex-shrink:0;">🎟</span>
+          <div class="bp-acq-info">
+            <span class="bp-acq-name">${pk.label}</span>
+            <span class="bp-acq-team">from ${pk.fromTeam}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;">
+            <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:rgba(255,255,255,0.78);">${(pk.val/1000).toFixed(1)}k</span>
+            <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.28);">R${pk.round} pick</span>
+          </div>
+        </div>`).join('');
+        return `<div style="margin-bottom:6px;">${pickCards}</div>`;
+      }
+
+      // Player rows
       const players = t.players ?? (t.player ? [t.player] : []);
-      const playerCards = players.map((p, i) => `<div class="bp-acq-card" style="${i > 0 ? 'border-top:1px solid rgba(255,255,255,0.04);border-radius:0 0 8px 8px;' : ''}">
+      const playerCards = players.map((p, i) => `<div class="bp-acq-card" style="${i > 0 ? 'margin-top:3px;' : ''}">
         ${i === 0 ? `<span class="bp-acq-tier" style="color:${tc};">${t.label}</span>` : `<span class="bp-acq-tier" style="color:transparent;">·</span>`}
         <img class="bp-acq-photo" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
         <div class="bp-acq-info">
@@ -14723,8 +14791,14 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       </div>`).join('');
       return `<div style="margin-bottom:6px;">${playerCards}</div>`;
     }).join('');
+
+    const header = b.isPicks
+      ? `<span class="bp-trade-action" style="color:#fbbf24;font-size:9px;letter-spacing:0.1em;">🎟 TARGET: 1ST ROUND PICKS</span>
+         <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.25);margin-left:6px;">from WIN NOW teams looking to trade picks for production</span>`
+      : `<span class="bp-trade-action" style="color:${b.color};font-size:9px;letter-spacing:0.1em;">▸ NEED ${b.pos}</span>`;
+
     return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:4px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
-      <span class="bp-trade-action" style="color:${b.color};font-size:9px;letter-spacing:0.1em;">▸ NEED ${b.pos}</span>
+      ${header}
       ${tierBlocks}
     </div>`;
   }).join('') : `<div style="color:var(--text-dim);font-size:10px;">No glaring positional gaps.</div>`;
