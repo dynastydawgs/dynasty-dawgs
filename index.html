@@ -3854,9 +3854,9 @@ function buildPlayerMaps(spRaw, fcRaw) {
     const p = entry.player;
     if (!p) continue;
 
-    // Parse dynasty pick values (position === 'PI') — FC format: "2027 1st", "2028 2nd", etc.
+    // Parse dynasty pick values (position === 'PICK') — FC format: "2027 1st", "2028 2nd", etc.
     // FC gives one value per round (no tier split) — we apply tier multipliers ourselves.
-    if (p.position === 'PI') {
+    if (p.position === 'PICK') {
       const m = (p.name ?? '').match(/^(\d{4})\s+(\d+)(?:st|nd|rd|th)$/i);
       if (m && (entry.value ?? 0) > 0) {
         const yr    = parseInt(m[1]);
