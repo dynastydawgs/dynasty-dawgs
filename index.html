@@ -3715,17 +3715,24 @@ const PICK_BASE = {
   '4_early':   70, '4_mid':   50, '4_late':   35,
 };
 
-// Build PICK_VALUES dynamically for years [season, season+1, season+2]
-// called once after leagueData is loaded
+// Live pick values fetched from FantasyCalc (same API, same scale as player values).
+// Populated in buildPlayerMaps() from PI-position entries. Keyed as "YYYY_round_tier"
+// e.g. "2027_1_late" → 820.  Falls back to discounted PICK_BASE when not present.
+let fcPickValues = {};
+
+// Build PICK_VALUES dynamically for years [season, season+1, season+2].
+// Prefers live FC pick values when available — falls back to discounted PICK_BASE.
+// Must be called AFTER buildPlayerMaps() so fcPickValues is already populated.
 let PICK_VALUES = {};
 function buildPickValueTable(currentSeason) {
   PICK_VALUES = {};
   const discounts = [1.0, 0.80, 0.64]; // 0%, 20%, 36% discount per year out
   for (let offset = 0; offset < 3; offset++) {
-    const yr    = currentSeason + offset;
-    const disc  = discounts[offset];
+    const yr   = currentSeason + offset;
+    const disc = discounts[offset];
     for (const [key, base] of Object.entries(PICK_BASE)) {
-      PICK_VALUES[`${yr}_${key}`] = Math.round(base * disc);
+      const fcv = fcPickValues[`${yr}_${key}`];
+      PICK_VALUES[`${yr}_${key}`] = (fcv && fcv > 0) ? fcv : Math.round(base * disc);
     }
   }
 }
@@ -3794,9 +3801,24 @@ function buildPlayerMaps(spRaw, fcRaw) {
     };
   }
   fcPlayerMap = {};
+  fcPickValues = {};
   for (const entry of fcRaw) {
     const p = entry.player;
-    if (!p || !p.sleeperId || p.position === 'PI') continue;
+    if (!p) continue;
+
+    // Parse dynasty pick values (position === 'PI') — e.g. "2027 Early 1st Round Pick"
+    if (p.position === 'PI') {
+      const m = (p.name ?? '').match(/^(\d{4})\s+(Early|Mid|Late)\s+(\d+)(?:st|nd|rd|th)\s+Round\s+Pick$/i);
+      if (m && (entry.value ?? 0) > 0) {
+        const yr    = parseInt(m[1]);
+        const tier  = m[2].toLowerCase();   // 'early' | 'mid' | 'late'
+        const round = parseInt(m[3]);
+        fcPickValues[`${yr}_${round}_${tier}`] = entry.value;
+      }
+      continue;
+    }
+
+    if (!p.sleeperId) continue;
     fcPlayerMap[p.sleeperId] = {
       value:        entry.value        ?? 0,
       position:     p.position         ?? '?',
@@ -3865,11 +3887,12 @@ async function fetchAll() {
     const fcRaw     = await fcRes.json();
     const spRaw     = await spRes.json();
 
-    // Build pick value table relative to the current league season (covers season, +1, +2)
-    buildPickValueTable(parseInt(leagueData.season, 10));
-
-    // Rebuild player maps with fresh league-context data (overwrites the background-loaded version)
+    // Build player maps first — this also populates fcPickValues from FC's PI entries.
+    // Must happen before buildPickValueTable so live pick values are available.
     buildPlayerMaps(spRaw, fcRaw);
+
+    // Build pick value table using live FC pick values where available (PICK_BASE fallback).
+    buildPickValueTable(parseInt(leagueData.season, 10));
 
     renderLeague();
     renderPowerRankings();
@@ -12673,9 +12696,13 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
           return { players:[], picks:[myOfferPicks[i], myOfferPicks[j]], total:eff, targetNeeds };
       }
 
-    // 6. Fallback: best available (flagged as approximate)
-    if (offerPool[0]) return { players:[offerPool[0]], picks:[], total:offerPool[0].value, inexact:true, targetNeeds };
-    if (myOfferPicks[0]) return { players:[], picks:[myOfferPicks[0]], total:myOfferPicks[0].val, inexact:true, targetNeeds };
+    // 6. Fallback: only if the best available option is ≥55% of target value.
+    //    Anything below that is too far off to be a useful suggestion — return null
+    //    so the UI shows the target without a fabricated "offer" for it.
+    const fbPlayer = offerPool.find(p => p.value >= tv * 0.55);
+    if (fbPlayer) return { players:[fbPlayer], picks:[], total:fbPlayer.value, inexact:true, targetNeeds };
+    const fbPick = myOfferPicks.find(pk => pk.val >= tv * 0.55);
+    if (fbPick) return { players:[], picks:[fbPick], total:fbPick.val, inexact:true, targetNeeds };
     return null;
   };
 
