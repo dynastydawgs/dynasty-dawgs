@@ -12345,7 +12345,7 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   const _mobPpgR = pos === 'QB' ? 0.50 : 0.75;
   if (yExp >= 2 && yExp <= _mobMax && a <= 28 && oRank <= 125 && ppgR >= _mobPpgR) return 'MAKE-OR-BREAK';
   // ── PROSPECT TIER ─────────────────────────────────────────────────────────
-  if (yExp <= 1 && oRank <= 75 && a <= 23)                            return 'ELITE PROSPECT';
+  if (yExp <= 1 && oRank <= 75 && a <= 24)                            return 'ELITE PROSPECT';
   if (oRank <= 125 && a <= 24 && val >= 1500)                         return 'PROMISING UPSIDE';
   if (oRank <= 175 && a <= 23 && val >= 1000)                         return 'POTENTIAL UPSIDE';
   if (a <= 22 && val >= 600 && oRank <= 200)                          return 'LOTTERY TICKET';
