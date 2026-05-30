@@ -12890,14 +12890,20 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
       const valuePlayers   = pickUpTo(allCandidates.filter(p => p.value >= valueFloor && p.value < premiumFloor), 3);
       const budgetPlayers  = pickUpTo(allCandidates.filter(p => p.value >= budgetFloor && p.value < valueFloor), 3);
 
-      // Affordability gate: skip tiers the team realistically can't pay for
-      // Use 55% of cheapest player in tier as the threshold (packages can cover the gap)
-      const canAfford = pool => !pool.length || myOfferCapacity >= (pool[pool.length - 1].value * 0.45);
+      // Affordability gate: skip tiers the team realistically can't package a deal for.
+      // Check against the MEDIAN player value in the tier at a meaningful threshold —
+      // not the cheapest, so a 10k tier doesn't sneak through on a 1.4k floor check.
+      const tierMedian = pool => pool[Math.floor(pool.length / 2)]?.value ?? 0;
+      const canAfford = (pool, threshold) =>
+        !pool.length || myOfferCapacity >= tierMedian(pool) * threshold;
 
       const tiers = [
-        (premiumPlayers.length && canAfford(premiumPlayers)) && { label:'PREMIUM', tier:'premium', players:premiumPlayers },
-        (valuePlayers.length   && canAfford(valuePlayers))   && { label:'VALUE',   tier:'value',   players:valuePlayers   },
-        (budgetPlayers.length)                                && { label:'BUDGET',  tier:'budget',  players:budgetPlayers  },
+        // PREMIUM: need 65% of median — genuine packaging power required
+        (premiumPlayers.length && canAfford(premiumPlayers, 0.65)) && { label:'PREMIUM', tier:'premium', players:premiumPlayers },
+        // VALUE: need 50% of median — reachable with a player + pick combo
+        (valuePlayers.length   && canAfford(valuePlayers,   0.50)) && { label:'VALUE',   tier:'value',   players:valuePlayers   },
+        // BUDGET: always show if players exist — 1.4k targets are always packageable
+        (budgetPlayers.length)                                      && { label:'BUDGET',  tier:'budget',  players:budgetPlayers  },
       ].filter(Boolean);
 
       if (tiers.length) buys.push({ pos, color: posColors[pos], tiers });
