@@ -13529,11 +13529,8 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
       .filter(p => p.age >= minAge && p.val >= 1500)
       .sort((a,b) => b.val - a.val);
 
-    // Blue-chip prospects: age ≤ 24, high dynasty value — the kind of player
-    // that commands top-5 startup value and only grows from here.
-    const blueChips = leaguePlayers
-      .filter(p => p.age <= 24 && p.val >= 1800)
-      .sort((a,b) => b.val - a.val);
+    // Blue-chip prospects: age ≤ 24, high dynasty value — prioritize needed positions
+    const blueChips = byNeed(leaguePlayers.filter(p => p.age <= 24 && p.val >= 1800));
 
     const mySpare = myPicks
       .map(pk => ({...pk, val:_bpPickVal(pk)}))
@@ -14724,12 +14721,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     <div class="bp-purgatory-sub">This team is stuck in no-man's land — not competitive enough to win now, not broken enough to rebuild freely. Staying still is the worst outcome. You must choose a direction.</div>
     <div class="bp-purgatory-paths">
       <div class="bp-purgatory-path">
-        <div class="bp-purgatory-path-label" style="color:var(--green);">PATH A → RELOAD</div>
-        <div class="bp-purgatory-path-desc">Trade aging vets for young players and early picks. Accept 1–2 seasons of rebuilding in exchange for a real championship window.</div>
+        <div class="bp-purgatory-path-label" style="color:var(--orange);">PATH A → CONSOLIDATE & SWING</div>
+        <div class="bp-purgatory-path-desc">Package spare pieces into one elite player at your biggest need. Break out of purgatory with a bold move — mediocre rosters don't win titles.</div>
       </div>
       <div class="bp-purgatory-path">
-        <div class="bp-purgatory-path-label" style="color:var(--orange);">PATH B → ALL IN</div>
-        <div class="bp-purgatory-path-desc">Consolidate picks and depth into 1–2 elite pieces. Accept a shorter window and higher risk — swing big or go home.</div>
+        <div class="bp-purgatory-path-label" style="color:#38bdf8;">PATH B → TRIM FAT, BUY YOUTH</div>
+        <div class="bp-purgatory-path-desc">Trade aging assets for young prospects and first-round picks. Accept 1–2 seasons of retooling in exchange for a real championship window.</div>
       </div>
     </div>
   </div>` : '';
@@ -15075,15 +15072,18 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         ${deadCapitalHTML}
 
         <!-- Phase overview paragraph -->
+        <!-- Section 1: Situation Overview -->
         ${overviewParaHTML}
 
-        <!-- Purgatory alert (FRINGE only) -->
+        <!-- Section 2: Purgatory Alert (FRINGE only) -->
         ${purgatoryHTML}
 
-        <!-- Team overview box -->
+        <!-- Section 3: Team snapshot -->
+        <div style="border-top:1px solid rgba(255,255,255,0.06);margin:10px 0 10px;"></div>
         ${overviewHTML}
 
-        <!-- Strategy Paths — each path includes trade move + tier play + targets/rebalancing -->
+        <!-- Section 4: Strategy Paths -->
+        <div style="border-top:1px solid rgba(255,255,255,0.06);margin:14px 0 10px;"></div>
         <div class="bp-ts-section-title" style="margin-bottom:10px;">⚡ Strategy Paths<span style="font-family:var(--mono);font-size:7px;font-weight:400;color:rgba(255,255,255,0.28);margin-left:8px;letter-spacing:0.08em;">TWO DIRECTIONS · CHOOSE ONE</span></div>
         ${suggestedMovesHTML}
       </div>
@@ -15287,9 +15287,19 @@ function openBlueprintFullscreen() {
           <div class="bp-fs-p" style="--bpa:#4ade80;">
             <div class="bp-fs-pt"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">phase-aware · smart matching</span></div>
             ${d.deadCapitalHTML ?? ''}
+
+            <!-- Section 1: Situation Overview -->
             ${d.overviewParaHTML ?? ''}
+
+            <!-- Section 2: Purgatory Alert (FRINGE only) — shown between overview and team card -->
             ${d.purgatoryHTML ?? ''}
+
+            <!-- Section 3: Team snapshot (archetype, strengths/needs) -->
+            <div style="border-top:1px solid rgba(255,255,255,0.06);margin:10px 0 10px;"></div>
             ${d.overviewHTML}
+
+            <!-- Section 4: Strategy Paths -->
+            <div style="border-top:1px solid rgba(255,255,255,0.06);margin:14px 0 10px;"></div>
             <div class="bp-ts-section-title" style="margin-bottom:8px;">⚡ Strategy Paths<span style="font-family:var(--mono);font-size:7px;font-weight:400;color:rgba(255,255,255,0.28);margin-left:8px;letter-spacing:0.08em;">TWO DIRECTIONS · CHOOSE ONE</span></div>
             ${d.suggestedMovesHTML ?? ''}
           </div>
