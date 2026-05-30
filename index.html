@@ -3765,9 +3765,9 @@ let PICK_VALUES = {};
 // Late 1sts carry a bigger discount; late 2nd/3rd/4th are closer to mid value.
 const PICK_TIER_MULT = {
   1: { early: 1.40, mid: 1.04, late: 0.87 },
-  2: { early: 1.25, mid: 1.04, late: 0.95 },
-  3: { early: 1.15, mid: 1.04, late: 0.95 },
-  4: { early: 1.05, mid: 1.04, late: 0.95 },
+  2: { early: 1.40, mid: 1.15, late: 1.03 },
+  3: { early: 1.31, mid: 1.13, late: 1.03 },
+  4: { early: 1.20, mid: 1.10, late: 1.03 },
 };
 
 function buildPickValueTable(currentSeason) {
