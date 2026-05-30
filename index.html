@@ -258,12 +258,15 @@
   .bd-pname-row { display: flex; align-items: center; gap: 5px; }
   .bd-pname { font-size: 12px; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bd-pname-link:hover { color: var(--blue); text-decoration: underline; }
-  .bd-page {
-    font-family: var(--mono); font-size: 9px; font-weight: 500;
+  /* Dynasty rank chips — replace age display in power rankings expand panel */
+  .bd-rank-chips { display:flex; align-items:center; gap:3px; flex-shrink:0; }
+  .bd-rank-chip {
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
     padding: 1px 5px; border-radius: 3px;
-    background: rgba(100,130,180,0.15); border: 1px solid rgba(100,130,180,0.2);
-    white-space: nowrap; flex-shrink: 0;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+    white-space: nowrap; letter-spacing: 0.03em;
   }
+  .bd-rank-pos { font-size: 8px; }
 
   /* Value badge below name */
   .bd-pval {
@@ -4185,6 +4188,17 @@ function drawPowerRankingsTable() {
   const rosterMap = {};
   for (const r of (rostersData ?? [])) rosterMap[r.roster_id] = r;
 
+  // Pre-compute overall dynasty rank for every skill-position player (by FC value)
+  const overallRankMap = {};
+  Object.entries(fcPlayerMap)
+    .filter(([, fc]) => fc.value > 0 && ['QB','RB','WR','TE'].includes(fc.position))
+    .sort(([, a], [, b]) => b.value - a.value)
+    .forEach(([pid], i) => { overallRankMap[pid] = i + 1; });
+
+  // Color helpers for dynasty rank chips
+  const overallRankColor = r => !r ? 'var(--text-dim)' : r <= 25 ? 'var(--green)' : r <= 60 ? 'var(--accent)' : r <= 100 ? 'var(--orange)' : 'rgba(255,255,255,0.30)';
+  const posRankColor     = r => !r ? 'var(--text-dim)' : r <= 12 ? 'var(--green)' : r <= 24 ? 'var(--accent)' : r <= 36 ? 'var(--orange)' : 'rgba(255,255,255,0.30)';
+
   // Update header arrows
   ['totalValue','playerValue','pickValue','avgAge'].forEach(col => {
     const el = document.getElementById(`th-${col}`);
@@ -4208,10 +4222,14 @@ function drawPowerRankingsTable() {
       const sp  = sleeperPlayers[pid];
       const pos = fc?.position ?? sp?.position ?? 'UNK';
       if (!byPos[pos]) continue;
-      const age = sp?.birth_date
-        ? (today - new Date(sp.birth_date)) / (365.25 * 24 * 3600 * 1000)
-        : null;
-      byPos[pos].push({ pid, name: fc?.name ?? sp?.name ?? pid, value: fc?.value ?? 0, age, pos });
+      byPos[pos].push({
+        pid,
+        name:        fc?.name ?? sp?.name ?? pid,
+        value:       fc?.value ?? 0,
+        pos,
+        overallRank: overallRankMap[pid] ?? null,
+        posRank:     fc?.positionRank ?? null,
+      });
     }
     for (const pos of Object.keys(byPos)) byPos[pos].sort((a, b) => b.value - a.value);
 
@@ -4219,12 +4237,15 @@ function drawPowerRankingsTable() {
       const group = byPos[pos] ?? [];
       const rows  = group.length
         ? group.map(p => {
-            const pAgeStr   = p.age ? p.age.toFixed(1) : '—';
-            const pAgeColor = playerAgeColor(p.age, p.pos);
+            const oRank = p.overallRank;
+            const pRank = p.posRank;
             return `<div class="bd-player">
               <div class="bd-pname-row">
                 <span class="bd-pname bd-pname-link" onclick="loadPlayerProfile('${p.pid}')" style="cursor:pointer;" title="Open profile">${p.name}</span>
-                <span class="bd-page" style="color:${p.age ? pAgeColor : 'var(--text-dim)'};">${pAgeStr}y</span>
+                <span class="bd-rank-chips">
+                  <span class="bd-rank-chip" style="color:${overallRankColor(oRank)};" title="Overall dynasty rank">#${oRank ?? '—'}</span>
+                  <span class="bd-rank-chip bd-rank-pos" style="color:${posRankColor(pRank)};" title="${pos} rank">${pos}${pRank ?? '—'}</span>
+                </span>
               </div>
               ${p.value > 0 ? `<span class="bd-pval">${p.value.toLocaleString()}</span>` : ''}
             </div>`;
