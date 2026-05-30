@@ -12846,23 +12846,29 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
   const myValueRank = allTeams.filter(t => t.totalValue > (myTeamRow?.totalValue ?? 0)).length + 1;
   const myValuePct  = (myValueRank - 1) / Math.max(total - 1, 1); // 0 = best, 1 = worst
 
-  // Pre-compute each other team's phase + their top-3 pids (blue chips not for sale)
+  // Pre-compute each other team's phase + their untradeable franchise pids
+  // Every team protects their top cornerstone(s) — they're not on the market.
+  // How many they protect depends on phase:
+  //   REBUILDING              → top 4 (entire young core — they're building around all of them)
+  //   AGING OUT / FRINGE      → top 3 (keeping the foundation, selling the aging pieces)
+  //   RELOAD / CONTENDING     → top 2 (franchise + co-star are locked in)
+  //   WIN NOW                 → top 1 (only absolute franchise player is untouchable)
+  const untradeableCount = { 'REBUILDING':4, 'AGING OUT':3, 'FRINGE':3, 'RELOAD':2, 'CONTENDING':2, 'WIN NOW':1 };
   const teamPhaseCache = {};
-  const teamBlueChipPids = {};
+  const teamUntradeablePids = {};
   for (const t of allTeams) {
     if (t.roster_id === rosterId) continue;
-    teamPhaseCache[t.roster_id] = _bpPhase(t, allTeams);
-    // Blue chips: top-3 players by FC value on REBUILDING teams — they won't trade these
-    if (teamPhaseCache[t.roster_id] === 'REBUILDING') {
-      const tPids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
-      const top3 = tPids
-        .map(pid => ({ pid, val: fcPlayerMap[pid]?.value ?? 0 }))
-        .filter(p => p.val > 0)
-        .sort((a, b) => b.val - a.val)
-        .slice(0, 3)
-        .map(p => p.pid);
-      teamBlueChipPids[t.roster_id] = new Set(top3);
-    }
+    const tPhase = _bpPhase(t, allTeams);
+    teamPhaseCache[t.roster_id] = tPhase;
+    const nProtect = untradeableCount[tPhase] ?? 2;
+    const tPids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+    const topN = tPids
+      .map(pid => ({ pid, val: fcPlayerMap[pid]?.value ?? 0 }))
+      .filter(p => p.val > 0)
+      .sort((a, b) => b.val - a.val)
+      .slice(0, nProtect)
+      .map(p => p.pid);
+    teamUntradeablePids[t.roster_id] = new Set(topN);
   }
 
   const buys = [], rebalance = [];
@@ -12884,8 +12890,8 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
             if (!fc || fc.position !== pos || myPids.has(pid)) return null;
             const age = _bpAge(sp?.birth_date) ?? 27;
             if (!targetAgeOk(age)) return null;
-            // Skip blue-chip prospects locked on rebuilding teams — not realistic targets
-            if (tPhase === 'REBUILDING' && (teamBlueChipPids[t.roster_id]?.has(pid) || (age <= 25 && (fc.value ?? 0) >= 4000))) return null;
+            // Skip untradeable franchise players — every team has cornerstones not on the market
+            if (teamUntradeablePids[t.roster_id]?.has(pid)) return null;
             return { pid, name: fc.name, value: fc.value ?? 0, age: +age.toFixed(1), team: tName, sourcePhase: tPhase };
           }).filter(Boolean);
         })
