@@ -12326,7 +12326,9 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   // ── STAR TIER — requires year 3+ (yExp >= 2); rookies/sophs route to ascending/prospect ──
   if (yExp >= 2 && oRank <= 50 && a >= 30 && ppgR >= 1.20)           return 'VETERAN STAR';
   if (yExp >= 2 && oRank <= 50 && a <= 31 && rdVal >= 4000)          return 'PROVEN STAR';
-  if (yExp >= 4 && oRank <= 75 && a <= 29 && ppgR >= 1.05)           return 'PRIME PRODUCER';
+  if (yExp >= 4 && oRank <= 100 && a <= 29 && ppgR >= 1.05)          return 'PRIME PRODUCER';
+  // High-production override: proven output regardless of dynasty rank
+  if (yExp >= 4 && a <= 29 && ppgR >= 1.25)                          return 'PRIME PRODUCER';
   // BREAKOUT STAR: year 2+, top-36 young player with elite production
   if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppgR >= 1.20 || rdVal >= 4500)) return 'BREAKOUT STAR';
   // ── ASCENDING TIER ────────────────────────────────────────────────────────
