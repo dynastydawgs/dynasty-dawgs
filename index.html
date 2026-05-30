@@ -12287,8 +12287,9 @@ const _RP_LABELS = {
   'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise' },
   'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran'   },
   'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect'  },
-  'RISING STAR':       { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending' },
-  'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending' },
+  'RISING STAR':         { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending' },
+  'BREAKOUT CANDIDATE':  { color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending' },
+  'MAKE-OR-BREAK':       { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending' },
   'BREAKOUT':          { color:'#a3e635', bg:'rgba(163,230,53,0.12)',   border:'rgba(163,230,53,0.26)',   tier:'prospect'  },
   'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect'  },
   'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star'      },
@@ -12331,10 +12332,12 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
   // ── PROSPECT / ASCENDING TIER ──────────────────────────────────────────────
   // BLUE-CHIP: top-36 young asset, high ceiling but not yet showing star production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
-  // RISING STAR: year 2-4 with proven starter production — on track, not yet a star
-  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 100 && ppg >= 10.5) return 'RISING STAR';
-  // MAKE-OR-BREAK: year 2-4, ranked but hasn't proven consistent production yet
-  if (yExp >= 1 && yExp <= 4 && a <= 26 && oRank <= 125 && ppg < 10.5)  return 'MAKE-OR-BREAK';
+  // RISING STAR: year 2-4, elite starter production — one step from star tier
+  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 100 && ppg >= 12.5) return 'RISING STAR';
+  // BREAKOUT CANDIDATE: year 2-4, solid production trending up — cusp of prime
+  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 100 && ppg >= 10.5) return 'BREAKOUT CANDIDATE';
+  // MAKE-OR-BREAK: year 2-4, ranked with some production — now or never window
+  if (yExp >= 1 && yExp <= 4 && a <= 26 && oRank <= 125 && ppg >= 7.5)  return 'MAKE-OR-BREAK';
   // BREAKOUT: true rookies/year-1 — raw talent, NFL track record TBD
   if (yExp <= 1 && a <= 25 && oRank <= 100)                          return 'BREAKOUT';
   if (oRank <= 75 && a <= 22)                                         return 'ELITE PROSPECT';
