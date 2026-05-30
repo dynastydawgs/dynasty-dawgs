@@ -12324,8 +12324,8 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
   if (yExp >= 2 && oRank <= 50 && a >= 30 && ppg >= 12)              return 'VETERAN STAR';
   if (yExp >= 2 && oRank <= 50 && a <= 31 && rdVal >= 4000)          return 'PROVEN STAR';
   if (yExp >= 2 && oRank <= 75 && a <= 29 && ppg >= 9)               return 'PRIME PRODUCER';
-  // BREAKOUT STAR: year 3+, top-36 young player with elite production
-  if (yExp >= 2 && oRank <= 36 && a <= 25 && (ppg >= 13 || rdVal >= 5000)) return 'BREAKOUT STAR';
+  // BREAKOUT STAR: year 2+, top-36 young player with elite production
+  if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppg >= 13 || rdVal >= 5000)) return 'BREAKOUT STAR';
   // ── PROSPECT / ASCENDING TIER ──────────────────────────────────────────────
   // BLUE-CHIP: top-36 young asset, high ceiling but not yet showing star production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
