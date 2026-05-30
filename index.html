@@ -14750,25 +14750,33 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const teS = starterSlots.TE;
   const posStarterMap = { QB:qbS, RB:rbS, WR:wrS, TE:teS };
 
+  // Overall dynasty rank map (by FC value across all skill positions)
+  const _bpOverallRankMap = {};
+  Object.entries(fcPlayerMap)
+    .filter(([, fc]) => ['QB','RB','WR','TE'].includes(fc.position) && fc.value > 0)
+    .sort(([, a], [, b]) => b.value - a.value)
+    .forEach(([pid], i) => { _bpOverallRankMap[pid] = i + 1; });
+  const _bpORankColor = r => !r ? 'var(--text-dim)' : r <= 25 ? 'var(--green)' : r <= 60 ? 'var(--accent)' : r <= 100 ? 'var(--orange)' : 'rgba(255,255,255,0.30)';
+  const _bpPRankColor = r => !r ? 'var(--text-dim)' : r <= 12 ? 'var(--green)' : r <= 24 ? 'var(--accent)' : r <= 36 ? 'var(--orange)' : 'rgba(255,255,255,0.30)';
+
   const rosterGridHTML = ['QB','RB','WR','TE'].map(pos => {
     const nStarters = posStarterMap[pos] ?? 1;
     const c = posColors[pos] ?? 'var(--text-dim)';
     const players = (roster?.players ?? []).map(pid => {
-      const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+      const fc = fcPlayerMap[pid];
       if (!fc || fc.position !== pos) return null;
-      return { pid, name: fc.name, value: fc.value, age: _bpAge(sp?.birth_date) };
+      return { pid, name: fc.name, value: fc.value, overallRank: _bpOverallRankMap[pid] ?? null, posRank: fc.positionRank ?? null };
     }).filter(Boolean).sort((a,b) => b.value - a.value);
-    const maxV = players[0]?.value ?? 1;
-    const ageHeat = a => !a ? 'transparent' : a<=21 ? 'rgba(74,222,128,0.13)' : a<=23 ? 'rgba(74,222,128,0.07)' : a<=27 ? 'transparent' : a<=29 ? 'rgba(251,191,36,0.08)' : a<=31 ? 'rgba(251,146,60,0.1)' : 'rgba(239,68,68,0.13)';
     const rows = players.map((p, i) => {
-      const barW  = maxV > 0 ? Math.round(p.value / maxV * 100) : 0;
-      const ageStr = p.age != null ? p.age.toFixed(0) : '?';
-      const ageC  = p.age&&p.age<24 ? 'var(--green)' : p.age&&p.age>30 ? 'var(--red)' : 'var(--text-dim)';
-      return `<div class="bp-roster-row${i < nStarters ? ' bp-roster-starter' : ''}" style="--rd:${(i*0.04).toFixed(2)}s;background:${ageHeat(p.age)};border-radius:4px;">
+      const oRank = p.overallRank;
+      const pRank = p.posRank;
+      return `<div class="bp-roster-row${i < nStarters ? ' bp-roster-starter' : ''}" style="--rd:${(i*0.04).toFixed(2)}s;border-radius:4px;">
         <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;">
         <span class="bp-roster-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
-        <span class="bp-roster-age" style="color:${ageC};">${ageStr}</span>
-        <div class="bp-roster-bar-wrap"><div class="bp-roster-bar" style="width:${barW}%;background:${c};"></div></div>
+        <span class="bd-rank-chips">
+          <span class="bd-rank-chip" style="color:${_bpORankColor(oRank)};" title="Overall dynasty rank">#${oRank ?? '—'}</span>
+          <span class="bd-rank-chip bd-rank-pos" style="color:${_bpPRankColor(pRank)};" title="${pos} rank">${pos}${pRank ?? '—'}</span>
+        </span>
         <span class="bp-roster-val">${(p.value/1000).toFixed(1)}k</span>
       </div>`;
     }).join('');
