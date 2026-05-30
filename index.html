@@ -12327,8 +12327,8 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   if (yExp >= 2 && oRank <= 50 && a >= 30 && ppgR >= 1.20)           return 'VETERAN STAR';
   if (yExp >= 2 && oRank <= 50 && a <= 31 && rdVal >= 4000)          return 'PROVEN STAR';
   if (yExp >= 4 && oRank <= 100 && a <= 29 && ppgR >= 1.05)          return 'PRIME PRODUCER';
-  // High-production override: proven output regardless of dynasty rank
-  if (yExp >= 4 && a <= 29 && ppgR >= 1.25)                          return 'PRIME PRODUCER';
+  // High-production override: proven output regardless of dynasty rank or ratio
+  if (yExp >= 4 && a <= 29 && (ppgR >= 1.25 || ppg >= 14))          return 'PRIME PRODUCER';
   // BREAKOUT STAR: year 2+, top-36 young player with elite production
   if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppgR >= 1.20 || rdVal >= 4500)) return 'BREAKOUT STAR';
   // ── ASCENDING TIER ────────────────────────────────────────────────────────
@@ -12337,7 +12337,7 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   // QBs develop slower — extend ascending window by one year
   const _ascMax = pos === 'QB' ? 3 : 2;
   // RISING STAR: year 2-3 (QB: yr 2-4), strong proven production — one step from star tier
-  if (yExp >= 1 && yExp <= _ascMax && a <= 30 && oRank <= 100 && ppgR >= 1.10) return 'RISING STAR';
+  if (yExp >= 1 && yExp <= _ascMax && a <= 30 && oRank <= 100 && (ppgR >= 1.10 || ppg >= 13)) return 'RISING STAR';
   // BREAKOUT CANDIDATE: year 2-3 (QB: yr 2-4), solid production trending up
   if (yExp >= 1 && yExp <= _ascMax && a <= 30 && oRank <= 100 && ppgR >= 0.95) return 'BREAKOUT CANDIDATE';
   // MAKE-OR-BREAK: ranked young player who hasn't delivered — lower ppgR floor for QBs
@@ -12374,8 +12374,9 @@ function _bpRosterProfiles(rosterId) {
       for (const p of (t.players ?? [])) {
         if (!t.starterPids?.has(p.pid)) continue;
         const lastSzn = (careerDB[p.pid] ?? []).filter(s => (s.games ?? 0) >= 4).at(-1);
-        let pp = lastSzn ? +(lastSzn.ppr / lastSzn.games).toFixed(1) : (p.basePpg ?? 0);
-        if (p.pos === 'TE' && activeTepBonus > 0 && lastSzn) pp = +(pp + pp * 0.365 * activeTepBonus).toFixed(1);
+        if (!lastSzn) continue; // only count players with real data to avoid inflating avg
+        let pp = +(lastSzn.ppr / lastSzn.games).toFixed(1);
+        if (p.pos === 'TE' && activeTepBonus > 0) pp = +(pp + pp * 0.365 * activeTepBonus).toFixed(1);
         if (pp > 0 && sums[p.pos] !== undefined) {
           sums[p.pos] += pp;
           cnts[p.pos]++;
