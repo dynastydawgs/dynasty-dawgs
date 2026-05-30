@@ -2832,6 +2832,15 @@
   .bp-swing-ppg  { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.5); flex-shrink:0; }
   .bp-swing-reason { font-size:9px; color:rgba(255,255,255,0.36); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
 
+  /* ── Acquisition target cards ── */
+  .bp-acq-card { display:flex; align-items:center; gap:9px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 10px; margin-bottom:5px; }
+  .bp-acq-card:last-child { margin-bottom:0; }
+  .bp-acq-tier { font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.12em; width:46px; flex-shrink:0; }
+  .bp-acq-photo { width:30px; height:30px; border-radius:50%; object-fit:cover; background:#1e2a3a; flex-shrink:0; }
+  .bp-acq-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .bp-acq-name { font-size:11px; color:rgba(255,255,255,0.82); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-acq-name:hover { color:#fff; text-decoration:underline; }
+  .bp-acq-team { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.25); }
   /* ── Trade deal cards ── */
   .bp-deal-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 10px; margin-bottom:6px; }
   .bp-deal-card:last-child { margin-bottom:0; }
@@ -12833,36 +12842,44 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
     const pct = (compRank - 1) / Math.max(total - 1, 1);
 
     // BUY: weak position (bottom 55% of league)
+    // Collect all available players at this position league-wide → present 3 price tiers
     if (pct >= 0.55) {
-      const surplusTeams = allTeams
+      const allCandidates = allTeams
         .filter(t => t.roster_id !== rosterId)
-        .filter(t => {
-          const r = leagueRankings[t.roster_id]; if (!r) return false;
-          return ((r[`${pos}Comp`] ?? total) - 1) / Math.max(total - 1, 1) <= 0.28;
-        })
-        .slice(0, 5);
-
-      const targets = [];
-      for (const t of surplusTeams) {
-        const pids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
-        const sorted = pids
-          .map(pid => {
+        .flatMap(t => {
+          const tName = t.name.split(/[\s_]+/).pop();
+          const pids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+          return pids.map(pid => {
             const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
             if (!fc || fc.position !== pos || myPids.has(pid)) return null;
             const age = _bpAge(sp?.birth_date) ?? 27;
-            return { pid, name:fc.name, value:fc.value??0, age, team:t.name.split(/[\s_]+/).pop(), roster_id:t.roster_id };
-          })
-          .filter(p => p && targetAgeOk(p.age))
-          .sort((a,b) => b.value - a.value);
+            if (!targetAgeOk(age)) return null;
+            return { pid, name: fc.name, value: fc.value ?? 0, age: +age.toFixed(1), team: tName };
+          }).filter(Boolean);
+        })
+        .filter(p => p.value >= 500)
+        .sort((a, b) => b.value - a.value);
 
-        // Skip #1 cornerstone, target #2 or best available under 8500
-        const cand = sorted.length > 1 ? sorted[1]
-                   : (sorted.length === 1 && sorted[0].value < 8500) ? sorted[0]
-                   : null;
-        if (cand) targets.push({ ...cand, offer: findSmartOffer(cand.value, t.roster_id) });
-      }
-      targets.sort((a,b) => b.value - a.value);
-      buys.push({ pos, color: posColors[pos], targets: targets.slice(0, 3) });
+      // Pick 3 price tiers: premium (top available), value (mid-pool), budget (cheap option)
+      const seen = new Set();
+      const pick = idx => {
+        const p = allCandidates[idx];
+        if (!p || seen.has(p.pid)) return null;
+        seen.add(p.pid);
+        return p;
+      };
+      const premium = pick(0);
+      const midIdx  = Math.max(1, Math.floor(allCandidates.length * 0.33));
+      const valueP  = pick(midIdx) ?? pick(1);
+      const budIdx  = Math.max(midIdx + 1, allCandidates.length - 1);
+      const budget  = pick(budIdx) ?? pick(midIdx + 1);
+
+      const tiers = [
+        premium && { label:'PREMIUM', tier:'premium', player:premium },
+        valueP  && { label:'VALUE',   tier:'value',   player:valueP  },
+        budget  && { label:'BUDGET',  tier:'budget',  player:budget  },
+      ].filter(Boolean);
+      buys.push({ pos, color: posColors[pos], tiers });
     }
 
     // REBALANCE: over-concentrated by >7% at this position (was 12% — too high to ever trigger)
@@ -13631,8 +13648,13 @@ function _bpRenderDualPaths(pathA, pathB, rebuildTier) {
       const fromNote   = prospect.team ? `<span class="bp-pm-from">from ${prospect.team}</span>` : '';
       const offerParts = [rPlayer(sell), myBonus ? rPick(myBonus) : ''].filter(Boolean).join(plus);
       const getParts   = [rPlayer(prospect), (!myBonus && bonusPick) ? rPick(bonusPick) : ''].filter(Boolean).join(plus);
-      offerRow = `<div class="bp-pm-row"><span class="bp-pm-tag ${myBonus ? 'offer' : 'sell'}">${myBonus ? 'OFFER' : 'SELL'}</span>${offerParts}</div>`;
-      getRow   = `<div class="bp-pm-row"><span class="bp-pm-tag get">GET</span>${getParts}${fromNote}</div>`;
+      // Show total value on both sides so the math is transparent
+      const offerTot = sell.val + (myBonus ? (myBonus.val ?? 0) : 0);
+      const getTot   = prospect.val + (!myBonus && bonusPick ? (bonusPick.val ?? 0) : 0);
+      const offerTotHTML = `<span style="font-family:var(--mono);font-size:7px;color:rgba(251,146,60,0.5);margin-left:auto;">${(offerTot/1000).toFixed(1)}k</span>`;
+      const getTotHTML   = `<span style="font-family:var(--mono);font-size:7px;color:rgba(74,222,128,0.5);margin-left:auto;">${(getTot/1000).toFixed(1)}k</span>`;
+      offerRow = `<div class="bp-pm-row"><span class="bp-pm-tag ${myBonus ? 'offer' : 'sell'}">${myBonus ? 'OFFER' : 'SELL'}</span>${offerParts}${offerTotHTML}</div>`;
+      getRow   = `<div class="bp-pm-row"><span class="bp-pm-tag get">GET</span>${getParts}${fromNote}${getTotHTML}</div>`;
 
     } else {
       // OFFER package → GET target player
@@ -13929,13 +13951,14 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
   }
 
   // ── UP-TIER ───────────────────────────────────────────────────────────────
-  // Trigger: competing/reload phase + depth worth ≥5.5k after top 2 + a weak spot to upgrade
+  // Trigger: competing/reload phase + at least 2 medium-value pieces (≤7k, ≤7k) to package
+  // Package = 2 medium players (or medium + pick). Stars (>7k) are not tradeable depth.
   const isCompeting = ['WIN NOW', 'CONTENDING', 'RELOAD'].includes(phase);
   if (isCompeting && myPlayers.length >= 5) {
-    const depth = myPlayers.slice(2).filter(p => p.value >= 2000);
+    const depth = myPlayers.slice(2).filter(p => p.value >= 1800 && p.value <= 7000);
     const depthTotal = depth.reduce((s, p) => s + p.value, 0);
 
-    if (depth.length >= 3 && depthTotal >= 5500) {
+    if (depth.length >= 2 && depthTotal >= 4000) {
       const posWeakness = ['QB','RB','WR','TE']
         .map(pos => {
           const r = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
@@ -14528,46 +14551,29 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     </div>`;
   })();
 
-  // Buy targets HTML (deal cards with smart offer matching)
+  // Acquisition targets HTML — 3 price-tier player recommendations (no specific offer construction)
   const buyTradeHTML = trade.buys.length ? trade.buys.map(b => {
-    if (!b.targets.length) return `<div class="bp-trade-item" style="padding:5px 0;"><span class="bp-trade-action" style="color:${b.color};">▸ NEED ${b.pos}</span><span class="bp-trade-desc" style="margin-left:8px;">Seek via trade or waiver</span></div>`;
-    const cards = b.targets.map(tp => {
-      const ofr = tp.offer;
-      let offerHTML = '';
-      if (ofr) {
-        const smartHint = ofr.targetNeeds?.length
-          ? `<span class="bp-deal-smart-hint">they need ${ofr.targetNeeds.join('/')}</span>`
-          : '';
-        const opLines = ofr.players.map(p => `<div class="bp-deal-offer-line"><img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;">${p.name}<span>${(p.value/1000).toFixed(1)}k</span></div>`).join('');
-        const pkLines = ofr.picks.map(pk => {
-          const pkVal = _bpPickVal(pk);
-          const pkTierColor = pk.tier==='early'?'#fbbf24':pk.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)';
-          return `<div class="bp-deal-offer-line"><span style="font-size:11px;margin-right:3px;">🎟</span><span style="font-family:var(--mono);font-size:8px;color:${pkTierColor};">${pk.label ?? pk.tier?.toUpperCase()+' PICK'}</span><span>${(pkVal/1000).toFixed(1)}k</span></div>`;
-        }).join('');
-        const totalVal = (ofr.total/1000).toFixed(1);
-        const flag = ofr.inexact ? '<span style="color:rgba(251,146,60,0.7);font-size:7px;margin-left:4px;">~approx</span>' : '';
-        offerHTML = `<div class="bp-deal-sep"></div>
-          <div class="bp-deal-row" style="align-items:flex-start;">
-            <span class="bp-deal-label" style="color:rgba(251,146,60,0.7);">OFFER</span>
-            <div class="bp-deal-offer-players">${opLines}${pkLines}</div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
-              <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.3);">${totalVal}k${flag}</span>
-              ${smartHint}
-            </div>
-          </div>`;
-      }
-      return `<div class="bp-deal-card">
-        <div class="bp-deal-row">
-          <span class="bp-deal-label" style="color:#4ade80;">GET</span>
-          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${tp.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;">
-          <span class="bp-deal-name" onclick="searchAndOpenProfile('${(tp.name||'').replace(/'/g,"\\'")}'">${tp.name}</span>
-          <span class="bp-deal-val">${(tp.value/1000).toFixed(1)}k</span>
-          <span class="bp-deal-team">${tp.team}</span>
+    const tiers = b.tiers ?? [];
+    if (!tiers.length) return `<div class="bp-trade-item" style="padding:5px 0;"><span class="bp-trade-action" style="color:${b.color};">▸ NEED ${b.pos}</span><span style="color:rgba(255,255,255,0.3);font-size:9px;margin-left:8px;">Seek via trade or waiver</span></div>`;
+    const tierColors = { premium:'var(--accent)', value:'#38bdf8', budget:'#94a3b8' };
+    const cards = tiers.map(t => {
+      const p = t.player;
+      const tc = tierColors[t.tier] ?? 'var(--text-dim)';
+      const posC = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' }[b.pos] ?? 'var(--text-dim)';
+      return `<div class="bp-acq-card">
+        <span class="bp-acq-tier" style="color:${tc};">${t.label}</span>
+        <img class="bp-acq-photo" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
+        <div class="bp-acq-info">
+          <span class="bp-acq-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')">${p.name}</span>
+          <span class="bp-acq-team">${p.team} · <span style="color:${posC};">${b.pos}</span></span>
         </div>
-        ${offerHTML}
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;">
+          <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:rgba(255,255,255,0.78);">${(p.value/1000).toFixed(1)}k</span>
+          <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.28);">${p.age}yo</span>
+        </div>
       </div>`;
     }).join('');
-    return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:5px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+    return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:4px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
       <span class="bp-trade-action" style="color:${b.color};font-size:9px;letter-spacing:0.1em;">▸ NEED ${b.pos}</span>
       ${cards}
     </div>`;
