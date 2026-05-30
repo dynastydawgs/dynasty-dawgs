@@ -12261,31 +12261,23 @@ function _bpRadarSVG(scores) {
   </svg>`;
 }
 
-// Cornerstones: players ranked top-50 dynasty overall (by FC value), max 6
+// Cornerstones: players ranked top-25 dynasty overall only — true franchise assets
 function _bpCornerstones(rosterId) {
   const roster = rostersData?.find(r => r.roster_id === rosterId);
   if (!roster) return [];
-
-  // Build global rank map (skill positions only)
-  const rankMap = {};
-  Object.entries(fcPlayerMap)
-    .filter(([, fc]) => ['QB','RB','WR','TE'].includes(fc.position) && fc.value > 0)
-    .sort(([, a], [, b]) => b.value - a.value)
-    .forEach(([pid], i) => { rankMap[pid] = i + 1; });
 
   return (roster.players ?? [])
     .map(pid => {
       const fc = fcPlayerMap[pid];
       const sp = sleeperPlayers[pid];
-      if (!fc || !fc.value) return null;
-      const overallRank = rankMap[pid] ?? 999;
-      if (overallRank > 50) return null;
+      if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) return null;
+      const overallRank = fc.overallRank ?? 999;
+      if (overallRank > 25) return null;
       const age = _bpAge(sp?.birth_date);
       return { pid, name: fc.name, pos: fc.position, value: fc.value, age, overallRank };
     })
     .filter(Boolean)
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 6);
+    .sort((a, b) => a.overallRank - b.overallRank);
 }
 
 // Swing players — Rising Star / Prove It / Cliff Risk with PPG, tier, reason
@@ -12322,8 +12314,9 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
   const a     = age ?? 27;
   const yExp  = yearsExp ?? 99;
 
+  // Top-25 dynasty = cornerstone regardless of age — Jeanty at #5 is a franchise asset
   if (oRank <= 12)                                                return 'FRANCHISE';
-  if (oRank <= 25 && a >= 23 && a <= 29)                         return 'CORNERSTONE';
+  if (oRank <= 25)                                                return 'CORNERSTONE';
   if (oRank <= 50 && a >= 30 && ppg >= 12)                       return 'VETERAN STAR';
   if (oRank <= 36 && a <= 24)                                    return 'BLUE-CHIP';
   // ASCENDING: year 2-4 players with real production — not a prospect, not yet a star
