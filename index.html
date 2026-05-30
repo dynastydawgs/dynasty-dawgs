@@ -3761,9 +3761,14 @@ let fcPickValues = {};
 // Prefers live FC pick values — falls back to discounted PICK_BASE for any gaps.
 // Must be called AFTER buildPlayerMaps() so fcPickValues is already populated.
 let PICK_VALUES = {};
-// Tier multipliers relative to FC's mid-tier anchor (research-backed dynasty pick values):
-// Early (top third of slots) carries a ~40% premium; late (bottom third) trades at ~87% of mid.
-const PICK_TIER_MULT = { early: 1.40, mid: 1.04, late: 0.87 };
+// Tier multipliers per round — spread narrows in later rounds since slot matters less.
+// Late 1sts carry a bigger discount; late 2nd/3rd/4th are closer to mid value.
+const PICK_TIER_MULT = {
+  1: { early: 1.40, mid: 1.04, late: 0.87 },
+  2: { early: 1.25, mid: 1.04, late: 0.95 },
+  3: { early: 1.15, mid: 1.04, late: 0.95 },
+  4: { early: 1.05, mid: 1.04, late: 0.95 },
+};
 
 function buildPickValueTable(currentSeason) {
   PICK_VALUES = {};
@@ -3782,8 +3787,9 @@ function buildPickValueTable(currentSeason) {
       const fcBase = fcPickValues[`${yr}_${round}`];
       for (const tier of ['early', 'mid', 'late']) {
         const key = `${round}_${tier}`;
+        const mult = (PICK_TIER_MULT[round] ?? PICK_TIER_MULT[4])[tier];
         PICK_VALUES[`${yr}_${key}`] = fcBase > 0
-          ? Math.round(fcBase * PICK_TIER_MULT[tier])
+          ? Math.round(fcBase * mult)
           : Math.round((PICK_BASE[key] ?? 0) * disc);
       }
     }
