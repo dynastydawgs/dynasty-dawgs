@@ -14787,9 +14787,9 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── NEW: Purgatory Alert (FRINGE only) ───────────────────────────────────
   const purgatoryHTML = phase === 'FRINGE' ? (() => {
     // Recompute depletion for the purgatory description (same logic as _bpDualPathMoves)
-    const _vRP = allTeams.filter(t => t.totalValue > (myTeamRow?.totalValue??0)).length + 1;
+    const _vRP = allTeams.filter(t => t.totalValue > (teamRow?.totalValue??0)).length + 1;
     const _vPctP = (_vRP - 1) / Math.max(total - 1, 1);
-    const _goodPicksP = (myTeamRow?.allPicks ?? []).filter(p => (p.round??99) <= 2).length;
+    const _goodPicksP = (teamRow?.allPicks ?? []).filter(p => (p.round??99) <= 2).length;
     const isDeplete = _vPctP >= 0.58 && _goodPicksP < 3;
     const pathA = isDeplete
       ? { label:'PATH A → SPREAD THE VALUE',    color:'#f87171', desc:"Trade a top asset for 3 lesser pieces — you walk away with more total value and trade currency. Down-tier to stretch your roster and create ammunition." }
