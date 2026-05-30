@@ -12224,18 +12224,27 @@ function _bpRadarSVG(scores) {
   </svg>`;
 }
 
-// Cornerstones: top players by FC value on this roster
+// Cornerstones: players ranked top-50 dynasty overall (by FC value), max 6
 function _bpCornerstones(rosterId) {
   const roster = rostersData?.find(r => r.roster_id === rosterId);
   if (!roster) return [];
-  const pids = roster.players ?? [];
-  return pids
+
+  // Build global rank map (skill positions only)
+  const rankMap = {};
+  Object.entries(fcPlayerMap)
+    .filter(([, fc]) => ['QB','RB','WR','TE'].includes(fc.position) && fc.value > 0)
+    .sort(([, a], [, b]) => b.value - a.value)
+    .forEach(([pid], i) => { rankMap[pid] = i + 1; });
+
+  return (roster.players ?? [])
     .map(pid => {
       const fc = fcPlayerMap[pid];
       const sp = sleeperPlayers[pid];
       if (!fc || !fc.value) return null;
+      const overallRank = rankMap[pid] ?? 999;
+      if (overallRank > 50) return null;
       const age = _bpAge(sp?.birth_date);
-      return { pid, name: fc.name, pos: fc.position, value: fc.value, age };
+      return { pid, name: fc.name, pos: fc.position, value: fc.value, age, overallRank };
     })
     .filter(Boolean)
     .sort((a, b) => b.value - a.value)
@@ -14295,7 +14304,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       <div class="bp-cs-bar-wrap"><div class="bp-cs-bar" style="width:${barW}%;background:${pc};"></div></div>
       <span class="bp-cs-val">${(p.value/1000).toFixed(1)}k</span>
     </div>`;
-  }).join('') : `<div style="color:var(--text-dim);font-size:11px;padding:8px 0;">No rostered players with FC value.</div>`;
+  }).join('') : `<div style="color:rgba(255,255,255,0.22);font-size:10px;padding:10px 0;font-style:italic;line-height:1.6;">No top-50 dynasty assets on this roster.<br><span style="font-size:9px;color:rgba(255,255,255,0.15);">Cornerstones require a top-50 overall FC dynasty rank.</span></div>`;
 
   // ── Draft capital ─────────────────────────────────────────────────────────
   const picks = teamRow.allPicks ?? [];
