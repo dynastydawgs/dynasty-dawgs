@@ -12860,23 +12860,10 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
         .filter(p => p.value >= 500)
         .sort((a, b) => b.value - a.value);
 
-      // Budget requires ≥1.4k FC value OR a productive vet (basePpg ≥ 8) OR a young player (yearsExp ≤ 2) with ≥1.4k
-      const budgetOk = p => {
-        if (p.value >= 1400) return true;
-        const sp = sleeperPlayers[p.pid];
-        const yExp = sp?.years_exp ?? 99;
-        if (yExp <= 2 && p.value >= 1400) return true; // redundant but explicit
-        // Productive vet: look up basePpg from projections
-        const proj = leagueProjData.flatMap(t => t.lineup ?? []).find(pl => pl.pid === p.pid);
-        if (proj && proj.basePpg >= 8) return true;
-        return false;
-      };
-
-      // Pick 3 price tiers: premium (top available), value (mid-pool), budget (cheap option)
+      // Pick 3 price tiers: premium (top available), value (mid-pool), budget (≥1.4k only)
       const seen = new Set();
-      const pick = (idx, filter) => {
-        const candidates = filter ? allCandidates.filter(filter) : allCandidates;
-        const p = candidates[idx];
+      const pick = idx => {
+        const p = allCandidates[idx];
         if (!p || seen.has(p.pid)) return null;
         seen.add(p.pid);
         return p;
@@ -12884,8 +12871,8 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
       const premium = pick(0);
       const midIdx  = Math.max(1, Math.floor(allCandidates.length * 0.33));
       const valueP  = pick(midIdx) ?? pick(1);
-      // Budget: find last qualifying player from the viable pool (≥1.4k or productive vet)
-      const viableForBudget = allCandidates.filter(p => !seen.has(p.pid) && budgetOk(p));
+      // Budget: last player in pool with ≥1.4k value, not already picked
+      const viableForBudget = allCandidates.filter(p => !seen.has(p.pid) && p.value >= 1400);
       const budget  = viableForBudget.length ? viableForBudget[viableForBudget.length - 1] : null;
       if (budget) seen.add(budget.pid);
 
