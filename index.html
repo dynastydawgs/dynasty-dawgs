@@ -12283,7 +12283,7 @@ function _bpCornerstones(rosterId) {
 // Swing players — Rising Star / Prove It / Cliff Risk with PPG, tier, reason
 // ── Roster Profile Classifier ─────────────────────────────────────────────────
 const _RP_LABELS = {
-  'FRANCHISE':         { color:'#f5c842', bg:'rgba(245,200,66,0.15)',   border:'rgba(245,200,66,0.30)',   tier:'franchise' },
+  'UNTOUCHABLE':       { color:'#f5c842', bg:'rgba(245,200,66,0.15)',   border:'rgba(245,200,66,0.30)',   tier:'franchise' },
   'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise' },
   'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran'   },
   'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect'  },
@@ -12321,7 +12321,7 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   const ppgR    = posAvg > 0 ? ppg / posAvg : 0;
 
   // Top-25 dynasty = cornerstone regardless of age — Jeanty at #5 is a franchise asset
-  if (oRank <= 12)                                                return 'FRANCHISE';
+  if (oRank <= 12)                                                return 'UNTOUCHABLE';
   if (oRank <= 25)                                                return 'CORNERSTONE';
   // ── STAR TIER — requires year 3+ (yExp >= 2); rookies/sophs route to ascending/prospect ──
   if (yExp >= 2 && oRank <= 50 && a >= 30 && ppgR >= 1.20)           return 'VETERAN STAR';
@@ -15129,7 +15129,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     if (!all.length) return `<div style="color:var(--text-dim);font-size:10px;padding:8px 0;">No projection data available.</div>`;
 
     const tierMeta = [
-      { key:'franchise',  label:'FRANCHISE',    color:'#f5c842' },
+      { key:'franchise',  label:'UNTOUCHABLE',  color:'#f5c842' },
       { key:'star',       label:'STARS',        color:'#a78bfa' },
       { key:'ascending',  label:'ASCENDING',    color:'#34d399' },
       { key:'prospect',   label:'PROSPECTS',    color:'#4ade80' },
