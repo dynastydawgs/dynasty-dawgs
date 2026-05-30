@@ -12334,12 +12334,16 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   // ── ASCENDING TIER ────────────────────────────────────────────────────────
   // BLUE-CHIP: top-36 young asset, high ceiling but not yet proven production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
-  // RISING STAR: year 2-3, strong proven production — one step from star tier
-  if (yExp >= 1 && yExp <= 2 && a <= 27 && oRank <= 100 && ppgR >= 1.10) return 'RISING STAR';
-  // BREAKOUT CANDIDATE: year 2-3, solid production trending up — cusp of prime
-  if (yExp >= 1 && yExp <= 2 && a <= 27 && oRank <= 100 && ppgR >= 0.95) return 'BREAKOUT CANDIDATE';
-  // MAKE-OR-BREAK: year 3 exactly, ranked with some production — now or never window
-  if (yExp === 2 && a <= 26 && oRank <= 125 && ppgR >= 0.75)             return 'MAKE-OR-BREAK';
+  // QBs develop slower — extend ascending window by one year
+  const _ascMax = pos === 'QB' ? 3 : 2;
+  // RISING STAR: year 2-3 (QB: yr 2-4), strong proven production — one step from star tier
+  if (yExp >= 1 && yExp <= _ascMax && a <= 30 && oRank <= 100 && ppgR >= 1.10) return 'RISING STAR';
+  // BREAKOUT CANDIDATE: year 2-3 (QB: yr 2-4), solid production trending up
+  if (yExp >= 1 && yExp <= _ascMax && a <= 30 && oRank <= 100 && ppgR >= 0.95) return 'BREAKOUT CANDIDATE';
+  // MAKE-OR-BREAK: ranked young player who hasn't delivered — lower ppgR floor for QBs
+  const _mobMax  = pos === 'QB' ? 3 : 2;
+  const _mobPpgR = pos === 'QB' ? 0.50 : 0.75;
+  if (yExp >= 2 && yExp <= _mobMax && a <= 28 && oRank <= 125 && ppgR >= _mobPpgR) return 'MAKE-OR-BREAK';
   // ── PROSPECT TIER ─────────────────────────────────────────────────────────
   if (yExp <= 1 && oRank <= 75 && a <= 22)                            return 'ELITE PROSPECT';
   if (oRank <= 125 && a <= 24 && val >= 1500)                         return 'PROMISING UPSIDE';
