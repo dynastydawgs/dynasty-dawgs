@@ -12344,10 +12344,10 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   if (yExp === 1 && a <= 30 && oRank <= 100 && (ppgR >= 0.75 || ppg >= 8.5)) return 'BREAKOUT CANDIDATE';
   if (yExp === 2 && a <= 30 && oRank <= 100 && (ppgR >= 0.90 || ppg >= 10))  return 'BREAKOUT CANDIDATE';
   if (pos === 'QB' && yExp === 3 && a <= 33 && oRank <= 100 && ppgR >= 0.90) return 'BREAKOUT CANDIDATE';
-  // MAKE-OR-BREAK: ranked young player who hasn't delivered — lower ppgR floor for QBs
-  const _mobMax  = pos === 'QB' ? 3 : 2;
-  const _mobPpgR = pos === 'QB' ? 0.50 : 0.75;
-  if (yExp >= 2 && yExp <= _mobMax && a <= 28 && oRank <= 125 && ppgR >= _mobPpgR) return 'MAKE-OR-BREAK';
+  // MAKE-OR-BREAK: skill positions — rank + age only, no production gate
+  if (pos !== 'QB' && yExp === 2 && a <= 28 && oRank <= 125)              return 'MAKE-OR-BREAK';
+  // MAKE-OR-BREAK: QBs — years 3-4, keep ppgR floor since QBs always project decent numbers
+  if (pos === 'QB' && yExp >= 2 && yExp <= 3 && a <= 30 && oRank <= 125 && ppgR >= 0.50) return 'MAKE-OR-BREAK';
   // ── PROSPECT TIER ─────────────────────────────────────────────────────────
   if (yExp <= 1 && oRank <= 75 && a <= 24)                            return 'ELITE PROSPECT';
   if (oRank <= 125 && a <= 24 && val >= 1500)                         return 'PROMISING UPSIDE';
