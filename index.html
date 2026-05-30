@@ -12367,7 +12367,9 @@ function _bpRosterProfiles(rosterId) {
     for (const t of leagueProjData) {
       for (const p of (t.players ?? [])) {
         if (!t.starterPids?.has(p.pid)) continue;
-        const pp = p.basePpg ?? 0;
+        const lastSzn = (careerDB[p.pid] ?? []).filter(s => (s.games ?? 0) >= 4).at(-1);
+        let pp = lastSzn ? +(lastSzn.ppr / lastSzn.games).toFixed(1) : (p.basePpg ?? 0);
+        if (p.pos === 'TE' && activeTepBonus > 0 && lastSzn) pp = +(pp + pp * 0.365 * activeTepBonus).toFixed(1);
         if (pp > 0 && sums[p.pos] !== undefined) {
           sums[p.pos] += pp;
           cnts[p.pos]++;
@@ -12393,17 +12395,24 @@ function _bpRosterProfiles(rosterId) {
     const val      = fc.value ?? 0;
     const oRank    = fc.overallRank ?? 999;
 
+    // Use actual last-season PPG (TEP-adjusted for TEs); fall back to projection
+    const lastSznData = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4).at(-1);
+    const rawActPpg   = lastSznData ? +(lastSznData.ppr / lastSznData.games).toFixed(1) : null;
+    const tep         = (fc.position === 'TE' && activeTepBonus > 0 && rawActPpg != null)
+                        ? +(rawActPpg * 0.365 * activeTepBonus).toFixed(1) : 0;
+    const classifyPpg = rawActPpg != null ? rawActPpg + tep : (basePpg ?? 0);
+
     const isKeyBench = !isStarter && (
       oRank <= 100 ||
       (age != null && age <= 24 && val >= 2000) ||
       (fc.position === 'RB' && age != null && age <= 28 && val >= 2000) ||
-      (basePpg != null && basePpg >= 8.5) ||
+      (classifyPpg >= 8.5) ||
       val >= 2500
     );
     if (!isStarter && !isKeyBench) continue;
 
     const yearsExp = sp?.years_exp ?? null;
-    const label = _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg);
+    const label = _bpClassifyPlayer(fc, age, classifyPpg, isStarter, yearsExp, posAvgPpg);
     const entry = { pid, name:fc.name, pos:fc.position, age, val, oRank,
                     posRank:fc.positionRank ?? null, basePpg, isStarter, label };
     (isStarter ? starters : bench).push(entry);
