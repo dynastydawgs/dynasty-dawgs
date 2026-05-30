@@ -12296,6 +12296,8 @@ const _RP_LABELS = {
   'BREAKOUT STAR':     { color:'#f472b6', bg:'rgba(244,114,182,0.13)', border:'rgba(244,114,182,0.28)', tier:'star'      },
   'ASCENDING STAR':    { color:'#2dd4bf', bg:'rgba(45,212,191,0.12)',  border:'rgba(45,212,191,0.24)',  tier:'star'      },
   'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)', tier:'prospect'  },
+  'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',  tier:'prospect'  },
+  'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)', tier:'prospect'  },
   'VETERAN PRODUCER':  { color:'#fdba74', bg:'rgba(253,186,116,0.12)', border:'rgba(253,186,116,0.24)', tier:'veteran'   },
   'STEADY VETERAN':    { color:'#94a3b8', bg:'rgba(148,163,184,0.11)', border:'rgba(148,163,184,0.22)', tier:'veteran'   },
   'STEADY CONTRIBUTOR':{ color:'#64748b', bg:'rgba(100,116,139,0.11)', border:'rgba(100,116,139,0.20)', tier:'depth'     },
@@ -12336,11 +12338,13 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
   // BREAKOUT: true rookies/year-1 — raw talent, NFL track record TBD
   if (yExp <= 1 && a <= 25 && oRank <= 100)                          return 'BREAKOUT';
   if (oRank <= 75 && a <= 22)                                         return 'ELITE PROSPECT';
-  if (oRank <= 125 && a <= 24)                                   return 'PROMISING UPSIDE';
+  if (oRank <= 125 && a <= 24 && val >= 1500)                    return 'PROMISING UPSIDE';
+  if (oRank <= 175 && a <= 23 && val >= 1000)                    return 'POTENTIAL UPSIDE';
+  if (a <= 22 && val >= 600 && oRank <= 200)                     return 'LOTTERY TICKET';
   if (a >= 29 && (ppg >= 10 || (oRank <= 100 && ppg >= 8)))      return 'VETERAN PRODUCER';
   if (a >= 29 && ppg >= 8.5)                                     return 'STEADY VETERAN';
   if (oRank <= 125 && ppg >= 7)                                  return 'STEADY CONTRIBUTOR';
-  if (a <= 22 && val >= 1000)                                    return 'DEVELOPMENTAL';
+  if (a <= 22 && val >= 600)                                     return 'LOTTERY TICKET';
   if (a >= 30)                                                   return 'AGING VET';
   if (pos === 'RB' && a <= 28 && !isStarter && val >= 1500)      return 'HANDCUFF';
   if (oRank <= 200)                                              return 'DEPTH PIECE';
