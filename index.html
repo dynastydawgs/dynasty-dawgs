@@ -12837,11 +12837,33 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
   const targetAgeOk = age => age <= targetAgeMax;
 
   // Team's offer capacity: non-cornerstone tradeable value + top pick values
-  // Used to decide which price tiers are realistic to show
   const myCornerCount = 3;
   const myTradeableVal = myAllPlayers.slice(myCornerCount).reduce((s, p) => s + p.value, 0);
   const myTopPicksVal  = myOfferPicks.slice(0, 3).reduce((s, pk) => s + pk.val, 0);
   const myOfferCapacity = myTradeableVal + myTopPicksVal;
+
+  // Value rank — used to hard-gate premium tiers for bottom-tier teams
+  const myValueRank = allTeams.filter(t => t.totalValue > (myTeamRow?.totalValue ?? 0)).length + 1;
+  const myValuePct  = (myValueRank - 1) / Math.max(total - 1, 1); // 0 = best, 1 = worst
+
+  // Pre-compute each other team's phase + their top-3 pids (blue chips not for sale)
+  const teamPhaseCache = {};
+  const teamBlueChipPids = {};
+  for (const t of allTeams) {
+    if (t.roster_id === rosterId) continue;
+    teamPhaseCache[t.roster_id] = _bpPhase(t, allTeams);
+    // Blue chips: top-3 players by FC value on REBUILDING teams — they won't trade these
+    if (teamPhaseCache[t.roster_id] === 'REBUILDING') {
+      const tPids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+      const top3 = tPids
+        .map(pid => ({ pid, val: fcPlayerMap[pid]?.value ?? 0 }))
+        .filter(p => p.val > 0)
+        .sort((a, b) => b.val - a.val)
+        .slice(0, 3)
+        .map(p => p.pid);
+      teamBlueChipPids[t.roster_id] = new Set(top3);
+    }
+  }
 
   const buys = [], rebalance = [];
 
@@ -12854,6 +12876,7 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
       const allCandidates = allTeams
         .filter(t => t.roster_id !== rosterId)
         .flatMap(t => {
+          const tPhase = teamPhaseCache[t.roster_id] ?? 'FRINGE';
           const tName = t.name.split(/[\s_]+/).pop();
           const pids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
           return pids.map(pid => {
@@ -12861,7 +12884,9 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
             if (!fc || fc.position !== pos || myPids.has(pid)) return null;
             const age = _bpAge(sp?.birth_date) ?? 27;
             if (!targetAgeOk(age)) return null;
-            return { pid, name: fc.name, value: fc.value ?? 0, age: +age.toFixed(1), team: tName };
+            // Skip blue-chip prospects locked on rebuilding teams — not realistic targets
+            if (tPhase === 'REBUILDING' && (teamBlueChipPids[t.roster_id]?.has(pid) || (age <= 25 && (fc.value ?? 0) >= 4000))) return null;
+            return { pid, name: fc.name, value: fc.value ?? 0, age: +age.toFixed(1), team: tName, sourcePhase: tPhase };
           }).filter(Boolean);
         })
         .filter(p => p.value >= 500)
@@ -12873,9 +12898,8 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
       const n = allCandidates.length;
       const premiumFloor = allCandidates[Math.floor(n * 0.25)]?.value ?? 0; // top 25%
       const valueFloor   = allCandidates[Math.floor(n * 0.60)]?.value ?? 0; // 25-60%
-      const budgetFloor  = 1400; // 1.4k minimum
+      const budgetFloor  = 1400;
 
-      // Pick up to 3 unique players per tier
       const seen = new Set();
       const pickUpTo = (pool, maxN) => {
         const out = [];
@@ -12890,20 +12914,19 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
       const valuePlayers   = pickUpTo(allCandidates.filter(p => p.value >= valueFloor && p.value < premiumFloor), 3);
       const budgetPlayers  = pickUpTo(allCandidates.filter(p => p.value >= budgetFloor && p.value < valueFloor), 3);
 
-      // Affordability gate: skip tiers the team realistically can't package a deal for.
-      // Check against the MEDIAN player value in the tier at a meaningful threshold —
-      // not the cheapest, so a 10k tier doesn't sneak through on a 1.4k floor check.
+      // Affordability gate:
+      // 1. Hard ban: bottom 42% in league value → no PREMIUM targets (can't package a deal)
+      // 2. Soft check: offer capacity vs tier median at meaningful threshold
       const tierMedian = pool => pool[Math.floor(pool.length / 2)]?.value ?? 0;
-      const canAfford = (pool, threshold) =>
-        !pool.length || myOfferCapacity >= tierMedian(pool) * threshold;
+      const premiumAffordable = myValuePct < 0.42 ? false
+        : myOfferCapacity >= tierMedian(premiumPlayers) * 0.70;
+      const valueAffordable = myValuePct < 0.75 ? myOfferCapacity >= tierMedian(valuePlayers) * 0.55
+        : true;
 
       const tiers = [
-        // PREMIUM: need 65% of median — genuine packaging power required
-        (premiumPlayers.length && canAfford(premiumPlayers, 0.65)) && { label:'PREMIUM', tier:'premium', players:premiumPlayers },
-        // VALUE: need 50% of median — reachable with a player + pick combo
-        (valuePlayers.length   && canAfford(valuePlayers,   0.50)) && { label:'VALUE',   tier:'value',   players:valuePlayers   },
-        // BUDGET: always show if players exist — 1.4k targets are always packageable
-        (budgetPlayers.length)                                      && { label:'BUDGET',  tier:'budget',  players:budgetPlayers  },
+        (premiumPlayers.length && premiumAffordable) && { label:'PREMIUM', tier:'premium', players:premiumPlayers },
+        (valuePlayers.length   && valueAffordable)   && { label:'VALUE',   tier:'value',   players:valuePlayers   },
+        (budgetPlayers.length)                        && { label:'BUDGET',  tier:'budget',  players:budgetPlayers  },
       ].filter(Boolean);
 
       if (tiers.length) buys.push({ pos, color: posColors[pos], tiers });
