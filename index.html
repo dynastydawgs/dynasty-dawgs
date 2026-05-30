@@ -2301,14 +2301,18 @@
   .bp-picks-count { font-size:9px; color:var(--text-dim); white-space:nowrap; }
 
   /* Swing players */
-  .bp-swing-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); }
-  .bp-swing-row:last-child { border-bottom:none; }
-  .bp-swing-icon { font-size:11px; width:14px; flex-shrink:0; font-weight:700; }
-  .bp-swing-name { flex:1; font-size:11px; color:var(--text); cursor:pointer; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .bp-swing-name:hover { color:var(--accent); text-decoration:underline; }
-  .bp-swing-pos { font-family:var(--mono); font-size:8px; color:var(--text-dim); width:22px; flex-shrink:0; }
-  .bp-swing-tag { font-family:var(--mono); font-size:8px; letter-spacing:0.06em; font-weight:600; }
-  .bp-swing-age { font-size:9px; color:var(--text-dim); width:26px; text-align:right; flex-shrink:0; }
+  /* ── Roster Profile Classifier ── */
+  .bp-rp-summary { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; padding-bottom:9px; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .bp-rp-summary-chip { font-family:var(--mono); font-size:6.5px; font-weight:700; letter-spacing:0.08em; padding:2px 7px; border-radius:3px; white-space:nowrap; }
+  .bp-rp-section-sep { font-family:var(--mono); font-size:6px; letter-spacing:0.14em; text-transform:uppercase; color:rgba(255,255,255,0.18); padding:7px 0 3px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.05); }
+  .bp-rp-row { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .bp-rp-row:last-child { border-bottom:none; }
+  .bp-rp-label { font-family:var(--mono); font-size:6px; font-weight:700; letter-spacing:0.07em; padding:2px 5px; border-radius:3px; white-space:nowrap; flex-shrink:0; text-transform:uppercase; border:1px solid transparent; }
+  .bp-rp-name { flex:1; font-size:10px; color:rgba(255,255,255,0.82); cursor:pointer; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-rp-name:hover { color:var(--accent); }
+  .bp-rp-pos { font-family:var(--mono); font-size:7.5px; font-weight:700; flex-shrink:0; width:20px; }
+  .bp-rp-rank { font-family:var(--mono); font-size:7px; color:rgba(255,255,255,0.25); flex-shrink:0; }
+  .bp-rp-ppg  { font-family:var(--mono); font-size:7.5px; color:rgba(255,255,255,0.42); flex-shrink:0; }
 
   /* Needs */
   .bp-need-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); font-size:11px; }
@@ -3879,11 +3883,13 @@ function buildPlayerMaps(spRaw, fcRaw) {
 
     if (!p.sleeperId) continue;
     fcPlayerMap[p.sleeperId] = {
-      value:        entry.value        ?? 0,
-      position:     p.position         ?? '?',
-      name:         p.name             ?? '',
-      espnId:       p.espnId           ?? null,
-      positionRank: entry.positionRank ?? null,
+      value:        entry.value           ?? 0,
+      position:     p.position            ?? '?',
+      name:         p.name                ?? '',
+      espnId:       p.espnId              ?? null,
+      positionRank: entry.positionRank    ?? null,
+      redraftValue: entry.redraftValue    ?? null,
+      overallRank:  entry.overallRank     ?? null,
     };
   }
   ppPlayerIndex = []; // reset so search rebuilds with latest data
@@ -12274,80 +12280,97 @@ function _bpCornerstones(rosterId) {
 }
 
 // Swing players — Rising Star / Prove It / Cliff Risk with PPG, tier, reason
-function _bpSwingPlayers(rosterId, total) {
-  const roster = rostersData?.find(r => r.roster_id === rosterId);
-  if (!roster) return [];
-  const pids = roster.players ?? [];
-  const teamProj = leagueProjData.find(t => t.roster_id === rosterId);
-  const ranks = leagueRankings[rosterId] ?? {};
+// ── Roster Profile Classifier ─────────────────────────────────────────────────
+const _RP_LABELS = {
+  'FRANCHISE':         { color:'#f5c842', bg:'rgba(245,200,66,0.15)',   border:'rgba(245,200,66,0.30)',   tier:'franchise' },
+  'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise' },
+  'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran'   },
+  'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect'  },
+  'ASCENDING STAR':    { color:'#2dd4bf', bg:'rgba(45,212,191,0.12)',   border:'rgba(45,212,191,0.24)',   tier:'prospect'  },
+  'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect'  },
+  'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star'      },
+  'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)', tier:'star'      },
+  'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)', tier:'prospect'  },
+  'VETERAN PRODUCER':  { color:'#fdba74', bg:'rgba(253,186,116,0.12)', border:'rgba(253,186,116,0.24)', tier:'veteran'   },
+  'STEADY VETERAN':    { color:'#94a3b8', bg:'rgba(148,163,184,0.11)', border:'rgba(148,163,184,0.22)', tier:'veteran'   },
+  'STEADY CONTRIBUTOR':{ color:'#64748b', bg:'rgba(100,116,139,0.11)', border:'rgba(100,116,139,0.20)', tier:'depth'     },
+  'DEVELOPMENTAL':     { color:'#6ee7b7', bg:'rgba(110,231,183,0.10)', border:'rgba(110,231,183,0.20)', tier:'prospect'  },
+  'AGING VET':         { color:'#f87171', bg:'rgba(248,113,113,0.12)', border:'rgba(248,113,113,0.24)', tier:'veteran'   },
+  'HANDCUFF':          { color:'#38bdf8', bg:'rgba(56,189,248,0.11)',  border:'rgba(56,189,248,0.22)',  tier:'depth'     },
+  'DEPTH PIECE':       { color:'#475569', bg:'rgba(71,85,105,0.12)',   border:'rgba(71,85,105,0.22)',   tier:'depth'     },
+  'BACKUP':            { color:'#334155', bg:'rgba(51,65,85,0.12)',    border:'rgba(51,65,85,0.20)',    tier:'depth'     },
+};
 
-  // Identify weak positions (bottom 50% of league) and strong positions (top 30%)
-  const weakPos = new Set();
-  const strongPos = new Set();
-  for (const pos of ['QB','RB','WR','TE']) {
-    const r = ranks[`${pos}Comp`]; if (!r || !total) continue;
-    const pct = (r - 1) / Math.max(total - 1, 1);
-    if (pct >= 0.45) weakPos.add(pos);
-    if (pct <= 0.30) strongPos.add(pos);
-  }
+function _bpClassifyPlayer(fc, age, basePpg, isStarter) {
+  const oRank = fc.overallRank ?? 999;
+  const pos   = fc.position;
+  const val   = fc.value ?? 0;
+  const rdVal = fc.redraftValue ?? 0;
+  const ppg   = basePpg ?? 0;
+  const a     = age ?? 27;
 
-  const swings = [];
-  for (const pid of pids) {
+  if (oRank <= 12)                                                return 'FRANCHISE';
+  if (oRank <= 25 && a >= 23 && a <= 29)                         return 'CORNERSTONE';
+  if (oRank <= 50 && a >= 30 && ppg >= 12)                       return 'VETERAN STAR';
+  if (oRank <= 36 && a <= 24)                                    return 'BLUE-CHIP';
+  if (oRank <= 50 && a <= 26 && (ppg >= 8 || rdVal >= 3500))     return 'ASCENDING STAR';
+  if (oRank <= 75 && a <= 22)                                    return 'ELITE PROSPECT';
+  if (oRank <= 50 && a <= 31 && rdVal >= 4000)                   return 'PROVEN STAR';
+  if (oRank <= 75 && a <= 29 && ppg >= 9)                        return 'PRIME PRODUCER';
+  if (oRank <= 125 && a <= 24)                                   return 'PROMISING UPSIDE';
+  if (a >= 29 && (ppg >= 10 || (oRank <= 100 && ppg >= 8)))      return 'VETERAN PRODUCER';
+  if (a >= 29 && ppg >= 8.5)                                     return 'STEADY VETERAN';
+  if (oRank <= 125 && ppg >= 7)                                  return 'STEADY CONTRIBUTOR';
+  if (a <= 22 && val >= 1000)                                    return 'DEVELOPMENTAL';
+  if (a >= 30)                                                   return 'AGING VET';
+  if (pos === 'RB' && a <= 28 && !isStarter && val >= 1500)      return 'HANDCUFF';
+  if (oRank <= 200)                                              return 'DEPTH PIECE';
+  return 'BACKUP';
+}
+
+function _bpRosterProfiles(rosterId) {
+  const roster   = rostersData?.find(r => r.roster_id === rosterId);
+  if (!roster) return { starters:[], bench:[], summary:{} };
+  const teamProj   = leagueProjData.find(t => t.roster_id === rosterId);
+  const starterPids = teamProj?.starterPids ?? new Set();
+
+  const starters = [], bench = [];
+
+  for (const pid of (roster.players ?? [])) {
     const fc = fcPlayerMap[pid];
     const sp = sleeperPlayers[pid];
-    if (!fc || !fc.value || !['QB','RB','WR','TE'].includes(fc.position)) continue;
-    const age = _bpAge(sp?.birth_date);
-    if (age == null) continue;
-    const pos = fc.position;
-    const val = fc.value;
-    const isWeak = weakPos.has(pos);
-    const isStrong = strongPos.has(pos);
+    if (!fc || !['QB','RB','WR','TE'].includes(fc.position)) continue;
+    const age      = _bpAge(sp?.birth_date);
+    const pProj    = teamProj?.players?.find(p => p.pid === pid);
+    const basePpg  = pProj?.basePpg ?? null;
+    const isStarter = starterPids.has(pid);
+    const val      = fc.value ?? 0;
+    const oRank    = fc.overallRank ?? 999;
 
-    // Include: players at weak positions OR high-value surplus at strong positions (trade chips)
-    if (!isWeak && !(isStrong && val >= 3500)) continue;
+    const isKeyBench = !isStarter && (
+      oRank <= 100 ||
+      (age != null && age <= 24 && val >= 2000) ||
+      (fc.position === 'RB' && age != null && age <= 28 && val >= 2000) ||
+      (basePpg != null && basePpg >= 8.5) ||
+      val >= 4000
+    );
+    if (!isStarter && !isKeyBench) continue;
 
-    const pProj = teamProj?.players?.find(p => p.pid === pid);
-    const basePpg = pProj?.basePpg ?? null;
-    const posRank = fc.positionRank ?? 99;
-
-    let tagName, tagIcon, tagColor, tagBg, reason;
-
-    if (isWeak) {
-      if (posRank <= 10 || val >= 7000) {
-        tagName='Positional Anchor'; tagIcon='⚓'; tagColor='#fbbf24'; tagBg='rgba(251,191,36,0.14)';
-        reason = `Top-${posRank} ${pos} on a thin team — single-handedly keeping this unit afloat`;
-      } else if (age <= 24 && val >= 2000) {
-        tagName='Breakout Candidate'; tagIcon='🚀'; tagColor='#4ade80'; tagBg='rgba(74,222,128,0.13)';
-        reason = `Age ${age.toFixed(0)}, ascending — a big year could transform your ${pos} weakness`;
-      } else if (age >= 30 && val >= 1800) {
-        tagName='Aging Starter'; tagIcon='⏳'; tagColor='#fb923c'; tagBg='rgba(251,146,60,0.14)';
-        reason = `Age ${age.toFixed(0)} at your weakest spot — track production before value craters`;
-      } else if (age <= 22) {
-        tagName='Developmental Depth'; tagIcon='🌱'; tagColor='#2dd4bf'; tagBg='rgba(45,212,191,0.12)';
-        reason = `Young piece at thin ${pos} — develop into a starter or bundle into an upgrade trade`;
-      } else if (basePpg != null && basePpg >= (pos === 'QB' ? 14 : 8)) {
-        tagName='Plug & Play'; tagIcon='🔌'; tagColor='#38bdf8'; tagBg='rgba(56,189,248,0.12)';
-        reason = `${basePpg.toFixed(1)} ppg production — the immediate contributor patching your ${pos} hole`;
-      } else {
-        tagName='Key Depth'; tagIcon='🧩'; tagColor='#94a3b8'; tagBg='rgba(148,163,184,0.12)';
-        reason = `Core piece at your ${pos} weakness — upgrade trades should start here`;
-      }
-    } else {
-      // Surplus at strong position → trade chip
-      tagName='Trade Chip'; tagIcon='💱'; tagColor='#a78bfa'; tagBg='rgba(167,139,250,0.14)';
-      const wkList = [...weakPos].join('/') || 'needs';
-      reason = `Surplus ${pos} value — primary candidate to flip for ${wkList} depth`;
-    }
-
-    swings.push({ pid, name:fc.name, pos, age, tagName, tagIcon, tagColor, tagBg, basePpg, reason, value:val, isWeak });
+    const label = _bpClassifyPlayer(fc, age, basePpg, isStarter);
+    const entry = { pid, name:fc.name, pos:fc.position, age, val, oRank,
+                    posRank:fc.positionRank ?? null, basePpg, isStarter, label };
+    (isStarter ? starters : bench).push(entry);
   }
 
-  // Weak position players first (sorted by value), then trade chips (by value)
-  swings.sort((a, b) => {
-    if (a.isWeak !== b.isWeak) return a.isWeak ? -1 : 1;
-    return b.value - a.value;
-  });
-  return swings.slice(0, 8);
+  starters.sort((a,b) => b.val - a.val);
+  bench.sort((a,b) => b.val - a.val);
+
+  const summary = {};
+  for (const p of [...starters, ...bench]) {
+    const tier = (_RP_LABELS[p.label] ?? {}).tier ?? 'depth';
+    summary[tier] = (summary[tier] ?? 0) + 1;
+  }
+  return { starters, bench, summary };
 }
 
 // Positional needs: positions where team ranks in bottom 40% of league
@@ -14692,25 +14715,45 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   })();
 
   // ── Swing players (position-of-need focus) ────────────────────────────────
-  const swings = _bpSwingPlayers(rosterId, total);
-  const swingHTML = swings.length ? swings.map((s, i) =>
-    `<div class="bp-swing-row" style="--rd:${(i*0.06).toFixed(2)}s;align-items:flex-start;padding:7px 0;">
-      <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${s.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
-      <span class="bp-swing-icon" style="color:${s.tagColor};margin-top:1px;">${s.tagIcon}</span>
-      <div class="bp-swing-body">
-        <div class="bp-swing-top">
-          <span class="bp-swing-pos" style="color:${posColors[s.pos]??'var(--text-dim)'};">${s.pos}</span>
-          <span class="bp-swing-name" onclick="searchAndOpenProfile('${(s.name||'').replace(/'/g,"\\'")}'">${s.name ?? '—'}</span>
-          <span class="bp-swing-age">${s.age!=null?s.age.toFixed(0):'?'}</span>
-        </div>
-        <div class="bp-swing-bottom">
-          <span class="bp-swing-role-badge" style="color:${s.tagColor};background:${s.tagBg};">${s.tagName}</span>
-          ${s.basePpg != null ? `<span class="bp-swing-ppg">${s.basePpg.toFixed(1)} ppg</span>` : ''}
-        </div>
-        <div class="bp-swing-reason">${s.reason}</div>
-      </div>
-    </div>`
-  ).join('') : `<div style="color:var(--text-dim);font-size:11px;padding:8px 0;">No notable swing players — roster is well balanced.</div>`;
+  const rosterProfiles = _bpRosterProfiles(rosterId);
+  const swingHTML = (() => {
+    const { starters, bench, summary } = rosterProfiles;
+    if (!starters.length && !bench.length) return `<div style="color:var(--text-dim);font-size:10px;padding:8px 0;">No projection data available.</div>`;
+
+    const tierMeta = {
+      franchise: { label:'Franchise', color:'#f5c842' },
+      prospect:  { label:'Prospects', color:'#4ade80' },
+      star:      { label:'Stars',     color:'#a78bfa' },
+      veteran:   { label:'Veterans',  color:'#fb923c' },
+      depth:     { label:'Depth',     color:'#64748b' },
+    };
+    const summaryHTML = Object.entries(tierMeta)
+      .filter(([t]) => summary[t])
+      .map(([t, m]) => `<span class="bp-rp-summary-chip" style="color:${m.color};background:${m.color}18;border:1px solid ${m.color}30;">${summary[t]} ${m.label}</span>`)
+      .join('');
+
+    const renderRow = p => {
+      const lm  = _RP_LABELS[p.label] ?? _RP_LABELS['BACKUP'];
+      const pc  = posColors[p.pos] ?? 'var(--text-dim)';
+      const oRankStr = p.oRank && p.oRank < 999 ? `#${p.oRank}` : '';
+      const ppgStr   = p.basePpg != null ? `${p.basePpg.toFixed(1)} ppg` : '';
+      return `<div class="bp-rp-row">
+        <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;">
+        <span class="bp-rp-pos" style="color:${pc};">${p.pos}</span>
+        <span class="bp-rp-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
+        <span class="bp-rp-label" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${p.label}</span>
+        ${oRankStr ? `<span class="bp-rp-rank">${oRankStr}</span>` : ''}
+        ${ppgStr   ? `<span class="bp-rp-ppg">${ppgStr}</span>`   : ''}
+      </div>`;
+    };
+
+    const starterRows = starters.map(renderRow).join('');
+    const benchRows   = bench.map(renderRow).join('');
+    return `<div class="bp-rp-summary">${summaryHTML}</div>
+      <div class="bp-rp-section-sep">STARTERS</div>
+      ${starterRows || '<div style="color:var(--text-dim);font-size:9px;padding:4px 0;">No starters found.</div>'}
+      ${bench.length ? `<div class="bp-rp-section-sep">KEY BENCH</div>${benchRows}` : ''}`;
+  })();
 
   // ── Positional needs ──────────────────────────────────────────────────────
   const needs = _bpNeeds(rosterId, leagueRankings, total);
@@ -14957,7 +15000,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       <!-- ROW: Swing Players | Needs + Holds -->
       <div class="bp-row-split">
         <div class="bp-panel" style="--bpa:#fb923c;">
-          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>SWING PLAYERS<span class="bp-panel-sub">positions of need</span></div>
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>ROSTER PROFILES<span class="bp-panel-sub">starters + key bench · role classification</span></div>
           ${swingHTML}
         </div>
         <div class="bp-panel" style="--bpa:#fb923c;">
@@ -15141,7 +15184,7 @@ function openBlueprintFullscreen() {
             ${d.capitalHTML}
           </div>
           <div class="bp-fs-p" style="--bpa:#fb923c;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb923c;"></span>SWING PLAYERS<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">positions of need</span></div>
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb923c;"></span>ROSTER PROFILES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">starters + key bench · role classification</span></div>
             ${d.swingHTML}
             <div class="bp-fs-pt" style="margin-top:11px;"><span class="bp-pdot" style="background:#fb923c;"></span>POSITIONAL NEEDS</div>
             ${d.needsHTML}
