@@ -13905,6 +13905,7 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
           if (myPidSet.has(pid)) return null;
           const age = _bpAge(sp?.birth_date); if (!age) return null;
           if (age > 27) return null; // only young players back
+          if ((fc.value ?? 0) < 1400) return null; // ignore true scrubs
           return { pid, name: fc.name, pos: fc.position, value: fc.value ?? 0, age: +age.toFixed(1),
                    team: (buyer.name || '').split(/[\s_]+/).pop() };
         }).filter(Boolean).sort((a, b) => b.value - a.value);
@@ -13928,7 +13929,8 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
         }
 
         // Also try player + pick (gives the "young + future" spread the user wants)
-        const buyerPicks = (buyer.allPicks ?? []).filter(p => p.tier === 'early' || p.tier === 'mid');
+        const buyerPicks = (buyer.allPicks ?? [])
+          .filter(p => p.tier === 'early' || p.tier === 'mid' || _bpPickVal(p) >= 1400);
         for (const bP of bPlayers.slice(0, 6)) {
           if (bP.value > theirTopVal * 0.88) continue;
           for (const pk of buyerPicks) {
@@ -13973,11 +13975,11 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
 
         // Throw-in: a player or pick worth 1.8k–2.5k can sweeten the package
         const throwInPlayer = myPlayers.slice(2)
-          .find(p => !pkg.includes(p) && p.value >= 1800 && p.value <= 2500) ?? null;
+          .find(p => !pkg.includes(p) && p.value >= 1400 && p.value <= 2500) ?? null;
         const myPicks = (myTeamRow?.allPicks ?? [])
-          .filter(p => p.tier === 'early' || p.tier === 'mid')
-          .map(pk => ({ ...pk, val: _bpPickVal(pk) }));
-        const throwInPick = myPicks.find(pk => pk.val >= 1800 && pk.val <= 2500) ?? null;
+          .map(pk => ({ ...pk, val: _bpPickVal(pk) }))
+          .filter(pk => pk.val >= 1400);
+        const throwInPick = myPicks.find(pk => pk.val >= 1400 && pk.val <= 2500) ?? null;
         // Prefer a mid-tier pick as throw-in; fall back to player; fall back to best pick
         const addPick = throwInPick ?? (throwInPlayer ? null : (myPicks[0] ?? null));
         const addPlayer = !addPick ? throwInPlayer : null;
