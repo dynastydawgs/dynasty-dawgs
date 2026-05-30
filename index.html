@@ -13971,15 +13971,16 @@ function _bpHolds(rosterId) {
   return holds.slice(0, 5);
 }
 
-// ── Dead Capital Detection ────────────────────────────────────────────────────
-// Dead capital = high FC value + benched + not a justified hold.
-// These are your clearest sell signals: value on the market, $0 on the field.
-function _bpDeadCapital(rosterId) {
+// ── Trade Chips Detection ─────────────────────────────────────────────────────
+// For all teams: benched/idle value (dead capital).
+// For rebuilding phases: aging starters are also chips — they're producing now
+// but have no long-term fit on a team that needs youth and picks.
+function _bpDeadCapital(rosterId, phase) {
   const pids      = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
   const teamProj  = leagueProjData.find(t => t.roster_id === rosterId);
-  // Without projection data we can't reliably determine starters — bail out
   if (!teamProj?.starterPids) return [];
   const starterPids = teamProj.starterPids;
+  const isRebuild = ['REBUILDING', 'AGING OUT', 'FRINGE'].includes(phase);
   const dead      = [];
 
   for (const pid of pids) {
@@ -14003,6 +14004,19 @@ function _bpDeadCapital(rosterId) {
 
     // Handcuff: backup RB with legitimate spot-start value
     if (pos === 'RB' && age <= 26 && val < 5000) continue;
+
+    // ── REBUILD SELL SIGNALS: aging starters with no long-term fit ─────────
+    // On rebuilding/fringe teams, even starting veterans are trade chips.
+    // They're producing but they're 27+ — sell while the value is still high.
+    if (isRebuild && starterPids.has(pid) && age >= 27 && val >= 2500) {
+      const ageAdjLabel = age >= 30 ? 'aging producer' : 'veteran';
+      const pProj = teamProj?.players?.find(p => p.pid === pid);
+      const ppgStr = pProj?.basePpg != null ? ` (${pProj.basePpg.toFixed(1)} ppg)` : '';
+      dead.push({ pid, name: fc.name, pos, age: +age.toFixed(1), val, ppg: pProj?.basePpg ?? null,
+        reason: `${age.toFixed(0)}yo ${ageAdjLabel}${ppgStr} — real production, but no long-term fit on a rebuilding roster. Sell peak value now for youth and picks.`,
+        category: 'SELL_SIGNAL' });
+      continue;
+    }
 
     // ── CATEGORIZE DEAD CAPITAL ────────────────────────────────────────────
     let reason = null; let category = null;
@@ -14041,7 +14055,7 @@ function _bpDeadCapital(rosterId) {
   }
 
   dead.sort((a, b) => b.val - a.val);
-  return dead.slice(0, 5); // cap at 5 to keep the signal focused
+  return dead.slice(0, 8); // rebuild teams can have many chips — cap at 8
 }
 
 // ── Tier Strategy: Down-tier (concentrated → spread) / Up-tier (depth → star) ─
@@ -14988,15 +15002,16 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   : `<div style="color:rgba(255,255,255,0.22);font-size:10px;padding:6px 0;font-style:italic;">No development stash or handcuff holds flagged.</div>`;
 
   // ── Dead Capital ─────────────────────────────────────────────────────────────
-  const deadCapital = _bpDeadCapital(rosterId);
+  const deadCapital = _bpDeadCapital(rosterId, phase);
   const deadCapitalHTML = (() => {
     if (!deadCapital.length) return '';
     const totalDC = deadCapital.reduce((s, p) => s + p.val, 0);
     const catStyle = {
-      AGED_OUT:  { bg:'rgba(239,68,68,0.18)',   c:'#f87171' },
-      DECLINING: { bg:'rgba(251,146,60,0.16)',  c:'#fb923c' },
-      LOGJAM:    { bg:'rgba(251,191,36,0.14)',  c:'#fbbf24' },
-      STASHED:   { bg:'rgba(148,163,184,0.14)', c:'#94a3b8' },
+      SELL_SIGNAL:{ bg:'rgba(74,222,128,0.14)',  c:'#4ade80' },
+      AGED_OUT:   { bg:'rgba(239,68,68,0.18)',   c:'#f87171' },
+      DECLINING:  { bg:'rgba(251,146,60,0.16)',  c:'#fb923c' },
+      LOGJAM:     { bg:'rgba(251,191,36,0.14)',  c:'#fbbf24' },
+      STASHED:    { bg:'rgba(148,163,184,0.14)', c:'#94a3b8' },
     };
     const rows = deadCapital.map(p => {
       const pc  = posColors[p.pos] ?? 'var(--text-dim)';
