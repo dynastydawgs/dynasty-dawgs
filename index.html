@@ -12328,25 +12328,25 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   if (yExp >= 2 && oRank <= 50 && a <= 31 && rdVal >= 4000)          return 'PROVEN STAR';
   if (yExp >= 4 && oRank <= 75 && a <= 29 && ppgR >= 1.05)           return 'PRIME PRODUCER';
   // BREAKOUT STAR: year 2+, top-36 young player with elite production
-  if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppgR >= 1.30 || rdVal >= 5000)) return 'BREAKOUT STAR';
+  if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppgR >= 1.20 || rdVal >= 4500)) return 'BREAKOUT STAR';
   // ── ASCENDING TIER ────────────────────────────────────────────────────────
   // BLUE-CHIP: top-36 young asset, high ceiling but not yet proven production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
   // RISING STAR: year 2-3, strong proven production — one step from star tier
-  if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppgR >= 1.10) return 'RISING STAR';
+  if (yExp >= 1 && yExp <= 2 && a <= 27 && oRank <= 100 && ppgR >= 1.10) return 'RISING STAR';
   // BREAKOUT CANDIDATE: year 2-3, solid production trending up — cusp of prime
-  if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppgR >= 0.95) return 'BREAKOUT CANDIDATE';
-  // MAKE-OR-BREAK: year 3, ranked with some production — now or never window
-  if (yExp >= 2 && yExp <= 3 && a <= 26 && oRank <= 125 && ppgR >= 0.75) return 'MAKE-OR-BREAK';
+  if (yExp >= 1 && yExp <= 2 && a <= 27 && oRank <= 100 && ppgR >= 0.95) return 'BREAKOUT CANDIDATE';
+  // MAKE-OR-BREAK: year 3 exactly, ranked with some production — now or never window
+  if (yExp === 2 && a <= 26 && oRank <= 125 && ppgR >= 0.75)             return 'MAKE-OR-BREAK';
   // ── PROSPECT TIER ─────────────────────────────────────────────────────────
   if (yExp <= 1 && oRank <= 75 && a <= 22)                            return 'ELITE PROSPECT';
   if (oRank <= 125 && a <= 24 && val >= 1500)                         return 'PROMISING UPSIDE';
   if (oRank <= 175 && a <= 23 && val >= 1000)                         return 'POTENTIAL UPSIDE';
   if (a <= 22 && val >= 600 && oRank <= 200)                          return 'LOTTERY TICKET';
   // ── VETERAN / DEPTH ───────────────────────────────────────────────────────
-  if (a >= 29 && (ppgR >= 1.00 || (oRank <= 100 && ppgR >= 0.80)))   return 'VETERAN PRODUCER';
-  if (a >= 29 && ppgR >= 0.85)                                        return 'STEADY VETERAN';
-  if (oRank <= 125 && ppgR >= 0.70)                                   return 'STEADY CONTRIBUTOR';
+  if (a >= 29 && (ppg >= 10 || (oRank <= 100 && ppg >= 8)))           return 'VETERAN PRODUCER';
+  if (a >= 29 && ppg >= 8.5)                                          return 'STEADY VETERAN';
+  if (oRank <= 125 && ppg >= 7)                                       return 'STEADY CONTRIBUTOR';
   if (a <= 22 && val >= 600)                                          return 'LOTTERY TICKET';
   if (a >= 30)                                                        return 'AGING VET';
   if (pos === 'RB' && a <= 28 && !isStarter && val >= 1500)           return 'HANDCUFF';
