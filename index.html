@@ -3016,6 +3016,35 @@
   .bp-depth-item .warn { color:#fb923c; }
   .bp-depth-item .crit { color:#f87171; }
 
+  /* ── Dual Strategy Paths ───────────────────────────────────────────── */
+  .bp-paths-wrap { display:grid; grid-template-columns:1fr 26px 1fr; gap:0; margin-top:6px; }
+  .bp-path-col { display:flex; flex-direction:column; gap:8px; }
+  .bp-path-col:first-child { padding-right:8px; }
+  .bp-path-col:last-child  { padding-left:8px; }
+  .bp-path-or-divider { display:flex; flex-direction:column; align-items:center; }
+  .bp-path-or-line { flex:1; width:1px; background:rgba(255,255,255,0.07); }
+  .bp-path-or-text { font-family:var(--mono); font-size:6.5px; font-weight:700; color:rgba(255,255,255,0.20); letter-spacing:0.12em; writing-mode:vertical-lr; padding:8px 0; }
+  .bp-path-header { display:flex; align-items:flex-start; gap:7px; padding-bottom:8px; border-bottom:2px solid transparent; margin-bottom:6px; }
+  .bp-path-icon { font-size:14px; flex-shrink:0; line-height:1; margin-top:1px; }
+  .bp-path-label { font-family:var(--mono); font-size:7.5px; font-weight:700; letter-spacing:0.10em; text-transform:uppercase; line-height:1.25; }
+  .bp-path-tagline { font-size:8px; color:rgba(255,255,255,0.35); margin-top:3px; font-style:italic; line-height:1.45; }
+  .bp-pm-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:6px; padding:9px 10px; }
+  .bp-pm-row { display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-bottom:5px; }
+  .bp-pm-row:last-of-type { margin-bottom:0; }
+  .bp-pm-tag { font-family:var(--mono); font-size:6.5px; font-weight:700; letter-spacing:0.08em; padding:2px 6px; border-radius:3px; flex-shrink:0; white-space:nowrap; }
+  .bp-pm-tag.offer { background:rgba(251,146,60,0.12); color:#fb923c; border:1px solid rgba(251,146,60,0.24); }
+  .bp-pm-tag.get   { background:rgba(74,222,128,0.10);  color:#4ade80; border:1px solid rgba(74,222,128,0.22); }
+  .bp-pm-tag.sell  { background:rgba(239,68,68,0.12);   color:#f87171; border:1px solid rgba(239,68,68,0.22); }
+  .bp-pm-tag.picks { background:rgba(251,191,36,0.10);  color:#fbbf24; border:1px solid rgba(251,191,36,0.22); }
+  .bp-pm-name { font-size:9.5px; color:rgba(255,255,255,0.78); cursor:pointer; }
+  .bp-pm-name:hover { color:var(--accent); }
+  .bp-pm-val  { font-family:var(--mono); font-size:7.5px; color:rgba(255,255,255,0.32); flex-shrink:0; }
+  .bp-pm-from { font-family:var(--mono); font-size:7px;   color:rgba(255,255,255,0.20); flex-shrink:0; }
+  .bp-pm-plus { font-size:9px; color:rgba(255,255,255,0.20); flex-shrink:0; }
+  .bp-pm-pick-label { font-family:var(--mono); font-size:7.5px; flex-shrink:0; }
+  .bp-pm-rationale  { font-size:8px; color:rgba(255,255,255,0.38); line-height:1.55; margin-top:7px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.05); }
+  .bp-pm-empty      { font-size:8.5px; color:rgba(255,255,255,0.22); font-style:italic; padding:8px 0; }
+
 </style>
 </head>
 <body>
@@ -13163,6 +13192,274 @@ function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
   return moves;
 }
 
+// ── Dual Strategy Paths ────────────────────────────────────────────────────────
+// Every phase gets two distinct paths: one trades VALUE → PRODUCTION,
+// the other trades PRODUCTION → VALUE.  Reflects the core ideology:
+// "There are more valuable players than useful players."
+function _bpDualPathMoves(rosterId, allTeams, total, phase) {
+  const myPidArr  = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
+  const myPidSet  = new Set(myPidArr);
+  const myTeamRow = allTeams.find(t => t.roster_id === rosterId);
+  const myProj    = leagueProjData.find(t => t.roster_id === rosterId);
+
+  // My players with full metadata
+  const myPlayers = myPidArr.map(pid => {
+    const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+    if (!fc || !['QB','RB','WR','TE'].includes(fc.position)) return null;
+    const age = _bpAge(sp?.birth_date);
+    return { pid, name:fc.name, pos:fc.position, val:fc.value??0,
+             age:+(age??27).toFixed(1), ppg:projectionCache[pid]?.basePpg??0 };
+  }).filter(Boolean).sort((a,b) => b.val - a.val);
+
+  // Top 3 cornerstones are untouchable
+  const csSet    = new Set(myPlayers.slice(0,3).map(p => p.pid));
+  const tradeable = myPlayers.filter(p => !csSet.has(p.pid) && p.val >= 800);
+
+  // All other-team players
+  const leaguePlayers = [];
+  for (const t of allTeams) {
+    if (t.roster_id === rosterId) continue;
+    const tPids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+    const teamShort = (t.name||'').split(/[\s_]+/).pop();
+    for (const pid of tPids) {
+      if (myPidSet.has(pid)) continue;
+      const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+      if (!fc || !['QB','RB','WR','TE'].includes(fc.position)) continue;
+      const age = _bpAge(sp?.birth_date);
+      leaguePlayers.push({ pid, name:fc.name, pos:fc.position, val:fc.value??0,
+        age:+(age??27).toFixed(1), ppg:projectionCache[pid]?.basePpg??0, team:teamShort, roster_id:t.roster_id });
+    }
+  }
+  leaguePlayers.sort((a,b) => b.val - a.val);
+
+  // My picks
+  const myPicks = (myTeamRow?.allPicks ?? []).map(pk => ({...pk, val:_bpPickVal(pk)})).sort((a,b) => b.val - a.val);
+
+  // ── Package builder: best combo of tradeable assets to match a target value ──
+  const buildPkg = (targetVal, excludePids = new Set()) => {
+    const pool = tradeable.filter(p => !excludePids.has(p.pid));
+    // 1. Single player
+    const s = pool.find(p => p.val >= targetVal*0.84 && p.val <= targetVal*1.22);
+    if (s) return { players:[s], picks:[] };
+    // 2. Player + pick
+    for (const p of pool.slice(0,7)) for (const pk of myPicks.slice(0,3)) {
+      const eff = _bpEffVal([{value:p.val},{value:pk.val}]);
+      if (eff >= targetVal*0.83 && p.val+pk.val <= targetVal*1.38) return { players:[p], picks:[pk] };
+    }
+    // 3. Two players
+    for (let i=0; i<Math.min(pool.length,7); i++) for (let j=i+1; j<Math.min(pool.length,7); j++) {
+      const eff = _bpEffVal([pool[i],pool[j]].map(x=>({value:x.val})));
+      if (eff >= targetVal*0.83 && pool[i].val+pool[j].val <= targetVal*1.45) return { players:[pool[i],pool[j]], picks:[] };
+    }
+    // 4. Two players + pick
+    for (let i=0; i<Math.min(pool.length,6); i++) for (let j=i+1; j<Math.min(pool.length,6); j++) {
+      const pk = myPicks[0]; if (!pk) continue;
+      const eff = _bpEffVal([pool[i],pool[j],pk].map(x=>({value:x.val??x.value??0})));
+      if (eff >= targetVal*0.83 && pool[i].val+pool[j].val+pk.val <= targetVal*1.55)
+        return { players:[pool[i],pool[j]], picks:[pk] };
+    }
+    return null;
+  };
+
+  // ── My weakest production position ──────────────────────────────────────────
+  const weakProdPos = (() => {
+    if (!leagueProjData.length) return 'RB';
+    let worst = 'RB', worstRank = 0;
+    for (const pos of ['QB','RB','WR','TE']) {
+      const all  = leagueProjData.map(t => t.posPpg?.[pos]??0).filter(v=>v>0).sort((a,b)=>b-a);
+      const mine = myProj?.posPpg?.[pos]??0;
+      const rank = all.filter(v => v > mine).length + 1;
+      if (rank > worstRank) { worstRank = rank; worst = pos; }
+    }
+    return worst;
+  })();
+
+  // ── Pick haul builder for a sell candidate ───────────────────────────────────
+  const buildPickHaul = sell => {
+    const buyers = allTeams
+      .filter(t => t.roster_id !== rosterId)
+      .filter(t => { const r = leagueRankings[t.roster_id]?.[`${sell.pos}Comp`];
+        return r && (r-1)/Math.max(total-1,1) >= 0.40; })
+      .filter(t => (t.allPicks??[]).some(p => (p.round??99) <= 2))
+      .sort((a,b) => b.pickValue - a.pickValue);
+    if (!buyers.length) return null;
+    const buyer = buyers[0];
+    const picks = []; let acc = 0;
+    for (const pk of (buyer.allPicks??[]).map(p=>({...p,val:_bpPickVal(p)})).sort((a,b)=>b.val-a.val)) {
+      if (picks.length >= 2) break;
+      if (acc + pk.val > sell.val*1.10) continue;
+      if (picks.length >= 1 && pk.round <= 1) continue;
+      picks.push(pk); acc += pk.val;
+      if (acc >= sell.val*0.70) break;
+    }
+    return (picks.length && acc >= sell.val*0.58) ? { picks, total:acc, fromTeam:buyer.name } : null;
+  };
+
+  // ── MOVE GENERATORS ──────────────────────────────────────────────────────────
+
+  // UPTIER: Package depth to acquire a genuine superstar
+  const uptierMove = () => {
+    for (const star of leaguePlayers.filter(p => p.val >= 4500 && p.age <= 30).slice(0,10)) {
+      const pkg = buildPkg(star.val);
+      if (pkg) return { type:'uptier', pkg, target:star,
+        rationale:`Package depth into ${star.name} — a genuine superstar. Pay the premium. Production is scarcer than value, and ${star.name} moves the needle every single week.` };
+    }
+    return null;
+  };
+
+  // FILL LINEUP: Trade a non-producing value asset for a proven veteran starter
+  const fillLineupMove = () => {
+    const pos = weakProdPos;
+    const valueHogs = tradeable.filter(p => p.val >= 2000 && (p.ppg < 10 || (p.val >= 3000 && p.ppg < 14))).sort((a,b) => b.val-a.val);
+    const vets = leaguePlayers.filter(p => p.pos === pos && p.ppg >= 9 && p.age >= 25 && p.age <= 32 && p.val >= 1500).sort((a,b) => b.ppg-a.ppg);
+    for (const vet of vets.slice(0,6)) {
+      for (const hog of valueHogs) {
+        if (hog.val < vet.val*0.78 || hog.val > vet.val*1.32) continue;
+        const pk = myPicks.find(p => hog.val + p.val <= vet.val*1.40) ?? null;
+        return { type:'fill', pkg:{ players:[hog], picks:pk?[pk]:[] }, target:vet,
+          rationale:`${hog.name} holds value but doesn't start every week. ${vet.name} (${vet.ppg.toFixed(1)} ppg) is proven production at your weakest position.` };
+      }
+    }
+    return null;
+  };
+
+  // SELL AGING: Cash in aging vets before the cliff, collect picks/youth
+  const sellAgingMove = (minAge = 27.5) => {
+    for (const sell of myPlayers.filter(p => p.age >= minAge && p.val >= 1800).sort((a,b) => b.val-a.val)) {
+      const haul = buildPickHaul(sell);
+      if (haul) return { type:'sell_aging', sell, haul,
+        rationale:`${sell.name} is ${sell.age}yo — peak value is now. Value is renewable; convert it before age takes it away. You can manufacture value again. You can't stop the clock.` };
+    }
+    return null;
+  };
+
+  // PROTECT WINDOW: Swap an aging vet for a younger producer at the same position
+  const protectWindowMove = () => {
+    for (const sell of myPlayers.filter(p => p.age >= 28 && p.val >= 1500).sort((a,b) => b.val-a.val)) {
+      const tgt = leaguePlayers.find(p =>
+        p.pos === sell.pos && p.age >= 23 && p.age < sell.age-1.5 &&
+        p.ppg >= sell.ppg*0.70 && p.val >= sell.val*0.72 && p.val <= sell.val*1.28);
+      if (tgt) return { type:'protect', pkg:{ players:[sell], picks:[] }, target:tgt,
+        rationale:`Similar production, more runway. ${sell.name} (${sell.age}yo) → ${tgt.name} (${tgt.age}yo). Same position, better trajectory — keep competing without aging out.` };
+    }
+    return null;
+  };
+
+  // BUY LOW: Swap an aging equivalent for an ascending young player
+  const buyLowMove = () => {
+    const selling = tradeable.filter(p => p.age >= 27).sort((a,b) => b.val-a.val);
+    for (const tgt of leaguePlayers.filter(p => p.age <= 25 && p.val >= 800 && p.val <= 4500).slice(0,15)) {
+      const offer = selling.find(p => p.val >= tgt.val*0.82 && p.val <= tgt.val*1.22 && p.age > tgt.age+2);
+      if (offer) return { type:'buy_low', pkg:{ players:[offer], picks:[] }, target:tgt,
+        rationale:`Same price, better trajectory. ${offer.name} (${offer.age}yo) → ${tgt.name} (${tgt.age}yo). Identical value today, years of upside still ahead.` };
+    }
+    return null;
+  };
+
+  // CONSOLIDATE: Package 3 pieces into 1 elite young player
+  const consolidateMove = () => {
+    for (const star of leaguePlayers.filter(p => p.val >= 3500 && p.age <= 28).slice(0,8)) {
+      const pkg = buildPkg(star.val);
+      if (pkg && (pkg.players.length + pkg.picks.length) >= 2)
+        return { type:'consolidate', pkg, target:star,
+          rationale:`Depth doesn't win championships — ${star.name} does. Combine pieces into one elite player. Three good players lose to one great one every time.` };
+    }
+    return uptierMove();
+  };
+
+  // FAST TRACK: Convert picks into a proven young player — stop waiting on lottery tickets
+  const fastTrackMove = () => {
+    const goodPicks = myPicks.filter(p => p.round <= 2).slice(0,3);
+    if (goodPicks.length < 2) return null;
+    const pkg2 = goodPicks.slice(0,2);
+    const eff  = _bpEffVal(pkg2.map(p=>({value:p.val})));
+    const tgt  = leaguePlayers.find(p => p.age <= 25 && p.val >= eff*0.80 && p.val <= (pkg2[0].val+pkg2[1].val)*1.15);
+    if (!tgt) return null;
+    return { type:'fast_track', pkg:{ players:[], picks:pkg2 }, target:tgt,
+      rationale:`Stop waiting on picks to hit. ${tgt.name} is ${tgt.age} and already producing — convert lottery tickets into a proven young asset right now.` };
+  };
+
+  // ── Phase → path routing ─────────────────────────────────────────────────────
+  const phaseMap = {
+    'WIN NOW':    {
+      A:{ label:'UPTIER TO A SUPERSTAR',   tagline:'Pay the premium — championships demand elite production', color:'var(--green)',  icon:'⚡', gen:uptierMove },
+      B:{ label:'FILL EVERY STARTER SLOT', tagline:'Convert non-producing value into weekly lineup points',   color:'#2dd4bf',      icon:'🎯', gen:fillLineupMove },
+    },
+    'CONTENDING': {
+      A:{ label:'PUSH ALL-IN',             tagline:'Windows close — sacrifice value for production now',      color:'var(--green)',  icon:'⚡', gen:uptierMove },
+      B:{ label:'PROTECT THE WINDOW',      tagline:'Same production, better age trajectory',                  color:'#38bdf8',      icon:'🔒', gen:protectWindowMove },
+    },
+    'RELOAD':     {
+      A:{ label:'COMMIT TO PRODUCTION',    tagline:'Choose a side — treat this roster like a contender push', color:'var(--orange)', icon:'🔥', gen:uptierMove },
+      B:{ label:'COMMIT TO VALUE',         tagline:'Choose a side — full rebuild, picks and youth',           color:'#a78bfa',      icon:'📈', gen:sellAgingMove },
+    },
+    'FRINGE':     {
+      A:{ label:'CONSOLIDATE & SWING',     tagline:'Package spare pieces into one elite player',              color:'var(--orange)', icon:'🎰', gen:consolidateMove },
+      B:{ label:'TEAR IT DOWN',            tagline:'Sell every aging vet — accept the rebuild now',           color:'#a78bfa',      icon:'💣', gen:() => sellAgingMove(26.5) },
+    },
+    'AGING OUT':  {
+      A:{ label:'ONE MORE RUN',            tagline:'Mortgage the future — championship or bust',              color:'var(--red)',    icon:'🚨', gen:uptierMove },
+      B:{ label:'CASH OUT NOW',            tagline:'Sell every peak asset before the age cliff hits',         color:'#a78bfa',      icon:'💰', gen:() => sellAgingMove(26.0) },
+    },
+    'REBUILDING': {
+      A:{ label:'ACCUMULATE VALUE',        tagline:'Hunt market inefficiencies — buy low, hold youth',        color:'#38bdf8',      icon:'🏦', gen:buyLowMove },
+      B:{ label:'FAST TRACK TIMELINE',     tagline:'Convert picks into a proven young producer',              color:'var(--accent)', icon:'🚀', gen:fastTrackMove },
+    },
+  };
+
+  const def = phaseMap[phase] ?? phaseMap['CONTENDING'];
+  return {
+    pathA: { ...def.A, move: def.A.gen() },
+    pathB: { ...def.B, move: def.B.gen() },
+  };
+}
+
+// ── Dual Path Renderer ─────────────────────────────────────────────────────────
+function _bpRenderDualPaths(pathA, pathB) {
+  const rPick = pk => {
+    const c = pk.tier==='early'?'#fbbf24':pk.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)';
+    return `<span class="bp-pm-pick-label" style="color:${c};">🎟 ${pk.label ?? ((pk.tier?.charAt(0).toUpperCase()||'')+'R'+(pk.round??'?'))}</span>`;
+  };
+  const rPlayer = p =>
+    `<span class="bp-pm-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')"><img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:13px;height:13px;vertical-align:middle;margin-right:2px;border-radius:50%;">${p.name}</span><span class="bp-pm-val">${(p.val/1000).toFixed(1)}k</span>`;
+
+  const renderMove = move => {
+    if (!move) return `<div class="bp-pm-empty">No clear opportunity found — hold current assets and monitor the trade market.</div>`;
+    const { type, pkg, target, sell, haul } = move;
+    const plus = `<span class="bp-pm-plus">+</span>`;
+    let offerRow = '', getRow = '';
+
+    if (type === 'sell_aging') {
+      // SELL aging player → GET pick haul from another team
+      const pickParts = (haul?.picks??[]).map(rPick).join(plus);
+      const fromNote  = haul?.fromTeam ? `<span class="bp-pm-from">from ${haul.fromTeam.split(/[\s_]+/).pop()}</span>` : '';
+      offerRow = `<div class="bp-pm-row"><span class="bp-pm-tag sell">SELL</span>${rPlayer(sell)}</div>`;
+      getRow   = `<div class="bp-pm-row"><span class="bp-pm-tag picks">GET PICKS</span>${pickParts}${fromNote}</div>`;
+    } else {
+      // OFFER package → GET target player
+      const offerParts = [...(pkg?.players??[]).map(rPlayer), ...(pkg?.picks??[]).map(rPick)].join(plus);
+      if (offerParts) offerRow = `<div class="bp-pm-row"><span class="bp-pm-tag offer">OFFER</span>${offerParts}</div>`;
+      if (target) getRow = `<div class="bp-pm-row"><span class="bp-pm-tag get">GET</span>${rPlayer(target)}${target.team?`<span class="bp-pm-from">from ${target.team}</span>`:''}</div>`;
+    }
+
+    return `<div class="bp-pm-card">${offerRow}${getRow}<div class="bp-pm-rationale">${move.rationale}</div></div>`;
+  };
+
+  const renderPath = p => `
+    <div class="bp-path-col">
+      <div class="bp-path-header" style="border-bottom-color:${p.color};">
+        <span class="bp-path-icon">${p.icon}</span>
+        <div>
+          <div class="bp-path-label" style="color:${p.color};">${p.label}</div>
+          <div class="bp-path-tagline">${p.tagline}</div>
+        </div>
+      </div>
+      ${renderMove(p.move)}
+    </div>`;
+
+  return `<div class="bp-paths-wrap">${renderPath(pathA)}<div class="bp-path-or-divider"><div class="bp-path-or-line"></div><div class="bp-path-or-text">OR</div><div class="bp-path-or-line"></div></div>${renderPath(pathB)}</div>`;
+}
+
 // ── Holds (Developing / Handcuff / Monitor) ───────────────────────────────────
 function _bpHolds(rosterId) {
   const pids     = rostersData?.find(r => r.roster_id === rosterId)?.players ?? [];
@@ -14094,72 +14391,9 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── NEW: Phase Overview Paragraph ─────────────────────────────────────────
   const overviewParaHTML = _bpOverviewParagraph(teamRow, phase, clock, ranks, total, isSF, archetype, trade.strengthPositions, trade.weaknessPositions);
 
-  // ── NEW: Suggested Moves (SELL → BUY) ─────────────────────────────────────
-  const suggestedMoves = _bpSuggestedMoves(rosterId, allTeams, total, phase);
-  const suggestedMovesHTML = suggestedMoves.length ? suggestedMoves.map(move => {
-    const sell = move.sell;
-    const pc   = posColors[sell.pos] ?? 'var(--text-dim)';
-
-    const buySections = move.buys.map((b, bi) => {
-      const bpc = posColors[b.pos] ?? 'var(--text-dim)';
-      return `${bi > 0 ? '<span class="bp-sm-or-sep">OR</span>' : ''}
-        <div class="bp-sm-buy-row">
-          <span class="bp-sm-buy-tag">BUY</span>
-          <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${b.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:16px;height:16px;border-radius:50%;">
-          <span class="bp-sm-player-name" onclick="searchAndOpenProfile('${(b.name||'').replace(/'/g,"\\'")}'">${b.name}</span>
-          <span style="font-family:var(--mono);font-size:7.5px;color:${bpc};">${b.pos}</span>
-          <span class="bp-sm-age">${b.age}</span>
-          <span class="bp-sm-val">${(b.val/1000).toFixed(1)}k</span>
-          <span class="bp-sm-team">${b.team}</span>
-        </div>`;
-    }).join('');
-
-    // Picks option (REBUILDING/AGING OUT = preferred, others = alternative)
-    let picksSection = '';
-    if (move.picksOption) {
-      const po = move.picksOption;
-      const teamShort = (po.fromTeam || '').split(/[\s_]+/).pop();
-      const pickItems = po.picks.map(pk => {
-        const pkVal = _bpPickVal(pk);
-        const pkC = pk.tier === 'early' ? '#fbbf24' : pk.tier === 'mid' ? '#94a3b8' : 'rgba(148,163,184,0.5)';
-        return `<span style="font-family:var(--mono);font-size:8px;color:${pkC};">🎟 ${pk.label ?? ((pk.tier?.toUpperCase()||'') + ' R' + (pk.round ?? '?'))}</span>`;
-      }).join('<span style="color:rgba(255,255,255,0.2);font-size:9px;margin:0 2px;">+</span>');
-
-      const badgeClass = po.isPreferred ? 'bp-sm-picks-tag preferred' : 'bp-sm-picks-tag';
-      const badgeText  = po.isPreferred ? '★ TAKE PICKS' : 'OR: PICKS';
-      const dividerText = po.isPreferred && move.buys.length
-        ? 'preferred path · or buy a player instead (above)'
-        : move.buys.length ? 'alternative to player trade' : 'pick haul target';
-
-      picksSection = `
-        <div class="bp-sm-picks-divider">${dividerText}</div>
-        <div class="bp-sm-picks-row">
-          <span class="${badgeClass}">${badgeText}</span>
-          ${pickItems}
-          <span style="font-family:var(--mono);font-size:7.5px;color:rgba(255,255,255,0.32);">~${(po.total/1000).toFixed(1)}k</span>
-          <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.22);">from ${teamShort}</span>
-        </div>`;
-    }
-
-    // For preferred-picks phases, show picks block before player buys
-    const contentHTML = move.picksOption?.isPreferred
-      ? `${picksSection}${move.buys.length ? '<div style="margin-top:4px;">' + buySections + '</div>' : ''}`
-      : `${buySections}${picksSection}`;
-
-    return `<div class="bp-sm-card">
-      <div class="bp-sm-sell-row">
-        <span class="bp-sm-sell-tag">SELL</span>
-        <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${sell.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:18px;height:18px;border-radius:50%;">
-        <span class="bp-sm-player-name" onclick="searchAndOpenProfile('${(sell.name||'').replace(/'/g,"\\'")}'">${sell.name}</span>
-        <span style="font-family:var(--mono);font-size:7.5px;color:${pc};">${sell.pos}</span>
-        <span class="bp-sm-age">${sell.age}</span>
-        <span class="bp-sm-val">${(sell.val/1000).toFixed(1)}k</span>
-      </div>
-      <div class="bp-sm-reason">${sell.sellReason}</div>
-      <div style="margin-top:6px;">${contentHTML}</div>
-    </div>`;
-  }).join('')
-  : `<div style="color:rgba(255,255,255,0.25);font-size:10px;padding:6px 0;font-style:italic;">No urgent sell candidates identified — roster is well-positioned.</div>`;
+  // ── Strategy Paths — dual path model (value vs production ideology) ──────────
+  const { pathA: smPathA, pathB: smPathB } = _bpDualPathMoves(rosterId, allTeams, total, phase);
+  const suggestedMovesHTML = _bpRenderDualPaths(smPathA, smPathB);
 
   // ── NEW: Purgatory Alert (FRINGE only) ───────────────────────────────────
   const purgatoryHTML = phase === 'FRINGE' ? `<div class="bp-purgatory-alert">
@@ -14617,8 +14851,8 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         <!-- Team overview box -->
         ${overviewHTML}
 
-        <!-- Suggested Moves section -->
-        <div class="bp-ts-section-title" style="margin-bottom:10px;">🔄 Suggested Moves</div>
+        <!-- Strategy Paths section -->
+        <div class="bp-ts-section-title" style="margin-bottom:10px;">⚡ Strategy Paths<span style="font-family:var(--mono);font-size:7px;font-weight:400;color:rgba(255,255,255,0.28);margin-left:8px;letter-spacing:0.08em;">TWO DIRECTIONS · CHOOSE ONE</span></div>
         ${suggestedMovesHTML}
 
         <!-- Tier Strategy (Down-tier / Up-tier) -->
