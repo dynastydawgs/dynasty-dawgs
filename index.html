@@ -12333,8 +12333,8 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
   if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppg >= 11.0) return 'RISING STAR';
   // BREAKOUT CANDIDATE: year 2-3, solid production trending up — cusp of prime
   if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppg >= 9.5)  return 'BREAKOUT CANDIDATE';
-  // MAKE-OR-BREAK: year 2-3, ranked with some production — now or never window
-  if (yExp >= 1 && yExp <= 3 && a <= 26 && oRank <= 125 && ppg >= 7.5)  return 'MAKE-OR-BREAK';
+  // MAKE-OR-BREAK: year 3 only, ranked with some production — now or never window
+  if (yExp >= 2 && yExp <= 3 && a <= 26 && oRank <= 125 && ppg >= 7.5)  return 'MAKE-OR-BREAK';
   // BREAKOUT: true rookies/year-1 — raw talent, NFL track record TBD
   if (yExp <= 1 && a <= 25 && oRank <= 100)                          return 'BREAKOUT';
   if (oRank <= 75 && a <= 22)                                         return 'ELITE PROSPECT';
