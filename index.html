@@ -13955,7 +13955,7 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
   // Package = 2 medium players (or medium + pick). Stars (>7k) are not tradeable depth.
   const isCompeting = ['WIN NOW', 'CONTENDING', 'RELOAD'].includes(phase);
   if (isCompeting && myPlayers.length >= 5) {
-    const depth = myPlayers.slice(2).filter(p => p.value >= 1800 && p.value <= 7000);
+    const depth = myPlayers.slice(2).filter(p => p.value >= 3000 && p.value <= 7000);
     const depthTotal = depth.reduce((s, p) => s + p.value, 0);
 
     if (depth.length >= 2 && depthTotal >= 4000) {
