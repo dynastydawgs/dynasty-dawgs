@@ -12829,11 +12829,19 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
     return null;
   };
 
-  // Phase-based age filter: rebuilding/aging-out teams should only target young players
-  const targetAgeOk = age => {
-    if (phase === 'REBUILDING' || phase === 'AGING OUT') return age <= 26;
-    return true;
-  };
+  // Phase-aware age ceiling: rebuilding teams target young, contenders target proven
+  const targetAgeMax = {
+    'WIN NOW': 35, 'CONTENDING': 33, 'RELOAD': 29,
+    'FRINGE': 27, 'AGING OUT': 26, 'REBUILDING': 25,
+  }[phase] ?? 30;
+  const targetAgeOk = age => age <= targetAgeMax;
+
+  // Team's offer capacity: non-cornerstone tradeable value + top pick values
+  // Used to decide which price tiers are realistic to show
+  const myCornerCount = 3;
+  const myTradeableVal = myAllPlayers.slice(myCornerCount).reduce((s, p) => s + p.value, 0);
+  const myTopPicksVal  = myOfferPicks.slice(0, 3).reduce((s, pk) => s + pk.val, 0);
+  const myOfferCapacity = myTradeableVal + myTopPicksVal;
 
   const buys = [], rebalance = [];
 
@@ -12841,7 +12849,7 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
     const compRank = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
     const pct = (compRank - 1) / Math.max(total - 1, 1);
 
-    // BUY: weak position (bottom 55% of league) — present 3 price-tier targets league-wide
+    // BUY: weak position (bottom 55% of league) — present age-appropriate tiered targets
     if (pct >= 0.55) {
       const allCandidates = allTeams
         .filter(t => t.roster_id !== rosterId)
@@ -12859,24 +12867,40 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
         .filter(p => p.value >= 500)
         .sort((a, b) => b.value - a.value);
 
+      if (!allCandidates.length) continue;
+
+      // Tier value cutoffs by percentile across the filtered pool
+      const n = allCandidates.length;
+      const premiumFloor = allCandidates[Math.floor(n * 0.25)]?.value ?? 0; // top 25%
+      const valueFloor   = allCandidates[Math.floor(n * 0.60)]?.value ?? 0; // 25-60%
+      const budgetFloor  = 1400; // 1.4k minimum
+
+      // Pick up to 3 unique players per tier
       const seen = new Set();
-      const pickTier = idx => {
-        const p = allCandidates[idx]; if (!p || seen.has(p.pid)) return null;
-        seen.add(p.pid); return p;
+      const pickUpTo = (pool, maxN) => {
+        const out = [];
+        for (const p of pool) {
+          if (out.length >= maxN) break;
+          if (!seen.has(p.pid)) { seen.add(p.pid); out.push(p); }
+        }
+        return out;
       };
-      const premium = pickTier(0);
-      const midIdx  = Math.max(1, Math.floor(allCandidates.length * 0.33));
-      const valueP  = pickTier(midIdx) ?? pickTier(1);
-      const viableB = allCandidates.filter(p => !seen.has(p.pid) && p.value >= 1400);
-      const budget  = viableB.length ? viableB[viableB.length - 1] : null;
-      if (budget) seen.add(budget.pid);
+
+      const premiumPlayers = pickUpTo(allCandidates.filter(p => p.value >= premiumFloor), 3);
+      const valuePlayers   = pickUpTo(allCandidates.filter(p => p.value >= valueFloor && p.value < premiumFloor), 3);
+      const budgetPlayers  = pickUpTo(allCandidates.filter(p => p.value >= budgetFloor && p.value < valueFloor), 3);
+
+      // Affordability gate: skip tiers the team realistically can't pay for
+      // Use 55% of cheapest player in tier as the threshold (packages can cover the gap)
+      const canAfford = pool => !pool.length || myOfferCapacity >= (pool[pool.length - 1].value * 0.45);
 
       const tiers = [
-        premium && { label:'PREMIUM', tier:'premium', player:premium },
-        valueP  && { label:'VALUE',   tier:'value',   player:valueP  },
-        budget  && { label:'BUDGET',  tier:'budget',  player:budget  },
+        (premiumPlayers.length && canAfford(premiumPlayers)) && { label:'PREMIUM', tier:'premium', players:premiumPlayers },
+        (valuePlayers.length   && canAfford(valuePlayers))   && { label:'VALUE',   tier:'value',   players:valuePlayers   },
+        (budgetPlayers.length)                                && { label:'BUDGET',  tier:'budget',  players:budgetPlayers  },
       ].filter(Boolean);
-      buys.push({ pos, color: posColors[pos], tiers });
+
+      if (tiers.length) buys.push({ pos, color: posColors[pos], tiers });
     }
 
     // REBALANCE: over-concentrated by >7% at this position (was 12% — too high to ever trigger)
@@ -14676,17 +14700,17 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     </div>`;
   })();
 
-  // Acquisition targets HTML — 3 price-tier player recommendations
+  // Acquisition targets HTML — phase-aware tiered targets, multiple options per tier
   const buyTradeHTML = trade.buys.length ? trade.buys.map(b => {
     const tiers = b.tiers ?? [];
-    if (!tiers.length) return `<div class="bp-trade-item" style="padding:5px 0;"><span class="bp-trade-action" style="color:${b.color};">▸ NEED ${b.pos}</span><span style="color:rgba(255,255,255,0.3);font-size:9px;margin-left:8px;">Seek via trade or waiver</span></div>`;
+    if (!tiers.length) return '';
     const tierColors = { premium:'var(--accent)', value:'#38bdf8', budget:'#94a3b8' };
     const posC = { QB:'#a78bfa', RB:'var(--green)', WR:'var(--blue)', TE:'var(--orange)' }[b.pos] ?? 'var(--text-dim)';
-    const cards = tiers.map(t => {
-      const p = t.player;
+    const tierBlocks = tiers.map(t => {
       const tc = tierColors[t.tier] ?? 'var(--text-dim)';
-      return `<div class="bp-acq-card">
-        <span class="bp-acq-tier" style="color:${tc};">${t.label}</span>
+      const players = t.players ?? (t.player ? [t.player] : []);
+      const playerCards = players.map((p, i) => `<div class="bp-acq-card" style="${i > 0 ? 'border-top:1px solid rgba(255,255,255,0.04);border-radius:0 0 8px 8px;' : ''}">
+        ${i === 0 ? `<span class="bp-acq-tier" style="color:${tc};">${t.label}</span>` : `<span class="bp-acq-tier" style="color:transparent;">·</span>`}
         <img class="bp-acq-photo" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
         <div class="bp-acq-info">
           <span class="bp-acq-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')">${p.name}</span>
@@ -14696,11 +14720,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
           <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:rgba(255,255,255,0.78);">${(p.value/1000).toFixed(1)}k</span>
           <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.28);">${p.age}yo</span>
         </div>
-      </div>`;
+      </div>`).join('');
+      return `<div style="margin-bottom:6px;">${playerCards}</div>`;
     }).join('');
     return `<div class="bp-trade-item" style="flex-direction:column;align-items:flex-start;gap:4px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
       <span class="bp-trade-action" style="color:${b.color};font-size:9px;letter-spacing:0.1em;">▸ NEED ${b.pos}</span>
-      ${cards}
+      ${tierBlocks}
     </div>`;
   }).join('') : `<div style="color:var(--text-dim);font-size:10px;">No glaring positional gaps.</div>`;
 
