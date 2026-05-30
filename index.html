@@ -12287,7 +12287,7 @@ const _RP_LABELS = {
   'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise' },
   'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran'   },
   'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect'  },
-  'ASCENDING':         { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending' },
+  'RISING STAR':       { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending' },
   'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending' },
   'BREAKOUT':          { color:'#a3e635', bg:'rgba(163,230,53,0.12)',   border:'rgba(163,230,53,0.26)',   tier:'prospect'  },
   'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect'  },
@@ -12331,10 +12331,10 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
   // ── PROSPECT / ASCENDING TIER ──────────────────────────────────────────────
   // BLUE-CHIP: top-36 young asset, high ceiling but not yet showing star production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
-  // ASCENDING: year 2-4 with real production — not a raw prospect, not yet a star
-  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 75 && ppg >= 8)  return 'ASCENDING';
-  // MAKE-OR-BREAK: year 2-4, ranked but hasn't delivered consistent production yet
-  if (yExp >= 1 && yExp <= 4 && a <= 26 && oRank <= 125)             return 'MAKE-OR-BREAK';
+  // RISING STAR: year 2-4 with proven starter production — on track, not yet a star
+  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 100 && ppg >= 10.5) return 'RISING STAR';
+  // MAKE-OR-BREAK: year 2-4, ranked but hasn't proven consistent production yet
+  if (yExp >= 1 && yExp <= 4 && a <= 26 && oRank <= 125 && ppg < 10.5)  return 'MAKE-OR-BREAK';
   // BREAKOUT: true rookies/year-1 — raw talent, NFL track record TBD
   if (yExp <= 1 && a <= 25 && oRank <= 100)                          return 'BREAKOUT';
   if (oRank <= 75 && a <= 22)                                         return 'ELITE PROSPECT';
@@ -15099,7 +15099,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     const tierMeta = [
       { key:'franchise',  label:'FRANCHISE',    color:'#f5c842' },
       { key:'star',       label:'STARS',        color:'#a78bfa' },
-      { key:'ascending',  label:'ASCENDING',    color:'#34d399' },
+      { key:'ascending',  label:'RISING STAR',  color:'#34d399' },
       { key:'prospect',   label:'PROSPECTS',    color:'#4ade80' },
       { key:'veteran',    label:'VETERANS',     color:'#fdba74' },
       { key:'depth',      label:'DEPTH',        color:'#64748b' },
