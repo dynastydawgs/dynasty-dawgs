@@ -12329,8 +12329,8 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   if (yExp >= 4 && oRank <= 100 && a <= 29 && ppgR >= 0.95)          return 'PRIME PRODUCER';
   // High-production override: proven output regardless of dynasty rank or ratio
   if (yExp >= 4 && a <= 29 && (ppgR >= 1.10 || ppg >= 13))          return 'PRIME PRODUCER';
-  // BREAKOUT STAR: year 2+, top-36 young player with strong production
-  if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppgR >= 1.10 || rdVal >= 4000)) return 'BREAKOUT STAR';
+  // BREAKOUT STAR: year 2+, top-36 dynasty, age <= 25 — rank alone qualifies
+  if (yExp >= 1 && oRank <= 36 && a <= 25)                            return 'BREAKOUT STAR';
   // ── ASCENDING TIER ────────────────────────────────────────────────────────
   // BLUE-CHIP: top-36 young asset, high ceiling but not yet proven production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
