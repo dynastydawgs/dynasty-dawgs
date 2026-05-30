@@ -12299,7 +12299,7 @@ const _RP_LABELS = {
   'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)', tier:'prospect'  },
   'VETERAN PRODUCER':  { color:'#fdba74', bg:'rgba(253,186,116,0.12)', border:'rgba(253,186,116,0.24)', tier:'veteran'   },
   'STEADY VETERAN':    { color:'#94a3b8', bg:'rgba(148,163,184,0.11)', border:'rgba(148,163,184,0.22)', tier:'veteran'   },
-  'STEADY CONTRIBUTOR':{ color:'#64748b', bg:'rgba(100,116,139,0.11)', border:'rgba(100,116,139,0.20)', tier:'depth'     },
+  'STEADY CONTRIBUTOR':{ color:'#64748b', bg:'rgba(100,116,139,0.11)', border:'rgba(100,116,139,0.20)', tier:'veteran'   },
   'DEVELOPMENTAL':     { color:'#6ee7b7', bg:'rgba(110,231,183,0.10)', border:'rgba(110,231,183,0.20)', tier:'prospect'  },
   'AGING VET':         { color:'#f87171', bg:'rgba(248,113,113,0.12)', border:'rgba(248,113,113,0.24)', tier:'veteran'   },
   'HANDCUFF':          { color:'#38bdf8', bg:'rgba(56,189,248,0.11)',  border:'rgba(56,189,248,0.22)',  tier:'depth'     },
@@ -12324,22 +12324,26 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   if (oRank <= 12)                                                return 'UNTOUCHABLE';
   if (oRank <= 25)                                                return 'CORNERSTONE';
   // ── STAR TIER — requires year 3+ (yExp >= 2); rookies/sophs route to ascending/prospect ──
-  if (yExp >= 2 && oRank <= 50 && a >= 30 && ppgR >= 1.20)           return 'VETERAN STAR';
-  if (yExp >= 2 && oRank <= 50 && a <= 31 && rdVal >= 4000)          return 'PROVEN STAR';
-  if (yExp >= 4 && oRank <= 100 && a <= 29 && ppgR >= 1.05)          return 'PRIME PRODUCER';
+  if (yExp >= 2 && oRank <= 50 && a >= 30 && ppgR >= 1.10)           return 'VETERAN STAR';
+  if (yExp >= 2 && oRank <= 50 && a <= 31 && rdVal >= 3500)          return 'PROVEN STAR';
+  if (yExp >= 4 && oRank <= 100 && a <= 29 && ppgR >= 0.95)          return 'PRIME PRODUCER';
   // High-production override: proven output regardless of dynasty rank or ratio
-  if (yExp >= 4 && a <= 29 && (ppgR >= 1.25 || ppg >= 14))          return 'PRIME PRODUCER';
-  // BREAKOUT STAR: year 2+, top-36 young player with elite production
-  if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppgR >= 1.20 || rdVal >= 4500)) return 'BREAKOUT STAR';
+  if (yExp >= 4 && a <= 29 && (ppgR >= 1.10 || ppg >= 13))          return 'PRIME PRODUCER';
+  // BREAKOUT STAR: year 2+, top-36 young player with strong production
+  if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppgR >= 1.10 || rdVal >= 4000)) return 'BREAKOUT STAR';
   // ── ASCENDING TIER ────────────────────────────────────────────────────────
   // BLUE-CHIP: top-36 young asset, high ceiling but not yet proven production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
   // QBs develop slower — extend ascending window by one year
   const _ascMax = pos === 'QB' ? 3 : 2;
-  // RISING STAR: year 2-3 (QB: yr 2-4), strong proven production — one step from star tier
-  if (yExp >= 1 && yExp <= _ascMax && a <= 30 && oRank <= 100 && (ppgR >= 1.10 || ppg >= 13)) return 'RISING STAR';
-  // BREAKOUT CANDIDATE: year 2-3 (QB: yr 2-4), solid production trending up
-  if (yExp >= 1 && yExp <= _ascMax && a <= 30 && oRank <= 100 && ppgR >= 0.95) return 'BREAKOUT CANDIDATE';
+  // RISING STAR: split threshold by year — sophomores show promise, year 3 expected to produce
+  if (yExp === 1 && a <= 30 && oRank <= 100 && (ppgR >= 0.90 || ppg >= 10)) return 'RISING STAR';
+  if (yExp === 2 && a <= 30 && oRank <= 100 && (ppgR >= 1.05 || ppg >= 12)) return 'RISING STAR';
+  if (pos === 'QB' && yExp === 3 && a <= 33 && oRank <= 100 && ppgR >= 1.05) return 'RISING STAR';
+  // BREAKOUT CANDIDATE: split threshold by year
+  if (yExp === 1 && a <= 30 && oRank <= 100 && (ppgR >= 0.75 || ppg >= 8.5)) return 'BREAKOUT CANDIDATE';
+  if (yExp === 2 && a <= 30 && oRank <= 100 && (ppgR >= 0.90 || ppg >= 10))  return 'BREAKOUT CANDIDATE';
+  if (pos === 'QB' && yExp === 3 && a <= 33 && oRank <= 100 && ppgR >= 0.90) return 'BREAKOUT CANDIDATE';
   // MAKE-OR-BREAK: ranked young player who hasn't delivered — lower ppgR floor for QBs
   const _mobMax  = pos === 'QB' ? 3 : 2;
   const _mobPpgR = pos === 'QB' ? 0.50 : 0.75;
