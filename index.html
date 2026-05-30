@@ -12290,7 +12290,6 @@ const _RP_LABELS = {
   'RISING STAR':         { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending' },
   'BREAKOUT CANDIDATE':  { color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending' },
   'MAKE-OR-BREAK':       { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending' },
-  'BREAKOUT':          { color:'#a3e635', bg:'rgba(163,230,53,0.12)',   border:'rgba(163,230,53,0.26)',   tier:'prospect'  },
   'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect'  },
   'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star'      },
   'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)', tier:'star'      },
@@ -12335,9 +12334,7 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
   if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppg >= 9.5)  return 'BREAKOUT CANDIDATE';
   // MAKE-OR-BREAK: year 3 only, ranked with some production — now or never window
   if (yExp >= 2 && yExp <= 3 && a <= 26 && oRank <= 125 && ppg >= 7.5)  return 'MAKE-OR-BREAK';
-  // BREAKOUT: true rookies/year-1 — raw talent, NFL track record TBD
-  if (yExp <= 1 && a <= 25 && oRank <= 100)                          return 'BREAKOUT';
-  if (oRank <= 75 && a <= 22)                                         return 'ELITE PROSPECT';
+  if (yExp <= 1 && oRank <= 75 && a <= 22)                            return 'ELITE PROSPECT';
   if (oRank <= 125 && a <= 24 && val >= 1500)                    return 'PROMISING UPSIDE';
   if (oRank <= 175 && a <= 23 && val >= 1000)                    return 'POTENTIAL UPSIDE';
   if (a <= 22 && val >= 600 && oRank <= 200)                     return 'LOTTERY TICKET';
