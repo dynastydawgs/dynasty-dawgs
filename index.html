@@ -13373,6 +13373,25 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     return worst;
   })();
 
+  // ── Rank-based weak positions (for targeting in trade moves) ─────────────────
+  const myRanks = leagueRankings[rosterId] ?? {};
+  const weakPositions = ['QB','RB','WR','TE']
+    .map(pos => ({ pos, rank: myRanks[`${pos}Comp`] ?? Math.ceil(total / 2) }))
+    .filter(p => (p.rank - 1) / Math.max(total - 1, 1) >= 0.50)
+    .sort((a, b) => b.rank - a.rank)
+    .map(p => p.pos);
+
+  // Sort a candidate list by: weak positions first (worst first), then by value descending
+  const byNeed = arr => [...arr].sort((a, b) => {
+    const ai = weakPositions.indexOf(a.pos), bi = weakPositions.indexOf(b.pos);
+    if (ai !== bi) {
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi; // lower index = weaker position = higher priority
+    }
+    return b.val - a.val;
+  });
+
   // ── Pick haul builder for a sell candidate ───────────────────────────────────
   const buildPickHaul = sell => {
     const buyers = allTeams
@@ -13396,9 +13415,10 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
 
   // ── MOVE GENERATORS ──────────────────────────────────────────────────────────
 
-  // UPTIER: Package depth to acquire a genuine superstar
+  // UPTIER: Package depth to acquire a genuine superstar at a needed position
   const uptierMove = () => {
-    for (const star of leaguePlayers.filter(p => p.val >= 4500 && p.age <= 30).slice(0,10)) {
+    const stars = byNeed(leaguePlayers.filter(p => p.val >= 4500 && p.age <= 30)).slice(0, 15);
+    for (const star of stars) {
       const pkg = buildPkg(star.val);
       if (pkg) return { type:'uptier', pkg, target:star,
         rationale:`Package depth into ${star.name} — a genuine superstar. Pay the premium. Production is scarcer than value, and ${star.name} moves the needle every single week.` };
@@ -13455,7 +13475,7 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
       .sort((a,b) => a.val - b.val); // smallest first so we don't overpay
     const hasCapital = sparePicks.length >= 3 || myPicks.filter(p=>(p.round??99)<=2).length >= 2;
 
-    for (const tgt of leaguePlayers.filter(p => p.age <= 25 && p.val >= 800 && p.val <= 5000).slice(0, 20)) {
+    for (const tgt of byNeed(leaguePlayers.filter(p => p.age <= 25 && p.val >= 800 && p.val <= 5000)).slice(0, 20)) {
       // Widen lower tolerance — we may cover the gap with a pick
       const offer = selling.find(p => p.val >= tgt.val*0.68 && p.val <= tgt.val*1.22 && p.age > tgt.age+2);
       if (!offer) continue;
@@ -13477,9 +13497,10 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     return null;
   };
 
-  // CONSOLIDATE: Package 3 pieces into 1 elite young player
+  // CONSOLIDATE: Package 3 pieces into 1 elite young player — prioritize needed positions
   const consolidateMove = () => {
-    for (const star of leaguePlayers.filter(p => p.val >= 3500 && p.age <= 28).slice(0,8)) {
+    const stars = byNeed(leaguePlayers.filter(p => p.val >= 3500 && p.age <= 28)).slice(0, 12);
+    for (const star of stars) {
       const pkg = buildPkg(star.val);
       if (pkg && (pkg.players.length + pkg.picks.length) >= 2)
         return { type:'consolidate', pkg, target:star,
