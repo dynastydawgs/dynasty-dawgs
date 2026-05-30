@@ -3757,29 +3757,34 @@ const PICK_BASE = {
 // e.g. "2027_1_late" → 820.  Falls back to discounted PICK_BASE when not present.
 let fcPickValues = {};
 
-// Build PICK_VALUES dynamically for years [season, season+1, season+2].
-// Prefers live FC pick values when available — falls back to discounted PICK_BASE.
+// Build PICK_VALUES for all years FC provides picks for, plus at least current+3 as a floor.
+// Prefers live FC pick values — falls back to discounted PICK_BASE for any gaps.
 // Must be called AFTER buildPlayerMaps() so fcPickValues is already populated.
 let PICK_VALUES = {};
 // Tier multipliers relative to FC's mid-tier anchor (research-backed dynasty pick values):
-// Early (top third of slots) carries a ~40% premium; late (bottom third) trades at ~58% of mid.
+// Early (top third of slots) carries a ~40% premium; late (bottom third) trades at ~87% of mid.
 const PICK_TIER_MULT = { early: 1.40, mid: 1.04, late: 0.87 };
 
 function buildPickValueTable(currentSeason) {
   PICK_VALUES = {};
-  const discounts = [1.0, 0.80, 0.64]; // 0%, 20%, 36% discount per year out
-  for (let offset = 0; offset < 3; offset++) {
-    const yr   = currentSeason + offset;
-    const disc = discounts[offset];
+
+  // Collect all years FC returned picks for (keys are "YYYY_round")
+  const fcYears = new Set(
+    Object.keys(fcPickValues)
+      .map(k => parseInt(k.split('_')[0]))
+      .filter(y => !isNaN(y) && y >= currentSeason)
+  );
+  const maxYear = Math.max(currentSeason + 3, ...(fcYears.size ? fcYears : [currentSeason + 3]));
+
+  for (let yr = currentSeason; yr <= maxYear; yr++) {
+    const disc = Math.pow(0.80, yr - currentSeason); // 20% per year fallback discount
     for (const round of [1, 2, 3, 4]) {
-      const fcBase = fcPickValues[`${yr}_${round}`]; // live FC mid-tier anchor
+      const fcBase = fcPickValues[`${yr}_${round}`];
       for (const tier of ['early', 'mid', 'late']) {
         const key = `${round}_${tier}`;
-        if (fcBase && fcBase > 0) {
-          PICK_VALUES[`${yr}_${key}`] = Math.round(fcBase * PICK_TIER_MULT[tier]);
-        } else {
-          PICK_VALUES[`${yr}_${key}`] = Math.round((PICK_BASE[key] ?? 0) * disc);
-        }
+        PICK_VALUES[`${yr}_${key}`] = fcBase > 0
+          ? Math.round(fcBase * PICK_TIER_MULT[tier])
+          : Math.round((PICK_BASE[key] ?? 0) * disc);
       }
     }
   }
