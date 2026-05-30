@@ -12295,7 +12295,6 @@ const _RP_LABELS = {
   'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star'      },
   'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)', tier:'star'      },
   'BREAKOUT STAR':     { color:'#f472b6', bg:'rgba(244,114,182,0.13)', border:'rgba(244,114,182,0.28)', tier:'star'      },
-  'ASCENDING STAR':    { color:'#2dd4bf', bg:'rgba(45,212,191,0.12)',  border:'rgba(45,212,191,0.24)',  tier:'star'      },
   'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)', tier:'prospect'  },
   'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',  tier:'prospect'  },
   'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)', tier:'prospect'  },
@@ -12325,17 +12324,15 @@ function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
   if (yExp >= 2 && oRank <= 50 && a >= 30 && ppg >= 12)              return 'VETERAN STAR';
   if (yExp >= 2 && oRank <= 50 && a <= 31 && rdVal >= 4000)          return 'PROVEN STAR';
   if (yExp >= 2 && oRank <= 75 && a <= 29 && ppg >= 9)               return 'PRIME PRODUCER';
-  // BREAKOUT STAR: year 3+, top-36 young player with genuine star-level production
-  if (yExp >= 2 && oRank <= 36 && a <= 25 && (ppg >= 11 || rdVal >= 5000)) return 'BREAKOUT STAR';
-  // ASCENDING STAR: year 3+, top-50 young player with solid starter production
-  if (yExp >= 2 && oRank <= 50 && a <= 25 && (ppg >= 8 || rdVal >= 4000))  return 'ASCENDING STAR';
+  // BREAKOUT STAR: year 3+, top-36 young player with elite production
+  if (yExp >= 2 && oRank <= 36 && a <= 25 && (ppg >= 13 || rdVal >= 5000)) return 'BREAKOUT STAR';
   // ── PROSPECT / ASCENDING TIER ──────────────────────────────────────────────
   // BLUE-CHIP: top-36 young asset, high ceiling but not yet showing star production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
-  // RISING STAR: year 2-4, elite starter production — one step from star tier
-  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 100 && ppg >= 12.5) return 'RISING STAR';
+  // RISING STAR: year 2-4, strong proven production — one step from star tier
+  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 100 && ppg >= 11.0) return 'RISING STAR';
   // BREAKOUT CANDIDATE: year 2-4, solid production trending up — cusp of prime
-  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 100 && ppg >= 10.5) return 'BREAKOUT CANDIDATE';
+  if (yExp >= 1 && yExp <= 4 && a <= 27 && oRank <= 100 && ppg >= 9.5)  return 'BREAKOUT CANDIDATE';
   // MAKE-OR-BREAK: year 2-4, ranked with some production — now or never window
   if (yExp >= 1 && yExp <= 4 && a <= 26 && oRank <= 125 && ppg >= 7.5)  return 'MAKE-OR-BREAK';
   // BREAKOUT: true rookies/year-1 — raw talent, NFL track record TBD
