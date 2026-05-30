@@ -12307,44 +12307,50 @@ const _RP_LABELS = {
   'BACKUP':            { color:'#334155', bg:'rgba(51,65,85,0.12)',    border:'rgba(51,65,85,0.20)',    tier:'depth'     },
 };
 
-function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp) {
-  const oRank = fc.overallRank ?? 999;
-  const pos   = fc.position;
-  const val   = fc.value ?? 0;
-  const rdVal = fc.redraftValue ?? 0;
-  const ppg   = basePpg ?? 0;
-  const a     = age ?? 27;
-  const yExp  = yearsExp ?? 99;
+function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
+  const oRank  = fc.overallRank ?? 999;
+  const pos    = fc.position;
+  const val    = fc.value ?? 0;
+  const rdVal  = fc.redraftValue ?? 0;
+  const ppg    = basePpg ?? 0;
+  const a      = age ?? 27;
+  const yExp   = yearsExp ?? 99;
+  // Normalize ppg against league starter average for this position
+  const _posAvg = { QB:20, RB:11, WR:10, TE:8 };
+  const posAvg  = posAvgPpg?.[pos] ?? _posAvg[pos] ?? 10;
+  const ppgR    = posAvg > 0 ? ppg / posAvg : 0;
 
   // Top-25 dynasty = cornerstone regardless of age — Jeanty at #5 is a franchise asset
   if (oRank <= 12)                                                return 'FRANCHISE';
   if (oRank <= 25)                                                return 'CORNERSTONE';
   // ── STAR TIER — requires year 3+ (yExp >= 2); rookies/sophs route to ascending/prospect ──
-  if (yExp >= 2 && oRank <= 50 && a >= 30 && ppg >= 12)              return 'VETERAN STAR';
+  if (yExp >= 2 && oRank <= 50 && a >= 30 && ppgR >= 1.20)           return 'VETERAN STAR';
   if (yExp >= 2 && oRank <= 50 && a <= 31 && rdVal >= 4000)          return 'PROVEN STAR';
-  if (yExp >= 4 && oRank <= 75 && a <= 29 && ppg >= 10.5)            return 'PRIME PRODUCER';
+  if (yExp >= 4 && oRank <= 75 && a <= 29 && ppgR >= 1.05)           return 'PRIME PRODUCER';
   // BREAKOUT STAR: year 2+, top-36 young player with elite production
-  if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppg >= 13 || rdVal >= 5000)) return 'BREAKOUT STAR';
-  // ── PROSPECT / ASCENDING TIER ──────────────────────────────────────────────
-  // BLUE-CHIP: top-36 young asset, high ceiling but not yet showing star production
+  if (yExp >= 1 && oRank <= 36 && a <= 25 && (ppgR >= 1.30 || rdVal >= 5000)) return 'BREAKOUT STAR';
+  // ── ASCENDING TIER ────────────────────────────────────────────────────────
+  // BLUE-CHIP: top-36 young asset, high ceiling but not yet proven production
   if (oRank <= 36 && a <= 24)                                         return 'BLUE-CHIP';
   // RISING STAR: year 2-3, strong proven production — one step from star tier
-  if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppg >= 11.0) return 'RISING STAR';
+  if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppgR >= 1.10) return 'RISING STAR';
   // BREAKOUT CANDIDATE: year 2-3, solid production trending up — cusp of prime
-  if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppg >= 9.5)  return 'BREAKOUT CANDIDATE';
-  // MAKE-OR-BREAK: year 3 only, ranked with some production — now or never window
-  if (yExp >= 2 && yExp <= 3 && a <= 26 && oRank <= 125 && ppg >= 7.5)  return 'MAKE-OR-BREAK';
+  if (yExp >= 1 && yExp <= 3 && a <= 27 && oRank <= 100 && ppgR >= 0.95) return 'BREAKOUT CANDIDATE';
+  // MAKE-OR-BREAK: year 3, ranked with some production — now or never window
+  if (yExp >= 2 && yExp <= 3 && a <= 26 && oRank <= 125 && ppgR >= 0.75) return 'MAKE-OR-BREAK';
+  // ── PROSPECT TIER ─────────────────────────────────────────────────────────
   if (yExp <= 1 && oRank <= 75 && a <= 22)                            return 'ELITE PROSPECT';
-  if (oRank <= 125 && a <= 24 && val >= 1500)                    return 'PROMISING UPSIDE';
-  if (oRank <= 175 && a <= 23 && val >= 1000)                    return 'POTENTIAL UPSIDE';
-  if (a <= 22 && val >= 600 && oRank <= 200)                     return 'LOTTERY TICKET';
-  if (a >= 29 && (ppg >= 10 || (oRank <= 100 && ppg >= 8)))      return 'VETERAN PRODUCER';
-  if (a >= 29 && ppg >= 8.5)                                     return 'STEADY VETERAN';
-  if (oRank <= 125 && ppg >= 7)                                  return 'STEADY CONTRIBUTOR';
-  if (a <= 22 && val >= 600)                                     return 'LOTTERY TICKET';
-  if (a >= 30)                                                   return 'AGING VET';
-  if (pos === 'RB' && a <= 28 && !isStarter && val >= 1500)      return 'HANDCUFF';
-  if (oRank <= 200)                                              return 'DEPTH PIECE';
+  if (oRank <= 125 && a <= 24 && val >= 1500)                         return 'PROMISING UPSIDE';
+  if (oRank <= 175 && a <= 23 && val >= 1000)                         return 'POTENTIAL UPSIDE';
+  if (a <= 22 && val >= 600 && oRank <= 200)                          return 'LOTTERY TICKET';
+  // ── VETERAN / DEPTH ───────────────────────────────────────────────────────
+  if (a >= 29 && (ppgR >= 1.00 || (oRank <= 100 && ppgR >= 0.80)))   return 'VETERAN PRODUCER';
+  if (a >= 29 && ppgR >= 0.85)                                        return 'STEADY VETERAN';
+  if (oRank <= 125 && ppgR >= 0.70)                                   return 'STEADY CONTRIBUTOR';
+  if (a <= 22 && val >= 600)                                          return 'LOTTERY TICKET';
+  if (a >= 30)                                                        return 'AGING VET';
+  if (pos === 'RB' && a <= 28 && !isStarter && val >= 1500)           return 'HANDCUFF';
+  if (oRank <= 200)                                                   return 'DEPTH PIECE';
   return 'BACKUP';
 }
 
@@ -12353,6 +12359,26 @@ function _bpRosterProfiles(rosterId) {
   if (!roster) return { starters:[], bench:[], summary:{} };
   const teamProj   = leagueProjData.find(t => t.roster_id === rosterId);
   const starterPids = teamProj?.starterPids ?? new Set();
+
+  // Compute league-wide starter avg ppg by position for normalized thresholds
+  const posAvgPpg = (() => {
+    const sums = { QB:0, RB:0, WR:0, TE:0 };
+    const cnts = { QB:0, RB:0, WR:0, TE:0 };
+    for (const t of leagueProjData) {
+      for (const p of (t.players ?? [])) {
+        if (!t.starterPids?.has(p.pid)) continue;
+        const pp = p.basePpg ?? 0;
+        if (pp > 0 && sums[p.pos] !== undefined) {
+          sums[p.pos] += pp;
+          cnts[p.pos]++;
+        }
+      }
+    }
+    return { QB: cnts.QB ? sums.QB/cnts.QB : 20,
+             RB: cnts.RB ? sums.RB/cnts.RB : 11,
+             WR: cnts.WR ? sums.WR/cnts.WR : 10,
+             TE: cnts.TE ? sums.TE/cnts.TE :  8 };
+  })();
 
   const starters = [], bench = [];
 
@@ -12377,7 +12403,7 @@ function _bpRosterProfiles(rosterId) {
     if (!isStarter && !isKeyBench) continue;
 
     const yearsExp = sp?.years_exp ?? null;
-    const label = _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp);
+    const label = _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg);
     const entry = { pid, name:fc.name, pos:fc.position, age, val, oRank,
                     posRank:fc.positionRank ?? null, basePpg, isStarter, label };
     (isStarter ? starters : bench).push(entry);
