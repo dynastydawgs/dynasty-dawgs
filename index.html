@@ -13968,13 +13968,20 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
         .sort((a, b) => b.rank - a.rank)[0];
 
       if (posWeakness) {
-        const pkg   = depth.slice(0, 2);
+        const pkg    = depth.slice(0, 2);
         const pkgVal = pkg.reduce((s, p) => s + p.value, 0);
+
+        // Throw-in: a player or pick worth 1.8k–2.5k can sweeten the package
+        const throwInPlayer = myPlayers.slice(2)
+          .find(p => !pkg.includes(p) && p.value >= 1800 && p.value <= 2500) ?? null;
         const myPicks = (myTeamRow?.allPicks ?? [])
           .filter(p => p.tier === 'early' || p.tier === 'mid')
           .map(pk => ({ ...pk, val: _bpPickVal(pk) }));
-        const addPick = myPicks[0] ?? null;
-        const offerTotal = pkgVal + (addPick ? addPick.val : 0);
+        const throwInPick = myPicks.find(pk => pk.val >= 1800 && pk.val <= 2500) ?? null;
+        // Prefer a mid-tier pick as throw-in; fall back to player; fall back to best pick
+        const addPick = throwInPick ?? (throwInPlayer ? null : (myPicks[0] ?? null));
+        const addPlayer = !addPick ? throwInPlayer : null;
+        const offerTotal = pkgVal + (addPick ? addPick.val : 0) + (addPlayer ? addPlayer.value : 0);
 
         // Find target: surplus teams at weak pos → their #2 who's worth the offer
         const surplusTeams = allTeams
@@ -14006,7 +14013,7 @@ function _bpTierMoves(rosterId, allTeams, total, phase) {
 
         const posGrade = _bpRankToGrade(posWeakness.rank, total);
         upTier = { weakPos: posWeakness.pos, posGrade, pkg, pkgVal,
-                   addPick, offerTotal, target, depth, depthTotal, posColors };
+                   addPick, addPlayer, offerTotal, target, depth, depthTotal, posColors };
       }
     }
   }
@@ -14680,9 +14687,10 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       const gradeC = _bpGradeColor(ut.posGrade);
       const headline = `You have ${ut.depth.length} tradeable depth pieces worth ${(ut.depthTotal/1000).toFixed(1)}k total. Package them into a ${ut.weakPos} upgrade — individual depth is worth less than a true difference-maker.`;
       const pkgRows = ut.pkg.map(p => { const pc = posColors[p.pos] ?? 'var(--text-dim)'; return `<div class="bp-tier-row"><img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:16px;height:16px;border-radius:50%;flex-shrink:0;"><span style="flex:1;font-size:10px;color:rgba(255,255,255,0.72);cursor:pointer;" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name}</span><span style="font-family:var(--mono);font-size:7.5px;color:${pc};">${p.pos}</span><span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.35);">${(p.value/1000).toFixed(1)}k</span></div>`; }).join('');
-      const pickRow = ut.addPick ? (() => { const pkC = ut.addPick.tier==='early'?'#fbbf24':ut.addPick.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)'; return `<div class="bp-tier-row"><span style="font-size:11px;flex-shrink:0;">🎟</span><span style="flex:1;font-family:var(--mono);font-size:8px;color:${pkC};">${ut.addPick.label ?? (ut.addPick.tier?.toUpperCase()+' PICK')}</span><span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.35);">${(ut.addPick.val/1000).toFixed(1)}k</span></div>`; })() : '';
+      const pickRow = ut.addPick ? (() => { const pkC = ut.addPick.tier==='early'?'#fbbf24':ut.addPick.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)'; return `<div class="bp-tier-row"><span style="font-size:11px;flex-shrink:0;">🎟</span><span style="flex:1;font-family:var(--mono);font-size:8px;color:${pkC};">${ut.addPick.label ?? (ut.addPick.tier?.toUpperCase()+' PICK')}</span><span style="font-family:var(--mono);font-size:7px;color:rgba(148,163,184,0.55);margin-right:4px;">throw-in</span><span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.35);">${(ut.addPick.val/1000).toFixed(1)}k</span></div>`; })() : '';
+      const throwInPlayerRow = ut.addPlayer ? (() => { const pc2 = posColors[ut.addPlayer.pos] ?? 'var(--text-dim)'; return `<div class="bp-tier-row"><img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${ut.addPlayer.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:16px;height:16px;border-radius:50%;flex-shrink:0;"><span style="flex:1;font-size:10px;color:rgba(255,255,255,0.55);cursor:pointer;" onclick="searchAndOpenProfile('${(ut.addPlayer.name||'').replace(/'/g,"\\'")}'">${ut.addPlayer.name}</span><span style="font-family:var(--mono);font-size:7.5px;color:${pc2};">${ut.addPlayer.pos}</span><span style="font-family:var(--mono);font-size:7px;color:rgba(148,163,184,0.55);margin-right:4px;">throw-in</span><span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.35);">${(ut.addPlayer.value/1000).toFixed(1)}k</span></div>`; })() : '';
       const targetHTML = ut.target ? `<div class="bp-tier-sub-label">TARGET</div><div class="bp-tier-row"><img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${ut.target.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;"><span style="flex:1;font-size:11px;color:rgba(255,255,255,0.9);cursor:pointer;font-weight:600;" onclick="searchAndOpenProfile('${(ut.target.name||'').replace(/'/g,"\\'")}'">${ut.target.name}</span><span style="font-family:var(--mono);font-size:7.5px;color:${wpc};">${ut.weakPos}</span><span style="font-family:var(--mono);font-size:7.5px;color:rgba(255,255,255,0.32);">${ut.target.age}</span><span style="font-family:var(--mono);font-size:9px;color:#4ade80;font-weight:700;">${(ut.target.value/1000).toFixed(1)}k</span><span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.25);">${ut.target.team}</span></div>` : `<div class="bp-tier-sub-label" style="margin-top:6px;">No exact match — push package to any ${ut.weakPos}-rich team.</div>`;
-      cards.push(`<div class="bp-tier-card bp-tier-up"><div class="bp-tier-card-header"><span class="bp-tier-badge bp-tier-badge-up">↑ UP-TIER</span><span class="bp-tier-card-title" style="color:#4ade80;">→ ${ut.weakPos} <span style="color:${gradeC};font-size:8px;">(${ut.posGrade})</span></span></div><div class="bp-tier-headline">${headline}</div><div class="bp-tier-sub-label">PACKAGE (${(ut.offerTotal/1000).toFixed(1)}k total offer)</div>${pkgRows}${pickRow}${targetHTML}</div>`);
+      cards.push(`<div class="bp-tier-card bp-tier-up"><div class="bp-tier-card-header"><span class="bp-tier-badge bp-tier-badge-up">↑ UP-TIER</span><span class="bp-tier-card-title" style="color:#4ade80;">→ ${ut.weakPos} <span style="color:${gradeC};font-size:8px;">(${ut.posGrade})</span></span></div><div class="bp-tier-headline">${headline}</div><div class="bp-tier-sub-label">PACKAGE (${(ut.offerTotal/1000).toFixed(1)}k total offer)</div>${pkgRows}${pickRow}${throwInPlayerRow}${targetHTML}</div>`);
     }
     return cards.join('');
   })();
