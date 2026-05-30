@@ -13435,14 +13435,27 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
   const csSet    = new Set(myPlayers.slice(0,3).map(p => p.pid));
   const tradeable = myPlayers.filter(p => !csSet.has(p.pid) && p.val >= 800);
 
-  // All other-team players
+  // Untradeable franchise player count by phase — same logic as acquisition targets
+  const _untradeableN = { 'REBUILDING':4, 'AGING OUT':3, 'FRINGE':3, 'RELOAD':2, 'CONTENDING':2, 'WIN NOW':1 };
+
+  // All other-team players — excluding each team's franchise cornerstones (not on the market)
   const leaguePlayers = [];
   for (const t of allTeams) {
     if (t.roster_id === rosterId) continue;
+    const tPhase = _bpPhase(t, allTeams);
+    const nProtect = _untradeableN[tPhase] ?? 2;
     const tPids = rostersData?.find(r => r.roster_id === t.roster_id)?.players ?? [];
+    // Build a set of the top-N pids by value — these are untradeable
+    const untradeable = new Set(
+      tPids.map(pid => ({ pid, val: fcPlayerMap[pid]?.value ?? 0 }))
+        .filter(p => p.val > 0)
+        .sort((a, b) => b.val - a.val)
+        .slice(0, nProtect)
+        .map(p => p.pid)
+    );
     const teamShort = (t.name||'').split(/[\s_]+/).pop();
     for (const pid of tPids) {
-      if (myPidSet.has(pid)) continue;
+      if (myPidSet.has(pid) || untradeable.has(pid)) continue;
       const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
       if (!fc || !['QB','RB','WR','TE'].includes(fc.position)) continue;
       const age = _bpAge(sp?.birth_date);
