@@ -13452,6 +13452,45 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     return null;
   };
 
+  // VALUE SPREAD: Trade your top asset for 3 lesser pieces whose cumulative value beats the sale price.
+  // For depleted FRINGE teams: you need volume + currency, not concentration in one star.
+  const valueSpreadMove = () => {
+    const seller = tradeable.filter(p => p.val >= 3500).sort((a,b) => b.val - a.val)[0];
+    if (!seller) return null;
+    const buyerTeams = allTeams.filter(t => t.roster_id !== rosterId)
+      .filter(t => {
+        const r = leagueRankings[t.roster_id]?.[`${seller.pos}Comp`];
+        return r && (r - 1) / Math.max(total - 1, 1) >= 0.35;
+      });
+    for (const buyer of buyerTeams.slice(0, 8)) {
+      const bPids = rostersData?.find(r => r.roster_id === buyer.roster_id)?.players ?? [];
+      const bPlayers = bPids.map(pid => {
+        const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+        if (!fc || !['QB','RB','WR','TE'].includes(fc.position)) return null;
+        if (myPidSet.has(pid)) return null;
+        const age = _bpAge(sp?.birth_date); if (!age) return null;
+        if ((fc.value ?? 0) < 1400) return null;
+        return { pid, name:fc.name, pos:fc.position, val:fc.value??0, age:+age.toFixed(1),
+                 team:(buyer.name||'').split(/[\s_]+/).pop() };
+      }).filter(Boolean).sort((a,b) => b.val - a.val);
+      const topVal = bPlayers[0]?.val ?? Infinity;
+      for (let i = 0; i < Math.min(bPlayers.length, 7); i++) {
+        if (bPlayers[i].val > topVal * 0.88) continue;
+        for (let j = i+1; j < Math.min(bPlayers.length, 7); j++) {
+          for (let k = j+1; k < Math.min(bPlayers.length, 7); k++) {
+            const sum = bPlayers[i].val + bPlayers[j].val + bPlayers[k].val;
+            if (sum >= seller.val * 1.05 && sum <= seller.val * 1.65) {
+              const haul = { players:[bPlayers[i], bPlayers[j], bPlayers[k]], total:sum, fromTeam:buyer.name };
+              return { type:'value_spread', sell:seller, haul,
+                rationale:`Trade ${seller.name} (${(seller.val/1000).toFixed(1)}k) for 3 pieces worth ${(sum/1000).toFixed(1)}k combined. You walk away with more total value AND the trade currency to keep making moves.` };
+            }
+          }
+        }
+      }
+    }
+    return null;
+  };
+
   // PROTECT WINDOW: Swap an aging vet for a younger producer at the same position
   const protectWindowMove = () => {
     for (const sell of myPlayers.filter(p => p.age >= 28 && p.val >= 1500).sort((a,b) => b.val-a.val)) {
@@ -13525,12 +13564,13 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
   // The cornerstone of rebuild/aging-out strategy: sell peak production value and
   // convert it into a young high-upside asset that compounds over 3+ years.
   const youngProspectMove = (minAge = 26.0) => {
+    // Minimum 3.5k sell value — don't trade trash for a promising prospect
     const agingSellers = myPlayers
-      .filter(p => p.age >= minAge && p.val >= 1500)
+      .filter(p => p.age >= minAge && p.val >= 3500)
       .sort((a,b) => b.val - a.val);
 
     // Blue-chip prospects: age ≤ 24, high dynasty value — prioritize needed positions
-    const blueChips = byNeed(leaguePlayers.filter(p => p.age <= 24 && p.val >= 1800));
+    const blueChips = byNeed(leaguePlayers.filter(p => p.age <= 24 && p.val >= 2500));
 
     const mySpare = myPicks
       .map(pk => ({...pk, val:_bpPickVal(pk)}))
@@ -13541,14 +13581,17 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     for (const sell of agingSellers) {
       for (const prospect of blueChips) {
         const ratio = prospect.val / sell.val;
-        // Widen range — we'll cover underpay with our own pick if we have capital
         if (ratio < 0.62 || ratio > 1.55) continue;
 
-        // If prospect costs more than sell, throw in one of our picks to sweeten
+        // If prospect costs more than sell, throw in a pick — apply _bpEffVal discount:
+        // multiple pieces are worth less than their sum (4 quarters ≠ a dollar in dynasty)
         let myBonus = null;
         if (ratio > 1.05 && myHasCapital) {
           const gap = prospect.val - sell.val;
-          myBonus = mySpare.find(pk => pk.val >= gap * 0.55) ?? null;
+          myBonus = mySpare.find(pk => {
+            const effOffer = _bpEffVal([{value:sell.val}, {value:pk.val}]);
+            return effOffer >= prospect.val * 0.85 && pk.val >= gap * 0.55;
+          }) ?? null;
         }
 
         // If we're selling at a discount (ratio < 0.92), ask for a pick from them
@@ -13588,21 +13631,36 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
   })();
 
   // ── Phase → path routing ─────────────────────────────────────────────────────
-  // FRINGE / AGING OUT / REBUILDING branch by rebuildTier.
   const rebuildPaths = {
     TEARDOWN: {
       A:{ label:'GARAGE SALE',         tagline:'Sell every aging producer for blue-chip prospects + first round picks', color:'#f87171',      icon:'🏷️', gen:() => youngProspectMove(25.0) },
       B:{ label:'PURE PICK LIQUIDITY', tagline:'Stack firsts — you are 3-4 draft classes from contending',             color:'#a78bfa',      icon:'📦', gen:() => sellAgingMove(24.0) },
     },
     ONE_YEAR_PUNT: {
-      A:{ label:'TRIM FAT, BUY YOUTH', tagline:'Trade aging/risky assets for blue-chip prospects + first round picks',  color:'#38bdf8',      icon:'💎', gen:() => youngProspectMove(26.5) },
-      B:{ label:'COLLECT LIQUIDITY',   tagline:'Stack future firsts — compete after your next rookie draft class',       color:'var(--accent)', icon:'🚀', gen:fastTrackMove },
+      A:{ label:'TRIM FAT, BUY YOUTH', tagline:'Trade aging producers for blue-chip young prospects',                  color:'#38bdf8',      icon:'💎', gen:() => youngProspectMove(26.5) },
+      B:{ label:'STACK FIRSTS',        tagline:'Sell aging vets for first-round picks — picks are the currency to compete again', color:'var(--accent)', icon:'🚀', gen:() => sellAgingMove(26.0) },
     },
     HOUSE_MONEY: {
       A:{ label:'FIND BUYING WINDOWS', tagline:'Target undervalued elite assets before they fully break out',           color:'#38bdf8',      icon:'🏦', gen:buyLowMove },
       B:{ label:'CONSOLIDATE FOR ELITE', tagline:'Bundle depth into one elite young player — be patient',               color:'var(--accent)', icon:'💎', gen:consolidateMove },
     },
   };
+
+  // ── FRINGE depletion check (computed BEFORE phaseMap — never inside the object literal) ────
+  const fringeVRank     = allTeams.filter(t => t.totalValue > (myTeamRow?.totalValue ?? 0)).length + 1;
+  const fringeVPct      = (fringeVRank - 1) / Math.max(total - 1, 1);
+  const fringeGoodPicks = myPicks.filter(p => (p.round ?? 99) <= 2).length;
+  // Depleted = bottom ~58% in total value AND fewer than 3 quality picks — no ammo for consolidation
+  const fringeDeplete   = fringeVPct >= 0.58 && fringeGoodPicks < 3;
+  const fringePaths = fringeDeplete
+    ? {
+        A:{ label:'SPREAD THE VALUE',    tagline:'Trade a star for 3 pieces — more total value and trade currency', color:'#f87171',      icon:'📤', gen:valueSpreadMove },
+        B:{ label:'GARAGE SALE',         tagline:'Sell every aging producer for blue-chip prospects + first round picks', color:'#a78bfa', icon:'🏷️', gen:() => youngProspectMove(25.0) },
+      }
+    : {
+        A:{ label:'CONSOLIDATE & SWING', tagline:'Package spare pieces into one elite player',              color:'var(--orange)', icon:'🎰', gen:consolidateMove },
+        B: (rebuildPaths[rebuildTier ?? 'ONE_YEAR_PUNT'] ?? rebuildPaths.ONE_YEAR_PUNT).A,
+      };
 
   const phaseMap = {
     'WIN NOW':    {
@@ -13617,21 +13675,20 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
       A:{ label:'COMMIT TO PRODUCTION',    tagline:'Choose a side — treat this roster like a contender push', color:'var(--orange)', icon:'🔥', gen:uptierMove },
       B:{ label:'COMMIT TO VALUE',         tagline:'Choose a side — full rebuild, picks and youth',           color:'#a78bfa',      icon:'📈', gen:() => youngProspectMove(27.0) },
     },
-    'FRINGE':     {
-      A:{ label:'CONSOLIDATE & SWING',     tagline:'Package spare pieces into one elite player',              color:'var(--orange)', icon:'🎰', gen:consolidateMove },
-      B: (rebuildPaths[rebuildTier??'ONE_YEAR_PUNT'] ?? rebuildPaths.ONE_YEAR_PUNT).A,
-    },
+    'FRINGE':     fringePaths,
     'AGING OUT':  {
       A:{ label:'ONE MORE RUN',            tagline:'Mortgage the future — championship or bust',              color:'var(--red)',    icon:'🚨', gen:uptierMove },
       B:{ label:'CASH OUT FOR YOUTH',      tagline:'Trade aging producers for blue-chip prospects + first round picks', color:'#a78bfa', icon:'💎', gen:() => youngProspectMove(25.5) },
     },
-    'REBUILDING': rebuildPaths[rebuildTier??'ONE_YEAR_PUNT'] ?? rebuildPaths.ONE_YEAR_PUNT,
+    'REBUILDING': rebuildPaths[rebuildTier ?? 'ONE_YEAR_PUNT'] ?? rebuildPaths.ONE_YEAR_PUNT,
   };
 
   const def = phaseMap[phase] ?? phaseMap['CONTENDING'];
+  // safeGen: wrap every move generator so one bad team's data can't crash the whole blueprint
+  const safeGen = fn => { try { return fn(); } catch(e) { console.warn('[Blueprint move gen]', e); return null; } };
   return {
-    pathA: { ...def.A, move: def.A.gen() },
-    pathB: { ...def.B, move: def.B.gen() },
+    pathA: { ...def.A, move: safeGen(def.A.gen) },
+    pathB: { ...def.B, move: safeGen(def.B.gen) },
     rebuildTier,
   };
 }
@@ -13651,7 +13708,16 @@ function _bpRenderDualPaths(pathA, pathB, rebuildTier) {
     const plus = `<span class="bp-pm-plus">+</span>`;
     let offerRow = '', getRow = '';
 
-    if (type === 'sell_aging') {
+    if (type === 'value_spread') {
+      // DOWN-TIER: sell a star for 3 lesser pieces — more total value + trade currency
+      const fromNote  = haul?.fromTeam ? `<span class="bp-pm-from">from ${haul.fromTeam.split(/[\s_]+/).pop()}</span>` : '';
+      const haulParts = (haul?.players??[]).map(rPlayer).join(plus);
+      const haulTot = `<span style="font-family:var(--mono);font-size:7px;color:rgba(74,222,128,0.45);margin-left:auto;">${(haul.total/1000).toFixed(1)}k</span>`;
+      const sellTot = `<span style="font-family:var(--mono);font-size:7px;color:rgba(251,146,60,0.45);margin-left:auto;">${(sell.val/1000).toFixed(1)}k</span>`;
+      offerRow = `<div class="bp-pm-row"><span class="bp-pm-tag sell">SELL</span>${rPlayer(sell)}${sellTot}</div>`;
+      getRow   = `<div class="bp-pm-row"><span class="bp-pm-tag get">GET ×3</span>${haulParts}${fromNote}${haulTot}</div>`;
+
+    } else if (type === 'sell_aging') {
       // SELL aging player → GET pick haul
       const pickParts = (haul?.picks??[]).map(rPick).join(plus);
       const fromNote  = haul?.fromTeam ? `<span class="bp-pm-from">from ${haul.fromTeam.split(/[\s_]+/).pop()}</span>` : '';
@@ -14304,8 +14370,11 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const teamRow = allTeams.find(t => t.roster_id === rosterId);
   if (!teamRow) { el.innerHTML = `<div class="ai-loading" style="color:var(--text-dim);">Team not found.</div>`; return; }
 
+  let phase = '?';
+  try {
+
   const ranks       = leagueRankings[rosterId] ?? {};
-  const phase       = _bpPhase(teamRow, allTeams);
+  phase             = _bpPhase(teamRow, allTeams);
   const phStyle     = _bpPhaseStyle(phase);
   const archetype   = _bpArchetype(teamRow, isSF);
   const windowDesc  = _bpWindowDesc(phase);
@@ -14716,20 +14785,36 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const suggestedMovesHTML = _bpRenderDualPaths(smPathA, smPathB, rebuildTier);
 
   // ── NEW: Purgatory Alert (FRINGE only) ───────────────────────────────────
-  const purgatoryHTML = phase === 'FRINGE' ? `<div class="bp-purgatory-alert">
-    <div class="bp-purgatory-title">⚠ PURGATORY ZONE</div>
-    <div class="bp-purgatory-sub">This team is stuck in no-man's land — not competitive enough to win now, not broken enough to rebuild freely. Staying still is the worst outcome. You must choose a direction.</div>
-    <div class="bp-purgatory-paths">
-      <div class="bp-purgatory-path">
-        <div class="bp-purgatory-path-label" style="color:var(--orange);">PATH A → CONSOLIDATE & SWING</div>
-        <div class="bp-purgatory-path-desc">Package spare pieces into one elite player at your biggest need. Break out of purgatory with a bold move — mediocre rosters don't win titles.</div>
+  const purgatoryHTML = phase === 'FRINGE' ? (() => {
+    // Recompute depletion for the purgatory description (same logic as _bpDualPathMoves)
+    const _vRP = allTeams.filter(t => t.totalValue > (myTeamRow?.totalValue??0)).length + 1;
+    const _vPctP = (_vRP - 1) / Math.max(total - 1, 1);
+    const _goodPicksP = (myTeamRow?.allPicks ?? []).filter(p => (p.round??99) <= 2).length;
+    const isDeplete = _vPctP >= 0.58 && _goodPicksP < 3;
+    const pathA = isDeplete
+      ? { label:'PATH A → SPREAD THE VALUE',    color:'#f87171', desc:"Trade a top asset for 3 lesser pieces — you walk away with more total value and trade currency. Down-tier to stretch your roster and create ammunition." }
+      : { label:'PATH A → CONSOLIDATE & SWING', color:'var(--orange)', desc:"Package spare pieces into one elite player at your biggest need. Break out of purgatory with a bold move — mediocre rosters don't win titles." };
+    const pathB = isDeplete
+      ? { label:'PATH B → GARAGE SALE',         color:'#a78bfa', desc:"Sell every aging producer for blue-chip prospects and picks. You don't have enough capital to compete — convert aging value into a real rebuild foundation." }
+      : { label:'PATH B → TRIM FAT, BUY YOUTH', color:'#38bdf8', desc:"Trade aging assets for young prospects and first-round picks. Accept 1–2 seasons of retooling in exchange for a real championship window." };
+    const subText = isDeplete
+      ? "This roster lacks the value and draft capital to package a consolidation trade. The move is to stretch what you have — down-tier a top asset into multiple pieces, accumulate currency, then rebuild from a stronger base."
+      : "This team is stuck in no-man's land — not competitive enough to win now, not broken enough to rebuild freely. Staying still is the worst outcome. You must choose a direction.";
+    return `<div class="bp-purgatory-alert">
+      <div class="bp-purgatory-title">⚠ PURGATORY ZONE</div>
+      <div class="bp-purgatory-sub">${subText}</div>
+      <div class="bp-purgatory-paths">
+        <div class="bp-purgatory-path">
+          <div class="bp-purgatory-path-label" style="color:${pathA.color};">${pathA.label}</div>
+          <div class="bp-purgatory-path-desc">${pathA.desc}</div>
+        </div>
+        <div class="bp-purgatory-path">
+          <div class="bp-purgatory-path-label" style="color:${pathB.color};">${pathB.label}</div>
+          <div class="bp-purgatory-path-desc">${pathB.desc}</div>
+        </div>
       </div>
-      <div class="bp-purgatory-path">
-        <div class="bp-purgatory-path-label" style="color:#38bdf8;">PATH B → TRIM FAT, BUY YOUTH</div>
-        <div class="bp-purgatory-path-desc">Trade aging assets for young prospects and first-round picks. Accept 1–2 seasons of retooling in exchange for a real championship window.</div>
-      </div>
-    </div>
-  </div>` : '';
+    </div>`;
+  })() : '';
 
   // ── NEW: Holds ────────────────────────────────────────────────────────────
   const holds = _bpHolds(rosterId);
@@ -15120,6 +15205,15 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
 
     </div>
   </div>`;
+
+  } catch(err) {
+    console.error('[Blueprint crash] phase=' + phase, err);
+    el.innerHTML = `<div style="padding:20px;font-family:var(--mono);font-size:11px;color:var(--red);background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;margin:12px;">
+      <div style="font-weight:700;margin-bottom:6px;">Blueprint Error · Phase: ${phase}</div>
+      <div style="color:rgba(255,255,255,0.6);word-break:break-all;">${err?.message ?? String(err)}</div>
+      <div style="color:rgba(255,255,255,0.3);margin-top:4px;font-size:9px;">${(err?.stack??'').split('\n').slice(0,3).join(' | ')}</div>
+    </div>`;
+  }
 }
 
 // ── Blueprint fullscreen helpers ──────────────────────────────────────────────
