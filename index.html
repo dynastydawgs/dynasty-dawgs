@@ -9683,7 +9683,9 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     </div>`;
 
     // Backfield Opportunity Score box (RB only)
-    // Shows how depth-chart competition + workload ownership adjusts the projection.
+    // bos is hoisted to outer scope so the efficiency card IIFE can also reference it.
+    const bos = (pos === 'RB' && Object.keys(advstatsDB).length && Object.keys(depthDB).length)
+      ? _rbBackfieldOpportunity(pid) : null;
     const bosBox = (() => {
       if (pos !== 'RB') return '';
       if (!Object.keys(advstatsDB).length || !Object.keys(depthDB).length) return `
@@ -9692,7 +9694,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           <div class="pp-factor-val" style="color:var(--text-dim);">—</div>
           <div class="pp-factor-sub">depth chart data not loaded</div>
         </div>`;
-      const bos = _rbBackfieldOpportunity(pid);
+
       if (!bos) return `
         <div class="pp-factor">
           <div class="pp-factor-lbl">Backfield Opp.</div>
