@@ -11532,8 +11532,14 @@ function _rbBackfieldOpportunity(pid) {
   if (switchedTeams) {
     // No meaningful ownership data on new team — estimate from projected role.
     // breaks.p75 ≈ featured DC1, breaks.p30 ≈ backup, scale down for contested roles.
+    // DC2 roleBase scales with career history: proven vets project much closer
+    // to a featured role than a generic backup would. This also prevents the
+    // normalization pool from being too small (which would inflate rookies).
+    const dc2RoleBase = myBestSznPpg >= 10 ? breaks.p75 * 0.65
+                      : myBestSznPpg >= 7  ? breaks.p75 * 0.55
+                      :                      (breaks.p30 + breaks.p50) * 0.5;
     const roleBase   = myDcRank === 1 ? breaks.p75
-                     : myDcRank === 2 ? (breaks.p30 + breaks.p50) * 0.5
+                     : myDcRank === 2 ? dc2RoleBase
                      : breaks.p30 * 0.4;
     const contention = primaryThreat <= 15 ? 1.00
                      : primaryThreat <= 30  ? 0.85
