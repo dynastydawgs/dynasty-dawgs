@@ -5635,7 +5635,8 @@ async function loadPlayerProfile(pid) {
       const _projDelta = _bos.projOwnershipScore - _bos.ownershipScore;
       const _projCol   = _projDelta >= 3 ? 'var(--green)' : _projDelta <= -3 ? 'var(--red)' : 'var(--text-muted)';
       const _projArrow = _projDelta >= 3 ? ' ↑' : _projDelta <= -3 ? ' ↓' : '';
-      const _projStr   = ` Projecting <span style="color:${_projCol};font-weight:600;">${_bos.projOwnershipScore.toFixed(0)}%${_projArrow}</span> this season.`;
+      const _projStr   = isNaN(_bos.projOwnershipScore) ? '' :
+        ` Projecting <span style="color:${_projCol};font-weight:600;">${_bos.projOwnershipScore.toFixed(0)}%${_projArrow}</span> this season.`;
       const _ownStr   = _bos.switchedTeams
         ? `New team — projecting <strong>${_bos.projOwnershipScore.toFixed(0)}%</strong> Vol &amp; Opp based on DC${_bos.dcRank} role &amp; competition.`
         : _bos.ownershipScore > 0
@@ -11264,9 +11265,10 @@ function _rbBackfieldOpportunity(pid) {
     const cFc  = cPid ? (fcPlayerMap[cPid]    ?? null) : null;
     const cAdv = _bosGetAdv(dcEntry.name);
 
-    const cCarry   = cAdv?.carryShare       ?? 0;
-    const cTgt     = cAdv?.bfTgtShare       ?? 0;
-    const cThird   = cAdv?.thirdDownSnapPct ?? 0;
+    // Guard against NaN values from advstatsDB — ?? 0 handles null/undefined but not NaN
+    const cCarry   = +((cAdv?.carryShare       ?? 0) || 0);
+    const cTgt     = +((cAdv?.bfTgtShare       ?? 0) || 0);
+    const cThird   = +((cAdv?.thirdDownSnapPct ?? 0) || 0);
     const cWorkload = (cCarry * 0.55) + (cTgt * 0.30) + (cThird * 0.15);
 
     const cYrs = cSp?.years_exp ?? null;
@@ -11351,8 +11353,12 @@ function _rbBackfieldOpportunity(pid) {
     const cSp2 = sleeperPlayers[cPid2];
     if (!cSp2 || cSp2.position !== 'RB' || cSp2.team === team) continue;
     const cAdv2 = _bosGetAdv(cSp2.full_name ?? cSp2.name ?? '');
-    if (cAdv2) departedWorkload +=
-      (cAdv2.carryShare * 0.55) + (cAdv2.bfTgtShare * 0.30) + (cAdv2.thirdDownSnapPct * 0.15);
+    if (cAdv2) {
+      const d1 = +((cAdv2.carryShare       ?? 0) || 0);
+      const d2 = +((cAdv2.bfTgtShare       ?? 0) || 0);
+      const d3 = +((cAdv2.thirdDownSnapPct ?? 0) || 0);
+      departedWorkload += (d1 * 0.55) + (d2 * 0.30) + (d3 * 0.15);
+    }
   }
 
   const newThreat     = competitors.filter(c => c.isNew).reduce((s, c) => s + c.threatScore, 0);
@@ -11524,7 +11530,7 @@ function _rbBackfieldOpportunity(pid) {
     myEffScore, heirAdj, opptyAdj, backfieldWeak,
     ownershipScore:         Math.round(ownershipScore         * 10) / 10,
     historicalOwnershipScore: Math.round(historicalOwnershipScore * 10) / 10,
-    projOwnershipScore:     Math.round(projOwnershipScore     * 10) / 10,
+    projOwnershipScore:     isNaN(projOwnershipScore) ? null : Math.round(projOwnershipScore * 10) / 10,
     volOppDelta:            Math.round(volOppDelta            * 10) / 10,
     totalThreat:        Math.round(totalThreat        * 10) / 10,
     compDelta, primaryThreat: Math.round(primaryThreat * 10) / 10,
