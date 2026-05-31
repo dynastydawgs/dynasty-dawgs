@@ -11367,18 +11367,24 @@ function _rbBackfieldOpportunity(pid) {
   //   DC2                      → projected backup   → −1%
   //   DC3+                     → depth              → −2%
   // Players who stayed use the normal percentile path.
+  // Proven = had at least one high-volume featured season
+  const isProvenDc1 = switchedTeams && myDcRank === 1 && myBestSznPpg >= 10;
   const ownAdj = switchedTeams
-    ? (myDcRank === 1 && primaryThreat <= 30 ? 0.02
-     : myDcRank === 1                        ? 0.00
-     : myDcRank === 2                        ? -0.01
-     :                                         -0.02)
+    ? (myDcRank === 1 && isProvenDc1 && primaryThreat <= 30 ? 0.04  // proven vet steps into DC1 — clear role
+     : myDcRank === 1 && primaryThreat <= 30               ? 0.02  // unproven DC1 switcher
+     : myDcRank === 1                                      ? 0.00  // DC1 but contested
+     : myDcRank === 2                                      ? -0.01
+     :                                                       -0.02)
     : (ownershipScore >= breaks.p90 ? 0.04
      : ownershipScore >= breaks.p75 ? 0.02
      : ownershipScore >= breaks.p50 ? 0.00
      :                                -0.02);
   // 2. Primary threat (players ranked ahead on depth chart)
-  const thrAdj  = primaryThreat >= 50 ? -0.04 : primaryThreat >= 30 ? -0.02
-                : primaryThreat >= 15 ? -0.01 : 0.00;
+  // Exception: when heir apparent fires, thrAdj is zeroed — heirAdj already encodes
+  // that the DC1's threat is fading, so stacking thrAdj would tell contradictory stories.
+  const thrAdjRaw = primaryThreat >= 50 ? -0.04 : primaryThreat >= 30 ? -0.02
+                  : primaryThreat >= 15 ? -0.01 : 0.00;
+  const thrAdj = heirAdj > 0 ? 0 : thrAdjRaw;
   // 3. Competition delta (departed vs. new arrivals)
   const dltAdj  = compDelta >= 20 ? 0.02 : compDelta >= 10 ? 0.01
                 : compDelta <= -20 ? -0.02 : compDelta <= -10 ? -0.01 : 0.00;
