@@ -11439,19 +11439,19 @@ function _rbBackfieldOpportunity(pid) {
         threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * 10) / 10;
       } else {
         effWorkload = cWorkload;
-        // R1/R2 proven sophomores (≥10 PPG) get a capital boost only if their actual
-        // workload met or exceeded what their draft round projected. A player who got
-        // fewer carries than expected for their round doesn't earn the bonus — it implies
-        // the offense hasn't trusted them yet. Scales smoothly: meeting 100% of round
-        // expectation = full boost; 70% of expectation = no boost; linear between.
+        // R1/R2 proven sophomores (≥10 PPG) always earn some capital credit — 10+ PPG
+        // is proof they belong regardless of carry volume. A floor of 40% of the max
+        // boost is guaranteed; outperforming the round projection scales up to the full
+        // boost. This prevents punishing early picks who were on a timeshare or in a
+        // committee but still posted elite per-touch production.
         const capBoost = (() => {
           if (cYrs !== 1 || cLastSznPpg < 10 || !cRound || cRound > 2) return 1.0;
           const roundExpected = _bosRoundThreat(cRound);
-          const outRatio = roundExpected > 0 ? effWorkload / roundExpected : 1;
-          const maxBoost = cRound === 1 ? 0.20 : 0.12; // as a delta above 1.0
-          if (outRatio >= 1.0) return 1.0 + maxBoost;
-          if (outRatio <= 0.7) return 1.0;
-          return 1.0 + maxBoost * ((outRatio - 0.7) / 0.3); // linear ramp 0.7→1.0
+          const outRatio = roundExpected > 0 ? Math.min(1, effWorkload / roundExpected) : 1;
+          const maxBoost  = cRound === 1 ? 0.20 : 0.12;
+          const minFrac   = 0.40; // guaranteed floor: 40% of maxBoost for any proven R1/R2 soph
+          const boostFrac = minFrac + (1 - minFrac) * outRatio; // 0.40 → 1.0 as outRatio goes 0 → 1
+          return 1.0 + maxBoost * boostFrac;
         })();
         threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * capBoost * 10) / 10;
       }
