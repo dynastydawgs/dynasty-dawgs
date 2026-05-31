@@ -5632,10 +5632,14 @@ async function loadPlayerProfile(pid) {
                    : os >= b.p50 ? `top 50%` : `bottom 50%`;
         return ` (${tier} of ${b.n} RBs)`;
       })();
+      const _projDelta = _bos.projOwnershipScore - _bos.ownershipScore;
+      const _projStr   = !_bos.switchedTeams && Math.abs(_projDelta) >= 3
+        ? ` · proj <span style="color:${_projDelta > 0 ? 'var(--green)' : 'var(--red)'};">${_bos.projOwnershipScore.toFixed(0)}% ${_projDelta > 0 ? '↑' : '↓'}</span> this season`
+        : '';
       const _ownStr   = _bos.switchedTeams
-        ? `New team this season — last-season workload (different team) excluded from ownership score.`
+        ? `New team — projecting <strong>${_bos.projOwnershipScore.toFixed(0)}%</strong> Vol &amp; Opp based on DC${_bos.dcRank} role &amp; competition.`
         : _bos.ownershipScore > 0
-          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.`
+          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}${_projStr}.`
           : 'No last-season workload data — new role or first-year player.';
 
       const _deltaStr = _bos.compDelta > 5
@@ -9621,9 +9625,16 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       const pctStr = pct === 0 ? '±0%' : `${pct > 0 ? '+' : ''}${pct}%`;
       const arrow  = pct > 0 ? '↑' : pct < 0 ? '↓' : '→';
       const col    = pct > 0 ? 'var(--green)' : pct < 0 ? 'var(--red)' : 'var(--text-dim)';
-      // Subtitle: label + primary driver of the adjustment
-      const ownPart  = bos.switchedTeams   ? 'new team'
-                     : bos.ownershipScore > 0 ? `${bos.ownershipScore.toFixed(0)}% vol` : 'new role';
+      // Subtitle: label + projected Vol & Opp signal + competition delta
+      const b = bos.breaks ?? {};
+      const _projDiff = bos.projOwnershipScore - bos.ownershipScore;
+      const ownPart = bos.switchedTeams
+        ? `proj ${bos.projOwnershipScore.toFixed(0)}% vol`
+        : _projDiff >= 5
+          ? `vol ↑ ${bos.ownershipScore.toFixed(0)}→${bos.projOwnershipScore.toFixed(0)}`
+          : _projDiff <= -5
+          ? `vol ↓ ${bos.ownershipScore.toFixed(0)}→${bos.projOwnershipScore.toFixed(0)}`
+          : `${bos.ownershipScore.toFixed(0)}% vol`;
       const deltaPart = bos.compDelta > 5  ? `↑ comp freed` :
                         bos.compDelta < -5 ? `↓ new threats` : 'stable competition';
       const subLine  = `${bos.label} · ${ownPart} · ${deltaPart}`;
@@ -11357,28 +11368,50 @@ function _rbBackfieldOpportunity(pid) {
   // ── Percentile-based ownership tiers ────────────────────────────────────
   const breaks = _bosGetBreaks();
 
-  // ── Projection multiplier ── ±6% max, four independent levers ──────────
-  // 1. Ownership tier (percentile-driven)
-  // Team-switchers have zeroed ownership (old team's data is irrelevant), so we
-  // use their new depth chart rank as a projected ownership proxy instead of
-  // penalising them for having no history here.
-  //   DC1, low primary threat  → projected featured → +2%
-  //   DC1, high primary threat → uncertain role     → 0%
-  //   DC2                      → projected backup   → −1%
-  //   DC3+                     → depth              → −2%
-  // Players who stayed use the normal percentile path.
-  // Proven = had at least one high-volume featured season
-  const isProvenDc1 = switchedTeams && myDcRank === 1 && myBestSznPpg >= 10;
-  const ownAdj = switchedTeams
-    ? (myDcRank === 1 && isProvenDc1 && primaryThreat <= 30 ? 0.04  // proven vet steps into DC1 — clear role
-     : myDcRank === 1 && primaryThreat <= 30               ? 0.02  // unproven DC1 switcher
-     : myDcRank === 1                                      ? 0.00  // DC1 but contested
-     : myDcRank === 2                                      ? -0.01
-     :                                                       -0.02)
-    : (ownershipScore >= breaks.p90 ? 0.04
-     : ownershipScore >= breaks.p75 ? 0.02
-     : ownershipScore >= breaks.p50 ? 0.00
-     :                                -0.02);
+  // ── Projected Vol & Opp ownership score ───────────────────────────────
+  // Forward-looking carry-share estimate for this season. Rather than using raw
+  // historical ownership (which is stale for switchers and ignores backfield changes),
+  // we project what their Vol & Opp will look like based on:
+  //   • Switchers: DC rank + competition context (role-based baseline)
+  //   • Returners: last-season ownership, absorbed departed workload, dilution from new
+  //     arrivals, and heir apparent workload transfer from a fading DC1
+  let projOwnershipScore;
+  if (switchedTeams) {
+    // No meaningful ownership data on new team — estimate from projected role.
+    // breaks.p75 ≈ featured DC1, breaks.p30 ≈ backup, scale down for contested roles.
+    const roleBase   = myDcRank === 1 ? breaks.p75
+                     : myDcRank === 2 ? (breaks.p30 + breaks.p50) * 0.5
+                     : breaks.p30 * 0.4;
+    const contention = primaryThreat <= 15 ? 1.00
+                     : primaryThreat <= 30  ? 0.85
+                     : primaryThreat <= 50  ? 0.65 : 0.50;
+    projOwnershipScore = roleBase * contention;
+  } else {
+    // Returner: start from last-season ownership, then model workload flows.
+    // DC1 absorbs most of departed carries; DC2 picks up a smaller share.
+    const absorptionRate  = myDcRank === 1 ? 0.60 : myDcRank === 2 ? 0.25 : 0.08;
+    // Lose share to new arrivals: those ranked ABOVE are a direct threat to my role,
+    // those at the same level or below dilute the pool less.
+    const newThreatsAbove = competitors.filter(c => c.dcRank < myDcRank && c.isNew);
+    const newThreatsPeer  = competitors.filter(c => c.dcRank >= myDcRank && c.isNew);
+    const workloadLoss    = newThreatsAbove.reduce((s, c) => s + c.threatScore * 0.60, 0)
+                          + newThreatsPeer.reduce((s, c)  => s + c.threatScore * 0.25, 0);
+    // Heir apparent: the aging DC1 is ceding their role — project ~30% carry share
+    // transfer from their historical workload to this back over the course of the season.
+    const heirTransfer = heirAdj > 0 && primaryThreats.length > 0
+      ? (primaryThreats[0].carryShare ?? 0) * 0.30 : 0;
+    projOwnershipScore = Math.max(0,
+      ownershipScore + (departedWorkload * absorptionRate) - workloadLoss + heirTransfer);
+  }
+
+  // ── Projection multiplier ── ±7% max, six independent levers ──────────
+  // 1. Ownership tier — driven by projected (not historical) Vol & Opp percentile
+  // Unified path for switchers and returners; adds a p30 tier for fine-grained depth.
+  const ownAdj = projOwnershipScore >= breaks.p90 ? 0.04
+               : projOwnershipScore >= breaks.p75  ? 0.02
+               : projOwnershipScore >= breaks.p50  ? 0.00
+               : projOwnershipScore >= breaks.p30  ? -0.01
+               :                                     -0.02;
   // 2. Primary threat (players ranked ahead on depth chart)
   // Exception: when heir apparent fires, thrAdj is zeroed — heirAdj already encodes
   // that the DC1's threat is fading, so stacking thrAdj would tell contradictory stories.
@@ -11405,9 +11438,9 @@ function _rbBackfieldOpportunity(pid) {
     label = 'NEW ARRIVAL';  color = '#facc15';
   } else if (!myAdv && myDcRank <= 2 && compDelta >= 0) {
     label = 'NEW STARTER'; color = 'var(--accent)';
-  } else if (ownershipScore >= breaks.p90 && primaryThreat <= 20) {
+  } else if (projOwnershipScore >= breaks.p90 && primaryThreat <= 20) {
     label = 'WORKHORSE';   color = 'var(--green)';
-  } else if (ownershipScore >= breaks.p75 && primaryThreat <= 30) {
+  } else if (projOwnershipScore >= breaks.p75 && primaryThreat <= 30) {
     label = 'FEATURED';    color = '#86efac';
   } else if (heirAdj > 0) {
     label = 'HEIR APPARENT'; color = 'var(--blue)';
@@ -11428,8 +11461,9 @@ function _rbBackfieldOpportunity(pid) {
   return {
     label, color, switchedTeams, breaks,
     myEffScore, heirAdj, opptyAdj, backfieldWeak,
-    ownershipScore: Math.round(ownershipScore * 10) / 10,
-    totalThreat:    Math.round(totalThreat    * 10) / 10,
+    ownershipScore:     Math.round(ownershipScore     * 10) / 10,
+    projOwnershipScore: Math.round(projOwnershipScore * 10) / 10,
+    totalThreat:        Math.round(totalThreat        * 10) / 10,
     compDelta, primaryThreat: Math.round(primaryThreat * 10) / 10,
     runRate, rushAttPg, dcRank: myDcRank,
     projMultiplier, competitors,
