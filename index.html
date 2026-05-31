@@ -11256,10 +11256,23 @@ function _rbBackfieldOpportunity(pid) {
 
   // ── Projection multiplier ── ±6% max, four independent levers ──────────
   // 1. Ownership tier (percentile-driven)
-  const ownAdj  = ownershipScore >= breaks.p90 ? 0.04
-                : ownershipScore >= breaks.p75 ? 0.02
-                : ownershipScore >= breaks.p50 ? 0.00
-                : -0.02;
+  // Team-switchers have zeroed ownership (old team's data is irrelevant), so we
+  // use their new depth chart rank as a projected ownership proxy instead of
+  // penalising them for having no history here.
+  //   DC1, low primary threat  → projected featured → +2%
+  //   DC1, high primary threat → uncertain role     → 0%
+  //   DC2                      → projected backup   → −1%
+  //   DC3+                     → depth              → −2%
+  // Players who stayed use the normal percentile path.
+  const ownAdj = switchedTeams
+    ? (myDcRank === 1 && primaryThreat <= 30 ? 0.02
+     : myDcRank === 1                        ? 0.00
+     : myDcRank === 2                        ? -0.01
+     :                                         -0.02)
+    : (ownershipScore >= breaks.p90 ? 0.04
+     : ownershipScore >= breaks.p75 ? 0.02
+     : ownershipScore >= breaks.p50 ? 0.00
+     :                                -0.02);
   // 2. Primary threat (players ranked ahead on depth chart)
   const thrAdj  = primaryThreat >= 50 ? -0.04 : primaryThreat >= 30 ? -0.02
                 : primaryThreat >= 15 ? -0.01 : 0.00;
