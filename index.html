@@ -5396,9 +5396,13 @@ async function loadPlayerProfile(pid) {
     const _effW2   = _effParts2.reduce((a,c)=>a+c.w,0)||1;
     const _effScore2 = _effParts2.length ? _effParts2.reduce((a,c)=>a+c.s*c.w,0)/_effW2 : null;
 
-    // Opportunity & Usage:
-    //   — Opportunity cluster (65%): carry share 22% · snap% 18% · RZ carry share 12% · touch share 8% · 3rd-down snap% 5%
-    //   — Usage cluster     (35%): rush yds/g 15% · touches/g 12% · RZ carries 8%
+    // Vol & Opp composite — rushing opportunity (75%) + receiving opportunity (25%).
+    // Receiving is a first-class signal for modern RBs; pass-catching backs earn
+    // significant workload through targets and receptions, not just carries.
+    //   Rushing opportunity (75%): carry share 20% · snap% 13% · RZ carry share 10%
+    //                              touch share 5% · 3rd-down snap% 4%
+    //                              rush yds/g 11% · touches/g 7% · RZ carries 5%
+    //   Receiving opportunity (25%): BF target share 10% · tgt/g 7% · rec/g 5% · rec yds/g 3%
     const _cryS2   = _rbScore(carryPct,         'carryPct');
     const _snpS    = hasSnap ? _rbScore(snapPct, 'snapPct') : null;
     const _rzCSs   = _rbScore(rzCarryShare,      'rzCarryShare');
@@ -5407,15 +5411,19 @@ async function loadPlayerProfile(pid) {
     const _rushYdS = _rbScore(rushYdPg,          'rushYdPg');
     const _tchS2   = _rbScore(touchesPg,         'touchesPg');
     const _rzCrS   = _rbScore(rzCarries,         'rzCarries');
-    const _usageParts = [{s:_cryS2,w:0.22},{s:_snpS,w:0.18},{s:_rzCSs,w:0.12},{s:_tshS2,w:0.08},{s:_tdSnpS,w:0.05},{s:_rushYdS,w:0.15},{s:_tchS2,w:0.12},{s:_rzCrS,w:0.08}].filter(c=>c.s!==null);
-    const _usageW    = _usageParts.reduce((a,c)=>a+c.w,0)||1;
-    const _usageScore = _usageParts.length ? _usageParts.reduce((a,c)=>a+c.s*c.w,0)/_usageW : null;
-
-    // Receiving: backfield tgt share 35% · tgt/g 30% · rec/g 20% · rec yds/g 15%
+    // Receiving — computed here so they're available for the unified composite below
     const _bfTgtS  = _rbScore(bfTgtShare, 'bfTgtShare');
     const _tgtPgS2 = _rbScore(tgtPg,      'tgtPg');
     const _recPgS2 = _rbScore(recPg,      'recPg');
     const _recYdS  = _rbScore(recYdPg,    'recYdPg');
+    const _usageParts = [
+      {s:_cryS2,  w:0.20}, {s:_snpS,   w:0.13}, {s:_rzCSs,  w:0.10},
+      {s:_tshS2,  w:0.05}, {s:_tdSnpS, w:0.04}, {s:_rushYdS,w:0.11},
+      {s:_tchS2,  w:0.07}, {s:_rzCrS,  w:0.05},
+      {s:_bfTgtS, w:0.10}, {s:_tgtPgS2,w:0.07}, {s:_recPgS2,w:0.05}, {s:_recYdS, w:0.03},
+    ].filter(c=>c.s!==null);
+    const _usageW    = _usageParts.reduce((a,c)=>a+c.w,0)||1;
+    const _usageScore = _usageParts.length ? _usageParts.reduce((a,c)=>a+c.s*c.w,0)/_usageW : null;
     const _recParts  = [{s:_bfTgtS,w:0.35},{s:_tgtPgS2,w:0.30},{s:_recPgS2,w:0.20},{s:_recYdS,w:0.15}].filter(c=>c.s!==null);
     const _recW      = _recParts.reduce((a,c)=>a+c.w,0)||1;
     const _recScore  = _recParts.length ? _recParts.reduce((a,c)=>a+c.s*c.w,0)/_recW : null;
