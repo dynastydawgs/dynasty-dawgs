@@ -11259,6 +11259,7 @@ function _rbBackfieldOpportunity(pid) {
   for (const dcEntry of dcRbs) {
     const cNorm = _bosNorm(dcEntry.name);
     if (cNorm === myNorm) continue;
+    if ((dcEntry.rank ?? 99) >= 4) continue; // RB4+ don't project meaningful carry share
 
     const cPid = _bosGetPid(dcEntry.name);
     const cSp  = cPid ? (sleeperPlayers[cPid] ?? null) : null;
