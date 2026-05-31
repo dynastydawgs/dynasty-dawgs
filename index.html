@@ -12573,7 +12573,10 @@ function _bpShapeScores(rosterId, teamRow, allTeams, total, isSF) {
 
 // ── Positional Slot Map ───────────────────────────────────────────────────────
 // Computes per-slot actual + projected PPG vs league average.
-// Slots: QB1, RB1, RB2, WR1, WR2, WR3, TE1 (plus any extra starters)
+// Uses buildOptimalLineup so slots match real league format (QB/RB/WR/TE/FLX/SFX).
+// FLEX types (FLEX, WRRB_FLEX, REC_FLEX) → FLX1/FLX2/FLX3
+// SUPER_FLEX → SFX1 (etc.)
+// TE projected PPG includes TEP via getEffectivePpg(); actual PPG TEP-adjusted inline.
 function _bpSlotMap(rosterId, allTeams) {
   const getActualPpg = (pid, pos) => {
     const lastSzn = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4).at(-1);
@@ -12583,19 +12586,41 @@ function _bpSlotMap(rosterId, allTeams) {
     return ppg;
   };
 
+  const FLEX_TYPES = new Set(['FLEX','WRRB_FLEX','REC_FLEX']);
+  const SF_TYPES   = new Set(['SUPER_FLEX']);
+
+  // Cache slot results per team to avoid redundant buildOptimalLineup calls
+  const _slotCache = {};
   const getTeamSlots = (rid) => {
-    const tProj = leagueProjData.find(t => t.roster_id === rid);
-    if (!tProj) return {};
-    const starters = (tProj.players ?? []).filter(p => tProj.starterPids?.has(p.pid));
-    const byPos = { QB:[], RB:[], WR:[], TE:[] };
-    for (const p of starters) { if (byPos[p.pos]) byPos[p.pos].push(p); }
-    for (const pos of Object.keys(byPos)) byPos[pos].sort((a,b) => (b.basePpg??0) - (a.basePpg??0));
-    const slots = {};
-    for (const pos of ['QB','RB','WR','TE']) {
-      byPos[pos].forEach((p, i) => { slots[`${pos}${i+1}`] = { pid:p.pid, pos, proj:p.basePpg??0 }; });
+    if (_slotCache[rid]) return _slotCache[rid];
+    const rPids = rostersData?.find(r => r.roster_id === rid)?.players ?? [];
+    if (!rPids.length) { _slotCache[rid] = {}; return {}; }
+    const { lineup } = buildOptimalLineup(rPids);
+    const counts = { QB:0, RB:0, WR:0, TE:0, FLX:0, SFX:0 };
+    const slots  = {};
+    for (const p of lineup) {
+      let key;
+      if (FLEX_TYPES.has(p.slot)) {
+        counts.FLX++;
+        key = `FLX${counts.FLX}`;
+      } else if (SF_TYPES.has(p.slot)) {
+        counts.SFX++;
+        key = `SFX${counts.SFX}`;
+      } else if (counts[p.pos] !== undefined) {
+        counts[p.pos]++;
+        key = `${p.pos}${counts[p.pos]}`;
+      } else {
+        continue; // K or unknown — skip
+      }
+      // Use getEffectivePpg so TE projected PPG includes TEP
+      slots[key] = { pid: p.pid, pos: p.pos, proj: getEffectivePpg(p) };
     }
+    _slotCache[rid] = slots;
     return slots;
   };
+
+  // Pre-compute all team slots once
+  for (const t of allTeams) getTeamSlots(t.roster_id);
 
   // League averages per slot
   const leagueAgg = {};
@@ -14878,7 +14903,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   // ── Slot map HTML ─────────────────────────────────────────────────────────
   const slotMapHTML = (() => {
     const slots = slotMap.slots;
-    const keys  = ['QB1','QB2','RB1','RB2','WR1','WR2','WR3','TE1','TE2']
+    const keys  = ['QB1','QB2','RB1','RB2','WR1','WR2','WR3','TE1','TE2','FLX1','FLX2','FLX3','SFX1','SFX2']
       .filter(k => slots[k]);
     if (!keys.length) return '<div style="color:var(--text-dim);font-size:10px;">No lineup data.</div>';
 
@@ -14920,7 +14945,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     const totalGap = keys.reduce((s,k) => s + (slots[k]?.gapProj ?? 0), 0);
     const tgColor  = gapColor(totalGap / keys.length);
     const legend   = `<div style="display:flex;gap:12px;margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
-      <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.25);">LAST SZN = actual PPR ppg · PROJ = this season projection · GAP = proj vs league avg at that slot</span>
+      <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.25);">LAST SZN = actual PPR ppg · PROJ = projected (TEP-adjusted for TE) · GAP = proj vs league avg at that slot</span>
       <span style="font-family:var(--mono);font-size:8px;font-weight:700;color:${tgColor};margin-left:auto;white-space:nowrap;">NET ${totalGap >= 0 ? '+' : ''}${totalGap.toFixed(1)} ppg</span>
     </div>`;
 
