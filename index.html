@@ -11187,7 +11187,7 @@ const _bosGetPid = (name, teamHint) => {
 // Weights: carry share 50% · backfield target share 25% · RZ carry share 15% · 3rd-down snap% 10%
 // Aligns with the Vol & Opp section grade model (opportunity-cluster weighted).
 const _bosOwn = (carry, bfTgt, rzCarry, thirdDown) =>
-  (+carry || 0) * 0.50 + (+bfTgt || 0) * 0.25 + (+rzCarry || 0) * 0.15 + (+thirdDown || 0) * 0.10;
+  (+carry || 0) * 0.52 + (+bfTgt || 0) * 0.27 + (+rzCarry || 0) * 0.08 + (+thirdDown || 0) * 0.13;
 
 // Draft-capital carry share projection for rookies and low-workload sophomores.
 // Values represent expected carry share % by round: R1 65 · R2 55 · R3 40 · R4 20 · R5 10 · R6 5 · R7 3 · UDFA 2
