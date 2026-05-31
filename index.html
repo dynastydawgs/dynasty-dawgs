@@ -5671,7 +5671,7 @@ async function loadPlayerProfile(pid) {
             const _tag  = c.isRookie ? 'ROOKIE' : c.isNew ? 'NEW' : '';
             const _tagH = _tag ? `<span style="font-family:var(--mono);font-size:7px;padding:1px 4px;border-radius:2px;background:rgba(255,255,255,0.07);color:var(--text-dim);margin-left:4px;">${_tag}</span>` : '';
             const _tCol = c.threatScore >= 50 ? 'var(--red)' : c.threatScore >= 25 ? 'var(--orange)' : 'var(--text-muted)';
-            const _csStr = c.effWorkload > 0 ? `${c.effWorkload.toFixed(0)}% proj` : '—';
+            const _csStr = (c.projShare ?? 0) > 0 ? `${c.projShare.toFixed(0)}%` : '—';
             return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
               <span style="flex:1;font-size:11px;color:var(--text);">${c.name}${_tagH}</span>
               <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);width:52px;text-align:right;">${_csStr}</span>
@@ -5699,6 +5699,11 @@ async function loadPlayerProfile(pid) {
               <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${_multCol};">${_multStr}</div>
             </div>
           </div>
+          ${_bos.myProjShare > 0 ? `<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:4px;">
+            <span style="flex:1;font-size:11px;color:var(--text-muted);font-style:italic;">This player (proj)</span>
+            <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_bos.color};width:52px;text-align:right;">${_bos.myProjShare.toFixed(0)}%</span>
+            <span style="width:44px;"></span>
+          </div>` : ''}
           <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:4px;display:flex;gap:6px;">
             <span style="flex:1;">DEPTH CHART RIVALS</span>
             <span style="width:52px;text-align:right;">PROJ VOL</span>
@@ -9643,13 +9648,14 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       // Subtitle: label + projected Vol & Opp signal + competition delta
       const b = bos.breaks ?? {};
       const _projDiff = bos.projOwnershipScore - bos.ownershipScore;
-      const ownPart = bos.switchedTeams
-        ? `proj ${bos.projOwnershipScore.toFixed(0)}% vol`
+      const _shareStr = bos.myProjShare > 0 ? `${bos.myProjShare.toFixed(0)}% proj share` : null;
+      const ownPart = _shareStr ?? (bos.switchedTeams
+        ? `proj ${bos.projOwnershipScore?.toFixed(0) ?? '—'}% vol`
         : _projDiff >= 5
-          ? `vol ↑ ${bos.ownershipScore.toFixed(0)}→${bos.projOwnershipScore.toFixed(0)}`
+          ? `vol ↑ ${bos.ownershipScore.toFixed(0)}→${bos.projOwnershipScore?.toFixed(0)}`
           : _projDiff <= -5
-          ? `vol ↓ ${bos.ownershipScore.toFixed(0)}→${bos.projOwnershipScore.toFixed(0)}`
-          : `${bos.ownershipScore.toFixed(0)}% vol`;
+          ? `vol ↓ ${bos.ownershipScore.toFixed(0)}→${bos.projOwnershipScore?.toFixed(0)}`
+          : `${bos.ownershipScore.toFixed(0)}% vol`);
       const deltaPart = bos.compDelta > 5  ? `↑ comp freed` :
                         bos.compDelta < -5 ? `↓ new threats` : 'stable competition';
       const subLine  = `${bos.label} · ${ownPart} · ${deltaPart}`;
@@ -11177,6 +11183,12 @@ const _bosGetPid = (name, teamHint) => {
 
 // Projected threat workload by NFL draft round (as approximate carryShare %).
 // 1st-round RBs threaten like a 60% carry-share back; scales down to UDFA at 8%.
+// Shared Vol & Opp ownership composite used throughout BOS.
+// Weights: carry share 50% · backfield target share 25% · RZ carry share 15% · 3rd-down snap% 10%
+// Aligns with the Vol & Opp section grade model (opportunity-cluster weighted).
+const _bosOwn = (carry, bfTgt, rzCarry, thirdDown) =>
+  (+carry || 0) * 0.50 + (+bfTgt || 0) * 0.25 + (+rzCarry || 0) * 0.15 + (+thirdDown || 0) * 0.10;
+
 // Draft-capital carry share projection for rookies and low-workload sophomores.
 // Values represent expected carry share % by round: R1 65 · R2 55 · R3 40 · R4 20 · R5 10 · R6 5 · R7 3 · UDFA 2
 const _bosRoundThreat = r => !r ? 2 : [0, 65, 55, 40, 20, 10, 5, 3][Math.min(r, 7)];
@@ -11235,7 +11247,7 @@ function _bosGetBreaks() {
     if (switched) continue; // exclude team-switchers — old carry share is irrelevant
     const adv = _bosGetAdv(sp.full_name ?? sp.name ?? '');
     if (!adv) continue;
-    const os = (adv.carryShare * 0.55) + (adv.bfTgtShare * 0.30) + (adv.thirdDownSnapPct * 0.15);
+    const os = _bosOwn(adv.carryShare, adv.bfTgtShare, adv.rzCarryShare, adv.thirdDownSnapPct);
     if (os > 0) scores.push(os);
   }
 
@@ -11286,14 +11298,12 @@ function _rbBackfieldOpportunity(pid) {
   const myAdv      = _bosGetAdv(sp.full_name ?? sp.name ?? '');
   const carryShare  = switchedTeams ? 0 : (myAdv?.carryShare       ?? 0);
   const bfTgtShare  = switchedTeams ? 0 : (myAdv?.bfTgtShare       ?? 0);
+  const rzCarryShare= switchedTeams ? 0 : (myAdv?.rzCarryShare     ?? 0);
   const thirdDown   = switchedTeams ? 0 : (myAdv?.thirdDownSnapPct ?? 0);
-  // Weighted composite: carries matter most, receiving role second, 3rd-down last
-  const ownershipScore = (carryShare * 0.55) + (bfTgtShare * 0.30) + (thirdDown * 0.15);
+  const ownershipScore = _bosOwn(carryShare, bfTgtShare, rzCarryShare, thirdDown);
   // Historical ownership: always from raw myAdv regardless of team switch.
-  // Switchers zero out the ownership score used for comparisons (their old role is stale),
-  // but we keep the real value to compute how much their personal opportunity changed.
   const historicalOwnershipScore = myAdv
-    ? ((myAdv.carryShare ?? 0) * 0.55) + ((myAdv.bfTgtShare ?? 0) * 0.30) + ((myAdv.thirdDownSnapPct ?? 0) * 0.15)
+    ? _bosOwn(myAdv.carryShare, myAdv.bfTgtShare, myAdv.rzCarryShare, myAdv.thirdDownSnapPct)
     : 0;
 
   // ── Team run-rate context ───────────────────────────────────────────────
@@ -11308,8 +11318,7 @@ function _rbBackfieldOpportunity(pid) {
   const noProvenWorkhorse = !dcRbs.some(e => {
     if (_bosNorm(e.name) === myNorm) return false; // skip subject player
     const pAdv = _bosGetAdv(e.name);
-    return pAdv && ((pAdv.carryShare ?? 0) * 0.55 + (pAdv.bfTgtShare ?? 0) * 0.30
-                  + (pAdv.thirdDownSnapPct ?? 0) * 0.15) >= 20;
+    return pAdv && _bosOwn(pAdv.carryShare, pAdv.bfTgtShare, pAdv.rzCarryShare, pAdv.thirdDownSnapPct) >= 20;
   });
 
   // ── Competitors on current depth chart ─────────────────────────────────
@@ -11327,8 +11336,9 @@ function _rbBackfieldOpportunity(pid) {
     // Guard against NaN values from advstatsDB — ?? 0 handles null/undefined but not NaN
     const cCarry   = +((cAdv?.carryShare       ?? 0) || 0);
     const cTgt     = +((cAdv?.bfTgtShare       ?? 0) || 0);
+    const cRzCarry = +((cAdv?.rzCarryShare     ?? 0) || 0);
     const cThird   = +((cAdv?.thirdDownSnapPct ?? 0) || 0);
-    const cWorkload = (cCarry * 0.55) + (cTgt * 0.30) + (cThird * 0.15);
+    const cWorkload = _bosOwn(cCarry, cTgt, cRzCarry, cThird);
 
     const cYrs = cSp?.years_exp ?? null;
     const cAge = cSp?.birth_date
@@ -11439,10 +11449,12 @@ function _rbBackfieldOpportunity(pid) {
     if (!cSp2 || cSp2.position !== 'RB' || cSp2.team === team) continue;
     const cAdv2 = _bosGetAdv(cSp2.full_name ?? cSp2.name ?? '');
     if (cAdv2) {
-      const d1 = +((cAdv2.carryShare       ?? 0) || 0);
-      const d2 = +((cAdv2.bfTgtShare       ?? 0) || 0);
-      const d3 = +((cAdv2.thirdDownSnapPct ?? 0) || 0);
-      departedWorkload += (d1 * 0.55) + (d2 * 0.30) + (d3 * 0.15);
+      departedWorkload += _bosOwn(
+        +((cAdv2.carryShare       ?? 0) || 0),
+        +((cAdv2.bfTgtShare       ?? 0) || 0),
+        +((cAdv2.rzCarryShare     ?? 0) || 0),
+        +((cAdv2.thirdDownSnapPct ?? 0) || 0)
+      );
     }
   }
 
@@ -11610,12 +11622,31 @@ function _rbBackfieldOpportunity(pid) {
     label = 'ROTATIONAL';  color = '#94a3b8';
   }
 
+  // ── Normalize projected shares so top RBs sum to ~90-100% ───────────────
+  // Check if any RB4+ on this depth chart has meaningful historical production.
+  // If yes, reserve 10% for depth; if no competent RB4, top 3 own 100%.
+  const hasCompetentRb4 = dcRbs.some(e => {
+    if ((e.rank ?? 99) < 4) return false;
+    const pAdv = _bosGetAdv(e.name);
+    return pAdv && _bosOwn(pAdv.carryShare, pAdv.bfTgtShare, pAdv.rzCarryShare, pAdv.thirdDownSnapPct) >= 10;
+  });
+  const targetPct  = hasCompetentRb4 ? 90 : 100;
+  const myRaw      = isNaN(projOwnershipScore) ? 0 : (projOwnershipScore || 0);
+  const rivalsRaw  = competitors.reduce((s, c) => s + (c.effWorkload || 0), 0);
+  const rawPool    = myRaw + rivalsRaw;
+  const normScale  = rawPool > 0 ? targetPct / rawPool : 1;
+  const myProjShare = Math.round(myRaw * normScale * 10) / 10;
+  const normalizedCompetitors = competitors.map(c => ({
+    ...c, projShare: Math.round((c.effWorkload || 0) * normScale * 10) / 10,
+  }));
+
   return {
     label, color, switchedTeams, breaks,
     myEffScore, heirAdj, opptyAdj, backfieldWeak,
     ownershipScore:         Math.round(ownershipScore         * 10) / 10,
     historicalOwnershipScore: Math.round(historicalOwnershipScore * 10) / 10,
     projOwnershipScore:     isNaN(projOwnershipScore) ? null : Math.round(projOwnershipScore * 10) / 10,
+    myProjShare, competitors: normalizedCompetitors,
     volOppDelta:            Math.round(volOppDelta            * 10) / 10,
     totalThreat:        Math.round(totalThreat        * 10) / 10,
     compDelta, primaryThreat: Math.round(primaryThreat * 10) / 10,
