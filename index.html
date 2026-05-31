@@ -2373,6 +2373,18 @@
   .bp-lineup-name:hover { color:var(--accent); }
   .bp-lineup-ppg { font-family:var(--mono); font-size:10px; font-weight:600; width:48px; text-align:right; flex-shrink:0; }
   .bp-lineup-total { display:flex; justify-content:space-between; align-items:center; padding:8px 0 2px; border-top:1px solid var(--border); margin-top:6px; }
+  /* Slot map */
+  .bp-sm-row { display:flex; align-items:center; gap:7px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .bp-sm-row:last-child { border-bottom:none; }
+  .bp-sm-slot { font-family:var(--mono); font-size:7.5px; color:var(--text-dim); width:34px; flex-shrink:0; letter-spacing:0.04em; text-transform:uppercase; }
+  .bp-sm-name { flex:1; font-size:11px; color:var(--text); cursor:pointer; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bp-sm-name:hover { color:var(--accent); }
+  .bp-sm-ppg { font-family:var(--mono); font-size:9px; font-weight:600; width:36px; text-align:right; flex-shrink:0; }
+  .bp-sm-proj { font-family:var(--mono); font-size:9px; color:rgba(255,255,255,0.35); width:36px; text-align:right; flex-shrink:0; }
+  .bp-sm-avg  { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.22); width:32px; text-align:right; flex-shrink:0; }
+  .bp-sm-gap  { font-family:var(--mono); font-size:8.5px; font-weight:700; width:32px; text-align:right; flex-shrink:0; }
+  .bp-sm-hdr  { display:flex; gap:7px; padding:0 0 4px; margin-bottom:2px; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .bp-sm-hdr span { font-family:var(--mono); font-size:6.5px; letter-spacing:0.08em; color:rgba(255,255,255,0.25); text-transform:uppercase; }
 
   /* Buy / Sell / Hold */
   .bp-bsh-row { display:flex; align-items:center; gap:7px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
@@ -14863,6 +14875,58 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const slotMap = _bpSlotMap(rosterId, allTeams);
   const prodRadarScores = { ...slotMap.prodScores, Picks: radarScores.Picks };
 
+  // ── Slot map HTML ─────────────────────────────────────────────────────────
+  const slotMapHTML = (() => {
+    const slots = slotMap.slots;
+    const keys  = ['QB1','QB2','RB1','RB2','WR1','WR2','WR3','TE1','TE2']
+      .filter(k => slots[k]);
+    if (!keys.length) return '<div style="color:var(--text-dim);font-size:10px;">No lineup data.</div>';
+
+    const gapColor = gap => gap == null ? 'rgba(255,255,255,0.25)'
+      : gap >= 1.5  ? 'var(--green)'
+      : gap >= -1.0 ? '#facc15'
+      : 'var(--red)';
+    const gapStr = gap => gap == null ? '—'
+      : `${gap >= 0 ? '+' : ''}${gap.toFixed(1)}`;
+
+    const hdr = `<div class="bp-sm-hdr">
+      <span style="width:34px;">SLOT</span>
+      <span style="flex:1;">PLAYER</span>
+      <span style="width:36px;text-align:right;">LAST SZN</span>
+      <span style="width:36px;text-align:right;">PROJ</span>
+      <span style="width:32px;text-align:right;">LG AVG</span>
+      <span style="width:32px;text-align:right;">GAP</span>
+    </div>`;
+
+    const rows = keys.map(k => {
+      const s  = slots[k];
+      const pc = posColors[s.pos] ?? 'var(--text-dim)';
+      const gc = gapColor(s.gapProj);
+      const actStr  = s.act  != null ? `${s.act.toFixed(1)}`  : '—';
+      const projStr = s.proj != null ? `${s.proj.toFixed(1)}` : '—';
+      const avgStr  = s.avgProj != null ? `${s.avgProj.toFixed(1)}` : '—';
+      return `<div class="bp-sm-row">
+        <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${s.pid}.jpg" onerror="this.style.opacity=0" loading="lazy">
+        <span class="bp-sm-slot" style="color:${pc};">${k}</span>
+        <span class="bp-sm-name" onclick="searchAndOpenProfile('${(s.name||'').replace(/'/g,"\\'")}'">${s.name}</span>
+        <span class="bp-sm-ppg" style="color:${pc};">${actStr}</span>
+        <span class="bp-sm-proj">${projStr}</span>
+        <span class="bp-sm-avg">${avgStr}</span>
+        <span class="bp-sm-gap" style="color:${gc};">${gapStr(s.gapProj)}</span>
+      </div>`;
+    }).join('');
+
+    // Summary: total gap
+    const totalGap = keys.reduce((s,k) => s + (slots[k]?.gapProj ?? 0), 0);
+    const tgColor  = gapColor(totalGap / keys.length);
+    const legend   = `<div style="display:flex;gap:12px;margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
+      <span style="font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.25);">LAST SZN = actual PPR ppg · PROJ = this season projection · GAP = proj vs league avg at that slot</span>
+      <span style="font-family:var(--mono);font-size:8px;font-weight:700;color:${tgColor};margin-left:auto;white-space:nowrap;">NET ${totalGap >= 0 ? '+' : ''}${totalGap.toFixed(1)} ppg</span>
+    </div>`;
+
+    return hdr + rows + legend;
+  })();
+
   // ── Shape Radar (roster health) ───────────────────────────────────────────
   const shapeScores = _bpShapeScores(rosterId, teamRow, allTeams, total, isSF);
 
@@ -15501,7 +15565,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   window._bpData = {
     rosterId, teamRow, phase, phStyle, archetype, windowDesc, posColors,
     valueRank, projRank, overallGrade, gradeColor,
-    radarScores, prodRadarScores, shapeScores, clock, finish, eff, trendIcon, trendColor,
+    radarScores, prodRadarScores, slotMapHTML, shapeScores, clock, finish, eff, trendIcon, trendColor,
     posGradesHTML, ageBarHTML, pieCSS, pieLegHTML, constBarSegs, constLegend,
     lineupRowsHTML, benchBubbles, teamProj, csRowsHTML, capitalHTML,
     overviewHTML, buyTradeHTML, rebalanceHTML, swingHTML, needsHTML, rosterGridHTML,
@@ -15632,6 +15696,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         <div class="bp-panel-title"><span class="bp-pdot" style="background:#2dd4bf;"></span>OPTIMAL LINEUP<span class="bp-panel-sub">base projections</span></div>
         ${lineupRowsHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">Run projections first.</div>'}
         ${_ppgTotal}
+      </div>
+
+      <!-- ROW: Slot Map (full-width) -->
+      <div class="bp-panel" style="--bpa:#38bdf8;">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#38bdf8;"></span>SLOT ANALYSIS<span class="bp-panel-sub">last season · projected · vs league avg per slot</span></div>
+        ${slotMapHTML}
       </div>
 
       <!-- ROW: Trade Strategy (full-width) -->
@@ -15840,6 +15910,10 @@ function openBlueprintFullscreen() {
             <div class="bp-fs-pt"><span class="bp-pdot" style="background:#2dd4bf;"></span>OPTIMAL LINEUP<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">base projections</span></div>
             ${d.lineupRowsHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">Run projections first.</div>'}
             ${_ppgFs}
+          </div>
+          <div class="bp-fs-p" style="--bpa:#38bdf8;">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#38bdf8;"></span>SLOT ANALYSIS<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">last szn · proj · vs league avg</span></div>
+            ${d.slotMapHTML}
           </div>
         </div>
 
