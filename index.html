@@ -9627,10 +9627,10 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           <div class="pp-factor-val" style="color:var(--text-dim);">—</div>
           <div class="pp-factor-sub">no team depth chart found</div>
         </div>`;
-      const pct    = Math.round((bos.projMultiplier - 1) * 100);
-      const pctStr = pct === 0 ? '±0%' : `${pct > 0 ? '+' : ''}${pct}%`;
-      const arrow  = pct > 0 ? '↑' : pct < 0 ? '↓' : '→';
-      const col    = pct > 0 ? 'var(--green)' : pct < 0 ? 'var(--red)' : 'var(--text-dim)';
+      const ppgDelta = +((parseFloat(mPpg) * (bos.projMultiplier - 1)).toFixed(1));
+      const ppgStr  = ppgDelta === 0 ? '±0 PPG' : `${ppgDelta > 0 ? '+' : ''}${ppgDelta} PPG`;
+      const arrow   = ppgDelta > 0 ? '↑' : ppgDelta < 0 ? '↓' : '→';
+      const col     = ppgDelta > 0 ? 'var(--green)' : ppgDelta < 0 ? 'var(--red)' : 'var(--text-dim)';
       // Subtitle: label + projected Vol & Opp signal + competition delta
       const b = bos.breaks ?? {};
       const _projDiff = bos.projOwnershipScore - bos.ownershipScore;
@@ -9648,7 +9648,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       const explainLine = `carry share + target role + depth chart competition`;
       return `<div class="pp-factor">
         <div class="pp-factor-lbl">Backfield Opp.</div>
-        <div class="pp-factor-val" style="color:${col};">${pctStr} ${arrow}</div>
+        <div class="pp-factor-val" style="color:${col};">${ppgStr} ${arrow}</div>
         <div class="pp-factor-sub" title="${explainLine}">${subLine}</div>
         <div class="pp-factor-sub" style="opacity:0.6;font-size:8.5px;">${explainLine}</div>
       </div>`;
