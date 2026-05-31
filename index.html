@@ -3986,6 +3986,10 @@ async function fetchAll() {
     // Kick off projection pre-warm. Store the promise so renderLeagueProjections()
     // can await it — the "Computing projections…" spinner covers the wait time.
     _prewarmPromise = preWarmProjectionCache();
+    // Pre-fetch ESPN draft rounds for all rookie/sophomore RBs missing round data.
+    // Runs in background — populates _draftRoundCache so BOS has accurate round info
+    // on first use without waiting for individual profile opens.
+    _prefetchBosRounds();
 
   } catch(e) {
     errEl.textContent = e.message;
@@ -11101,6 +11105,38 @@ const manualBench    = new Set();
 // All data is live: depthDB (current depth chart), advstatsDB (last-season PBP),
 // statTeamDB (last-season team), teamDB (team rush rate). All optional-safe.
 
+// Pre-fetch ESPN draft rounds for all rookie/sophomore RBs that lack round data
+// in Sleeper. Runs in background at load time so BOS has accurate capital on first use.
+async function _prefetchBosRounds() {
+  const targets = [];
+  for (const [pid, sp] of Object.entries(sleeperPlayers ?? {})) {
+    if (sp.position !== 'RB') continue;
+    if ((sp.years_exp ?? 99) > 1) continue;               // only rookies + sophomores
+    if (sp.draft_round || sp.college_draft_round) continue; // already have it in Sleeper
+    if (_draftRoundCache[String(pid)]) continue;            // already cached
+    const espnId = fcPlayerMap[String(pid)]?.espnId ?? sp.espn_id ?? null;
+    const name   = sp.full_name ?? sp.name ?? '';
+    targets.push({ pid: String(pid), espnId, name });
+  }
+  if (!targets.length) return;
+
+  // Fetch in small parallel batches to avoid hammering ESPN
+  const BATCH = 6;
+  for (let i = 0; i < targets.length; i += BATCH) {
+    const batch = targets.slice(i, i + BATCH);
+    await Promise.all(batch.map(async ({ pid, espnId, name }) => {
+      try {
+        const espn = await fetchEspnDraftInfo(espnId, name);
+        if (espn && espn !== 'UDFA' && espn.round) {
+          _draftRoundCache[pid] = espn.round;
+        } else if (espn === 'UDFA') {
+          _draftRoundCache[pid] = 99; // sentinel: confirmed UDFA
+        }
+      } catch (_) { /* silently skip failed fetches */ }
+    }));
+  }
+}
+
 function _bosBuildCaches() {
   _bosAdvMap = {};
   for (const k of Object.keys(advstatsDB ?? {})) _bosAdvMap[_bosNorm(k)] = k;
@@ -11308,9 +11344,13 @@ function _rbBackfieldOpportunity(pid) {
                     : cAge <= 27 ? 1.0 : cAge <= 29 ? 0.85 : 0.65;
 
     const cWasHereLast = statTeamDB?.[cPid ?? ''] === team;
-    const cRound    = cSp?.draft_round ?? cSp?.college_draft_round
-                    ?? (cPid ? _draftRoundCache[String(cPid)] : null) ?? null;
-    const cInfRound = !cRound
+    const _cRoundRaw = cSp?.draft_round ?? cSp?.college_draft_round
+                     ?? (cPid ? _draftRoundCache[String(cPid)] : null) ?? null;
+    // 99 = confirmed UDFA sentinel from _prefetchBosRounds — treat as null for round table
+    // but pass null so _bosRoundThreat returns the UDFA value (2)
+    const cRound    = (_cRoundRaw === 99 || _cRoundRaw === null) ? null : _cRoundRaw;
+    const cIsUdfa   = _cRoundRaw === 99;
+    const cInfRound = (!cRound && !cIsUdfa)
       ? (cVal >= 5000 ? 1 : cVal >= 3000 ? 2 : cVal >= 1500 ? 3 : cVal >= 700 ? 4 : cVal >= 300 ? 5 : cVal >= 100 ? 6 : null)
       : null;
 
