@@ -11349,7 +11349,12 @@ function _rbBackfieldOpportunity(pid) {
         threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * 10) / 10;
       } else {
         effWorkload = cWorkload;
-        threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * 10) / 10;
+        // R1/R2 proven sophomores get a capital boost — elite draft pedigree + proven
+        // production signals further role growth beyond what last year's workload shows.
+        const capBoost = (cYrs === 1 && cLastSznPpg >= 10)
+          ? (cRound === 1 ? 1.20 : cRound === 2 ? 1.12 : 1.0)
+          : 1.0;
+        threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * capBoost * 10) / 10;
       }
     }
 
