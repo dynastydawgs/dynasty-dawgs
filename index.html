@@ -7690,6 +7690,7 @@ const _bosNorm  = n => (n ?? '').replace(/['.]/g,'').replace(/-/g,' ')
   .replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi,'').replace(/\s+/g,' ').trim().toLowerCase();
 let _bosAdvMap      = null; // normName → original advstatsDB key
 let _bosPidMap      = null; // normName → pid  (RBs only)
+let _bosLastNameMap = null; // lastName → [pids]  — fallback for nickname/legal-name mismatches
 let _bosBreaks      = null; // percentile breakpoints for ownership labels (computed lazily)
 
 // Bulk season stats cache — populated once before preWarmProjectionCache runs.
@@ -8334,7 +8335,7 @@ async function buildDatabase(onProgress) {
   dbReady = true;
   _calibrateSimInjRates();
   _avgRbPpt = null; // reset so getAvgRbPpt() recomputes from fresh data
-  _bosAdvMap = null; _bosPidMap = null; _bosBreaks = null; // reset BOS caches on data reload
+  _bosAdvMap = null; _bosPidMap = null; _bosLastNameMap = null; _bosBreaks = null; // reset BOS caches on data reload
   onProgress?.(`Database ready — ${Object.keys(careerDB).length} players, ${Object.keys(compDB).length} comp buckets`, 100);
 }
 
@@ -11100,11 +11101,19 @@ const manualBench    = new Set();
 function _bosBuildCaches() {
   _bosAdvMap = {};
   for (const k of Object.keys(advstatsDB ?? {})) _bosAdvMap[_bosNorm(k)] = k;
-  _bosPidMap = {};
+  _bosPidMap      = {};
+  _bosLastNameMap = {};
   for (const [pid, sp] of Object.entries(sleeperPlayers ?? {})) {
     if (sp.position !== 'RB') continue;
-    const k = _bosNorm(sp.full_name ?? sp.name ?? '');
-    if (k) _bosPidMap[k] = pid;
+    const full = _bosNorm(sp.full_name ?? sp.name ?? '');
+    if (full) _bosPidMap[full] = pid;
+    // Secondary index by last name for nickname/legal-name fallback
+    // e.g. depth chart "Woody Marks" → Sleeper "Jo'Quavious Marks"
+    const lastName = full.split(' ').at(-1);
+    if (lastName) {
+      if (!_bosLastNameMap[lastName]) _bosLastNameMap[lastName] = [];
+      _bosLastNameMap[lastName].push(pid);
+    }
   }
 }
 const _bosGetAdv = name => {
@@ -11112,9 +11121,19 @@ const _bosGetAdv = name => {
   const key = _bosAdvMap[_bosNorm(name)];
   return key ? advstatsDB[key] : null;
 };
-const _bosGetPid = name => {
+// teamHint narrows last-name fallback to same-team players, preventing cross-team collisions
+const _bosGetPid = (name, teamHint) => {
   if (!_bosPidMap) _bosBuildCaches();
-  return _bosPidMap[_bosNorm(name)] ?? null;
+  const direct = _bosPidMap[_bosNorm(name)];
+  if (direct) return direct;
+  // Fallback: last name + team match for nickname cases
+  if (teamHint) {
+    const lastName = _bosNorm(name).split(' ').at(-1);
+    const candidates = (_bosLastNameMap[lastName] ?? [])
+      .filter(pid => sleeperPlayers[pid]?.team === teamHint);
+    if (candidates.length === 1) return candidates[0];
+  }
+  return null;
 };
 
 // Projected threat workload by NFL draft round (as approximate carryShare %).
@@ -11261,7 +11280,7 @@ function _rbBackfieldOpportunity(pid) {
     if (cNorm === myNorm) continue;
     if ((dcEntry.rank ?? 99) >= 4) continue; // RB4+ don't project meaningful carry share
 
-    const cPid = _bosGetPid(dcEntry.name);
+    const cPid = _bosGetPid(dcEntry.name, team);
     const cSp  = cPid ? (sleeperPlayers[cPid] ?? null) : null;
     const cFc  = cPid ? (fcPlayerMap[cPid]    ?? null) : null;
     const cAdv = _bosGetAdv(dcEntry.name);
