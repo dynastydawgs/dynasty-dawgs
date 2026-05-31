@@ -5642,11 +5642,17 @@ async function loadPlayerProfile(pid) {
           ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}${_projStr}.`
           : 'No last-season workload data — new role or first-year player.';
 
-      const _deltaStr = _bos.compDelta > 5
-        ? `↑ ${_bos.compDelta.toFixed(1)} pts of workload freed up this offseason.`
-        : _bos.compDelta < -5
-        ? `↓ ${Math.abs(_bos.compDelta).toFixed(1)} pts of new competition added this offseason.`
-        : 'Backfield competition largely unchanged from last season.';
+      const _deltaStr = _bos.switchedTeams
+        ? (_bos.volOppDelta >= 12
+            ? `↑ Personal Vol &amp; Opp up ~${_bos.volOppDelta.toFixed(0)} pts vs last season (${_bos.historicalOwnershipScore.toFixed(0)}% → proj ${_bos.projOwnershipScore.toFixed(0)}%).`
+           : _bos.volOppDelta <= -12
+            ? `↓ Personal Vol &amp; Opp down ~${Math.abs(_bos.volOppDelta).toFixed(0)} pts vs last season (${_bos.historicalOwnershipScore.toFixed(0)}% → proj ${_bos.projOwnershipScore.toFixed(0)}%).`
+            : `Vol &amp; Opp largely unchanged from last season (${_bos.historicalOwnershipScore.toFixed(0)}% → proj ${_bos.projOwnershipScore.toFixed(0)}%).`)
+        : (_bos.compDelta > 5
+            ? `↑ ${_bos.compDelta.toFixed(1)} pts of backfield workload freed up this offseason.`
+           : _bos.compDelta < -5
+            ? `↓ ${Math.abs(_bos.compDelta).toFixed(1)} pts of new competition added this offseason.`
+            : 'Backfield competition largely unchanged from last season.');
 
       // Top competitors (sorted by threat, max 4)
       const _rivals = [...(_bos.competitors ?? [])]
@@ -11222,6 +11228,12 @@ function _rbBackfieldOpportunity(pid) {
   const thirdDown   = switchedTeams ? 0 : (myAdv?.thirdDownSnapPct ?? 0);
   // Weighted composite: carries matter most, receiving role second, 3rd-down last
   const ownershipScore = (carryShare * 0.55) + (bfTgtShare * 0.30) + (thirdDown * 0.15);
+  // Historical ownership: always from raw myAdv regardless of team switch.
+  // Switchers zero out the ownership score used for comparisons (their old role is stale),
+  // but we keep the real value to compute how much their personal opportunity changed.
+  const historicalOwnershipScore = myAdv
+    ? ((myAdv.carryShare ?? 0) * 0.55) + ((myAdv.bfTgtShare ?? 0) * 0.30) + ((myAdv.thirdDownSnapPct ?? 0) * 0.15)
+    : 0;
 
   // ── Team run-rate context ───────────────────────────────────────────────
   const teamCtx   = teamDB?.[team] ?? null;
@@ -11404,6 +11416,12 @@ function _rbBackfieldOpportunity(pid) {
       ownershipScore + (departedWorkload * absorptionRate) - workloadLoss + heirTransfer);
   }
 
+  // Personal Vol & Opp delta: how much did their individual opportunity change?
+  // For switchers this is the key signal — compare projected role on new team to their
+  // actual last-season role (even if that was DC2 backup getting 20% of carries).
+  // For returners this reflects absorbed workload and new-threat dilution.
+  const volOppDelta = projOwnershipScore - historicalOwnershipScore;
+
   // ── Projection multiplier ── ±7% max, six independent levers ──────────
   // 1. Ownership tier — driven by projected (not historical) Vol & Opp percentile
   // Unified path for switchers and returners; adds a p30 tier for fine-grained depth.
@@ -11418,9 +11436,16 @@ function _rbBackfieldOpportunity(pid) {
   const thrAdjRaw = primaryThreat >= 50 ? -0.04 : primaryThreat >= 30 ? -0.02
                   : primaryThreat >= 15 ? -0.01 : 0.00;
   const thrAdj = heirAdj > 0 ? 0 : thrAdjRaw;
-  // 3. Competition delta (departed vs. new arrivals)
-  const dltAdj  = compDelta >= 20 ? 0.02 : compDelta >= 10 ? 0.01
-                : compDelta <= -20 ? -0.02 : compDelta <= -10 ? -0.01 : 0.00;
+  // 3. Opportunity delta
+  // Switchers: personal Vol & Opp delta (projected new role vs actual last-season role).
+  //   Team-level compDelta is irrelevant when the player changed teams — what matters is
+  //   whether their individual opportunity went up or down (e.g. DC2→DC1 is a big jump).
+  // Returners: team-level compDelta (departed carries vs new arrivals) as before.
+  const dltAdj = switchedTeams
+    ? (volOppDelta >= 25 ?  0.02 : volOppDelta >= 12 ?  0.01
+     : volOppDelta <= -25 ? -0.02 : volOppDelta <= -12 ? -0.01 : 0.00)
+    : (compDelta  >= 20  ?  0.02 : compDelta  >= 10  ?  0.01
+     : compDelta  <= -20 ? -0.02 : compDelta  <= -10 ? -0.01 : 0.00);
   // 4. Team run rate (BAL/BUF type teams generate more carries for featured back)
   const runAdj  = runRate >= 50 ? 0.01 : runRate <= 38 ? -0.01 : 0.00;
   // 5. Heir apparent: young DC2 behind aging DC1 with proven rookie production
@@ -11461,8 +11486,10 @@ function _rbBackfieldOpportunity(pid) {
   return {
     label, color, switchedTeams, breaks,
     myEffScore, heirAdj, opptyAdj, backfieldWeak,
-    ownershipScore:     Math.round(ownershipScore     * 10) / 10,
-    projOwnershipScore: Math.round(projOwnershipScore * 10) / 10,
+    ownershipScore:         Math.round(ownershipScore         * 10) / 10,
+    historicalOwnershipScore: Math.round(historicalOwnershipScore * 10) / 10,
+    projOwnershipScore:     Math.round(projOwnershipScore     * 10) / 10,
+    volOppDelta:            Math.round(volOppDelta            * 10) / 10,
     totalThreat:        Math.round(totalThreat        * 10) / 10,
     compDelta, primaryThreat: Math.round(primaryThreat * 10) / 10,
     runRate, rushAttPg, dcRank: myDcRank,
