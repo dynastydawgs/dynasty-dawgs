@@ -11316,13 +11316,28 @@ function _rbBackfieldOpportunity(pid) {
     })();
     let effWorkload;
     let threatScore;
-    const useCapProj = cYrs === 0 || (cYrs === 1 && cLastSznPpg < 10);
+    // Three sophomore tiers (cYrs === 1):
+    //   Unproven  (< 7.5 PPG)  → full cap projection (same as rookie)
+    //   Half-proven (7.5–9.9)  → blend of cap + actual, weighted by draft round
+    //   Proven    (≥ 10 PPG)   → actual workload with freshMult/talentMult
+    const useCapProj    = cYrs === 0 || (cYrs === 1 && cLastSznPpg < 7.5);
+    const useHalfProven = cYrs === 1 && cLastSznPpg >= 7.5 && cLastSznPpg < 10;
     if (useCapProj) {
       // Round value encodes talent + youth — no freshMult/talentMult on top.
       // Weak-backfield vacuum bonus: +15% when no proven workhorse exists on this team.
       const roundBase  = _bosRoundThreat(cRound ?? cInfRound ?? null);
       const ctxBonus   = noProvenWorkhorse ? 1.15 : 1.0;
       effWorkload      = roundBase * ctxBonus;
+      threatScore      = Math.round(effWorkload * stageMult * effMult * 10) / 10;
+    } else if (useHalfProven) {
+      // Blend capital projection with actual workload.
+      // Early picks (R1-R2): trust capital more — they're expected to develop further.
+      // Late picks (R3+): trust actual data more — they already outperformed expectations.
+      const roundProj  = _bosRoundThreat(cRound ?? cInfRound ?? null);
+      const capWeight  = !cRound || cRound >= 5 ? 0.10 : cRound <= 2 ? 0.55 : 0.30;
+      const ctxBonus   = noProvenWorkhorse ? 1.10 : 1.0;
+      effWorkload      = ((roundProj * capWeight) + (cWorkload * (1 - capWeight))) * ctxBonus;
+      // No freshMult/talentMult — partially encoded in the round component of the blend
       threatScore      = Math.round(effWorkload * stageMult * effMult * 10) / 10;
     } else {
       if (cWorkload < 5) {
