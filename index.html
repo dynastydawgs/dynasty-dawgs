@@ -11103,6 +11103,44 @@ const _bosGetPid = name => {
 // 1st-round RBs threaten like a 60% carry-share back; scales down to UDFA at 8%.
 const _bosRoundThreat = r => !r ? 8 : [0, 60, 42, 26, 16, 12, 10, 8][Math.min(r, 7)];
 
+// Quartile scorer — mirrors the _qs function inside loadPlayerProfile but accessible
+// globally so BOS can score any RB using the same rbStats benchmarks as the overview tab.
+function _bosQs(val, field) {
+  if (val == null) return null;
+  const stats = rbStats?.[field];
+  if (!stats) return null;
+  const { q1, avg, q3 } = stats;
+  if (!q3 || q3 === avg || avg === q1) return 50;
+  if (val >= q3) return Math.min(100, 75 + (val - q3) / (q3 - avg) * 25);
+  if (val >= avg) return 50 + (val - avg) / (q3 - avg) * 25;
+  if (val >= q1)  return 25 + (val - q1) / (avg - q1) * 25;
+  return Math.max(0, 25 - (q1 - val) / (avg - q1) * 25);
+}
+
+// Efficiency composite for any RB — 0 to 100 — using the same weights and benchmarks
+// as _effScore2 in the overview tab (RYOE/att 28% · success% 22% · YAC/carry 20% ·
+// MTF/att 15% · RZ TD rate 3%). Skips YPC/ptsPerTouch which need Sleeper stats.
+// Returns null if fewer than 2 metrics are available.
+function _bosEfficiency(name, adv) {
+  if (!adv) return null;
+  // ryoePerAtt from global ryoeDB (keyed by player name)
+  const _rNorm    = _bosNorm(name ?? '');
+  const _ryoeKey  = Object.keys(ryoeDB ?? {}).find(k => _bosNorm(k) === _rNorm);
+  const ryoePerAtt = _ryoeKey ? (ryoeDB[_ryoeKey]?.ryoePerAtt ?? null) : null;
+
+  const parts = [
+    { s: _bosQs(ryoePerAtt,        'ryoePerAtt'),  w: 0.28 },
+    { s: _bosQs(adv.successPct,    'successPct'),  w: 0.22 },
+    { s: _bosQs(adv.yacPerCarry,   'yacPerCarry'), w: 0.20 },
+    { s: _bosQs(adv.mtfPerAtt,     'mtfPerAtt'),   w: 0.15 },
+    { s: _bosQs(adv.rzTdRate,      'rzTdRate'),    w: 0.03 },
+  ].filter(p => p.s !== null);
+
+  if (parts.length < 2) return null; // not enough data to be meaningful
+  const wSum = parts.reduce((s, p) => s + p.w, 0);
+  return Math.round(parts.reduce((s, p) => s + p.s * p.w, 0) / wSum);
+}
+
 // Compute ownership-score percentile breakpoints across all RBs with real data.
 // Excludes team-switchers (their old carry share is from a different backfield).
 // Falls back to static thresholds if fewer than 15 qualifying backs are found.
@@ -11224,12 +11262,26 @@ function _rbBackfieldOpportunity(pid) {
       effWorkload = cWorkload * 0.70;
     }
 
+    // Career-stage decay — RBs fall off faster than other positions.
+    // Cliff (≥29) and declining (27-28) backs should not threaten as much as their
+    // raw workload suggests because they are likely losing snaps mid-season.
+    const cStage    = cAge >= 29 ? 'cliff' : cAge >= 27 ? 'declining' : 'prime';
+    const stageMult = cStage === 'cliff' ? 0.55 : cStage === 'declining' ? 0.78 : 1.00;
+
+    // Efficiency modifier: a declining/cliff back who is also inefficient loses their
+    // role faster. Only applied for non-prime backs — prime backs earn their role.
+    const cEffScore = _bosEfficiency(dcEntry.name, cAdv);
+    const effMult   = (cEffScore !== null && cStage !== 'prime')
+      ? (cEffScore >= 60 ? 1.00 : cEffScore >= 40 ? 0.90 : 0.80)
+      : 1.00;
+
     const wasHereLast = cWasHereLast;
-    const threatScore = Math.round(effWorkload * talentMult * freshMult * 10) / 10;
+    const threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * 10) / 10;
 
     competitors.push({
       name: dcEntry.name, pid: cPid, dcRank: dcEntry.rank,
-      carryShare: cCarry, threatScore, isNew: !wasHereLast, isRookie: cYrs === 0,
+      carryShare: cCarry, threatScore, effScore: cEffScore,
+      stage: cStage, isNew: !wasHereLast, isRookie: cYrs === 0,
     });
   }
 
@@ -11244,12 +11296,63 @@ function _rbBackfieldOpportunity(pid) {
       (cAdv2.carryShare * 0.55) + (cAdv2.bfTgtShare * 0.30) + (cAdv2.thirdDownSnapPct * 0.15);
   }
 
-  const totalThreat   = competitors.reduce((s, c) => s + c.threatScore, 0);
   const newThreat     = competitors.filter(c => c.isNew).reduce((s, c) => s + c.threatScore, 0);
   const compDelta     = Math.round((departedWorkload - newThreat) * 10) / 10; // + = better
   // Primary threat = backfield mates ranked ahead of this player on depth chart
-  const primaryThreat = competitors
-    .filter(c => c.dcRank < myDcRank).reduce((s, c) => s + c.threatScore, 0);
+  const primaryThreat = primaryThreats.reduce((s, c) => s + c.threatScore, 0);
+
+  // ── My efficiency score (same composite as Overview tab) ─────────────────
+  const myEffScore = _bosEfficiency(sp.full_name ?? sp.name ?? '', myAdv);
+
+  // ── My best career PPG (last qualifying season from careerDB) ─────────────
+  const myCareerSzns  = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4);
+  const myLastSznPpg  = myCareerSzns.length
+    ? +(myCareerSzns.at(-1).ppr / myCareerSzns.at(-1).games).toFixed(1) : 0;
+  const myBestSznPpg  = myCareerSzns.length
+    ? Math.max(...myCareerSzns.map(s => s.ppr / s.games)) : 0;
+
+  // ── Backfield quality — how weak is the overall competition? ──────────────
+  // Low totalThreat = opportunity available for anyone in this backfield.
+  // We compute this before breaks so it can gate opportunity adjustments.
+  const totalThreat = competitors.reduce((s, c) => s + c.threatScore, 0);
+  const backfieldWeak = totalThreat < 20; // roughly bottom quartile of league backfields
+
+  // ── Heir apparent adjustment (Case A) ────────────────────────────────────
+  // Young DC2 with a solid rookie year behind an aging/declining DC1.
+  // The DC1 is losing their role — this player is the next man up.
+  const primaryThreats = competitors.filter(c => c.dcRank < myDcRank);
+  const allPrimaryAging = primaryThreats.length > 0
+    && primaryThreats.every(c => c.stage === 'cliff' || c.stage === 'declining');
+  let heirAdj = 0;
+  if (!switchedTeams && myDcRank === 2
+      && (sp.years_exp ?? 99) <= 2
+      && myLastSznPpg >= 7
+      && allPrimaryAging) {
+    // Check efficiency edge over the aging DC1
+    const agingDc1     = primaryThreats[0];
+    const dc1EffScore  = agingDc1.effScore;
+    const effEdge      = (myEffScore !== null && dc1EffScore !== null)
+                         ? myEffScore - dc1EffScore : 0;
+    heirAdj = effEdge > 15 ? 0.03 : effEdge >= 0 ? 0.02 : 0.01;
+  }
+
+  // ── Proven veteran opportunity adjustment (Case B) ────────────────────────
+  // A proven veteran landing in a weak competition backfield should get credit
+  // for their track record even when we can't use their old carry share.
+  // Also fires for returning backs on genuinely weak backfields.
+  let opptyAdj = 0;
+  if (myDcRank <= 2 && backfieldWeak) {
+    const isProven = myBestSznPpg >= 10; // had at least one high-volume season
+    const isDecent = myBestSznPpg >= 7;  // consistent contributor history
+    const effBonus = (myEffScore !== null && myEffScore >= 60) ? 0.01 : 0;
+    if (switchedTeams) {
+      // Team-switcher: use career history since current carry share is zeroed
+      opptyAdj = isProven ? 0.03 + effBonus : isDecent ? 0.02 + effBonus : 0;
+    } else if (!switchedTeams && myDcRank === 2 && (sp.years_exp ?? 0) > 2) {
+      // Returning veteran in a weak backfield still getting DC2 — opportunity exists
+      opptyAdj = isDecent ? 0.01 + effBonus : 0;
+    }
+  }
 
   // ── Percentile-based ownership tiers ────────────────────────────────────
   const breaks = _bosGetBreaks();
@@ -11281,9 +11384,12 @@ function _rbBackfieldOpportunity(pid) {
                 : compDelta <= -20 ? -0.02 : compDelta <= -10 ? -0.01 : 0.00;
   // 4. Team run rate (BAL/BUF type teams generate more carries for featured back)
   const runAdj  = runRate >= 50 ? 0.01 : runRate <= 38 ? -0.01 : 0.00;
+  // 5. Heir apparent: young DC2 behind aging DC1 with proven rookie production
+  // 6. Opportunity: proven veteran or weak backfield signals (Cases A + B)
+  // (heirAdj and opptyAdj computed above; only one fires at a time by design)
 
   const projMultiplier = Math.round(
-    Math.max(0.94, Math.min(1.06, 1 + ownAdj + thrAdj + dltAdj + runAdj)) * 1000) / 1000;
+    Math.max(0.93, Math.min(1.07, 1 + ownAdj + thrAdj + dltAdj + runAdj + heirAdj + opptyAdj)) * 1000) / 1000;
 
   // ── Label (percentile-based ownership tiers) ─────────────────────────────
   let label, color;
@@ -11297,6 +11403,10 @@ function _rbBackfieldOpportunity(pid) {
     label = 'WORKHORSE';   color = 'var(--green)';
   } else if (ownershipScore >= breaks.p75 && primaryThreat <= 30) {
     label = 'FEATURED';    color = '#86efac';
+  } else if (heirAdj > 0) {
+    label = 'HEIR APPARENT'; color = 'var(--blue)';
+  } else if (opptyAdj >= 0.02 && myDcRank <= 2) {
+    label = 'EMERGING';    color = 'var(--blue)';
   } else if (compDelta >= 18 && ownershipScore < breaks.p50) {
     label = 'EMERGING';    color = 'var(--blue)';
   } else if (primaryThreat > 45) {
@@ -11311,6 +11421,7 @@ function _rbBackfieldOpportunity(pid) {
 
   return {
     label, color, switchedTeams, breaks,
+    myEffScore, heirAdj, opptyAdj, backfieldWeak,
     ownershipScore: Math.round(ownershipScore * 10) / 10,
     totalThreat:    Math.round(totalThreat    * 10) / 10,
     compDelta, primaryThreat: Math.round(primaryThreat * 10) / 10,
