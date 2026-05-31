@@ -5646,17 +5646,32 @@ async function loadPlayerProfile(pid) {
                    : os >= b.p50 ? `top 50%` : `bottom 50%`;
         return ` (${tier} of ${b.n} RBs)`;
       })();
-      // Projected Vol & Opp grade: scale current composite score by the ratio of
-      // projected ownership to historical ownership. Same 0-100 scale as the grade circles.
-      const _projVolOppRatio = (() => {
+      // Projected Vol & Opp grade (0-100):
+      // • Switchers: old _usageScore is from a different role on a different team — useless
+      //   as a baseline. Instead derive the grade directly from where projOwnershipScore sits
+      //   in the ownership percentile breaks (p30/p50/p75/p90). Both are percentile-based on
+      //   the same RB population, so the interpolation is meaningful.
+      // • Returners: scale _usageScore by the proj/historical ownership ratio — valid because
+      //   the historical grade reflects their actual role and the ratio captures role change.
+      const _projVolOppGrade = (() => {
         if (!_bos) return null;
-        const hist = _bos.switchedTeams
-          ? _bos.historicalOwnershipScore : _bos.ownershipScore;
-        if (!hist || hist <= 0) return null;
-        return (_bos.projOwnershipScore ?? hist) / hist;
+        const proj = _bos.projOwnershipScore;
+        if (proj == null) return null;
+        if (_bos.switchedTeams) {
+          // Interpolate grade from ownership percentile breaks
+          const b = _bos.breaks ?? {};
+          if (!b.p30) return null;
+          if (proj >= (b.p90 ?? 999))      return 92;
+          if (proj >= (b.p75 ?? 999))      return Math.round(75 + (proj - b.p75) / ((b.p90 ?? b.p75 + 1) - b.p75) * 17);
+          if (proj >= (b.p50 ?? 999))      return Math.round(50 + (proj - b.p50) / (b.p75 - b.p50) * 25);
+          if (proj >= (b.p30 ?? 999))      return Math.round(30 + (proj - b.p30) / (b.p50 - b.p30) * 20);
+          return Math.round(Math.max(5, proj / b.p30 * 30));
+        } else {
+          const hist = _bos.ownershipScore;
+          if (!hist || hist <= 0 || _usageScore == null) return null;
+          return Math.round(Math.min(100, Math.max(0, _usageScore * (proj / hist))));
+        }
       })();
-      const _projVolOppGrade = (_usageScore != null && _projVolOppRatio != null)
-        ? Math.round(Math.min(100, Math.max(0, _usageScore * _projVolOppRatio))) : null;
       const _projGradeDelta  = _projVolOppGrade != null ? _projVolOppGrade - (_usageScore ?? 0) : 0;
       const _projGradeCol    = _projGradeDelta >= 4 ? 'var(--green)' : _projGradeDelta <= -4 ? 'var(--red)' : 'var(--text-muted)';
 
@@ -5668,7 +5683,10 @@ async function loadPlayerProfile(pid) {
 
       // Projected Vol & Opp grade string — shown for both switchers and returners.
       const _projGradeStr = _projVolOppGrade != null
-        ? ` Projected Vol &amp; Opp: <span style="color:${_projGradeCol};font-weight:600;">${Math.round(_usageScore ?? 0)} → ${_projVolOppGrade}</span>${_projGradeDelta !== 0 ? ` (${_projGradeDelta >= 0 ? '+' : ''}${_projGradeDelta} pts)` : ''}.`
+        ? (() => {
+            const _from = _usageScore != null ? `${Math.round(_usageScore)} → ` : '';
+            return ` Projected Vol &amp; Opp: <span style="color:${_projGradeCol};font-weight:600;">${_from}${_projVolOppGrade}</span>${_usageScore != null && _projGradeDelta !== 0 ? ` (${_projGradeDelta >= 0 ? '+' : ''}${_projGradeDelta} pts)` : ''}.`;
+          })()
         : '';
       const _deltaStr = _bos.switchedTeams
         ? (_bos.volOppDelta >= 12
