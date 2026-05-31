@@ -11135,6 +11135,18 @@ function _rbBackfieldOpportunity(pid) {
 // Falls back to careerDB-based computation (careerDB now includes 2025 so this is
 // effectively the same model — only difference is bulk vs per-player Sleeper endpoint).
 function computeBaseProjection(pid, pos, age, yearsExp, draftRound, draftPick) {
+  // ── BOS multiplier — computed once, applied to BOTH cache and cold paths ──
+  // Ensures every RB's basePpg reflects current backfield competition regardless
+  // of whether their profile has been opened this session.
+  const _posNormBos = (pos ?? 'WR').replace(/[^A-Za-z]/g,'').toUpperCase().slice(0,2);
+  let bosMult = 1;
+  if (_posNormBos === 'RB'
+      && Object.keys(advstatsDB).length > 0
+      && Object.keys(depthDB).length  > 0) {
+    const _bos = _rbBackfieldOpportunity(pid);
+    if (_bos) bosMult = _bos.projMultiplier;
+  }
+
   // ── Cache hit: return exact profile model result ──
   const cached = projectionCache[pid];
   if (cached) {
@@ -11168,11 +11180,14 @@ function computeBaseProjection(pid, pos, age, yearsExp, draftRound, draftPick) {
       if (floorPpg == null) floorPpg = Math.round(cachedMedian * _b.flo  / 17 * 10) / 10;
       if (ceilPpg  == null) ceilPpg  = Math.round(cachedMedian * _b.ceil / 17 * 10) / 10;
     }
+    const adjMedian = Math.round(cachedMedian * bosMult);
     return {
-      basePpg  : cached.basePpg,
+      basePpg  : bosMult !== 1
+                   ? Math.round((cached.basePpg ?? 0) * bosMult * 10) / 10
+                   : cached.basePpg,
       floorPpg,
       ceilPpg,
-      medianPpr: cachedMedian,
+      medianPpr: adjMedian,
       stage    : null,
       hasOwn   : true,
     };
@@ -11409,15 +11424,8 @@ function computeBaseProjection(pid, pos, age, yearsExp, draftRound, draftPick) {
       medianPpr      = Math.round(medianPpr * (1 + pptAdj));
     }
 
-    // ── Backfield Opportunity Score adjustment ─────────────────────────────
-    // Uses live depth chart + last-season workload + competition delta + team run rate.
-    // Only fires when advstatsDB and depthDB are loaded (optional, silent skip if not).
-    if (posNorm === 'RB' && Object.keys(advstatsDB).length && Object.keys(depthDB).length) {
-      const bos = _rbBackfieldOpportunity(pid);
-      if (bos && bos.projMultiplier !== 1) {
-        medianPpr = Math.round(medianPpr * bos.projMultiplier);
-      }
-    }
+    // ── Backfield Opportunity Score adjustment (uses bosMult computed above) ──
+    if (bosMult !== 1) medianPpr = Math.round(medianPpr * bosMult);
   } else {
     const tierBoost = draftTierBoost(tier, posNorm);
     medianPpr = Math.round(p50 * tierBoost);
