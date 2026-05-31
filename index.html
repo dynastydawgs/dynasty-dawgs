@@ -5615,6 +5615,73 @@ async function loadPlayerProfile(pid) {
         ${mkGradeCircle(_sitScore2,   'Situation')}
       </div>`;
 
+    // ── Backfield Opportunity Score card ─────────────────────────────────
+    const _bos = (Object.keys(advstatsDB).length && Object.keys(depthDB).length)
+                 ? _rbBackfieldOpportunity(pid) : null;
+    const _bosCardHTML = (() => {
+      if (!_bos) return '';
+
+      const _multPct  = Math.round((_bos.projMultiplier - 1) * 100);
+      const _multStr  = _multPct === 0 ? 'Neutral (0%)' : `${_multPct > 0 ? '+' : ''}${_multPct}% to projection`;
+      const _multCol  = _multPct > 0 ? 'var(--green)' : _multPct < 0 ? 'var(--red)' : 'var(--text-dim)';
+
+      const _ownStr   = _bos.ownershipScore > 0
+        ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season.`
+        : 'No last-season workload data — new role or first-year player.';
+
+      const _deltaStr = _bos.compDelta > 5
+        ? `↑ ${_bos.compDelta.toFixed(1)} pts of workload freed up this offseason.`
+        : _bos.compDelta < -5
+        ? `↓ ${Math.abs(_bos.compDelta).toFixed(1)} pts of new competition added this offseason.`
+        : 'Backfield competition largely unchanged from last season.';
+
+      // Top competitors (sorted by threat, max 4)
+      const _rivals = [...(_bos.competitors ?? [])]
+        .sort((a, b) => b.threatScore - a.threatScore)
+        .slice(0, 4);
+
+      const _rivalRows = _rivals.length
+        ? _rivals.map(c => {
+            const _tag  = c.isRookie ? 'ROOKIE' : c.isNew ? 'NEW' : '';
+            const _tagH = _tag ? `<span style="font-family:var(--mono);font-size:7px;padding:1px 4px;border-radius:2px;background:rgba(255,255,255,0.07);color:var(--text-dim);margin-left:4px;">${_tag}</span>` : '';
+            const _tCol = c.threatScore >= 50 ? 'var(--red)' : c.threatScore >= 25 ? 'var(--orange)' : 'var(--text-muted)';
+            const _csStr = c.carryShare > 0 ? `${c.carryShare.toFixed(0)}% carry` : '—';
+            return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+              <span style="flex:1;font-size:11px;color:var(--text);">${c.name}${_tagH}</span>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);width:52px;text-align:right;">${_csStr}</span>
+              <span style="font-family:var(--mono);font-size:9px;color:${_tCol};width:44px;text-align:right;">${c.threatScore.toFixed(0)} thr</span>
+            </div>`;
+          }).join('')
+        : `<div style="font-size:11px;color:var(--text-dim);padding:6px 0;">No depth chart rivals found.</div>`;
+
+      const _runCtx = _bos.runRate
+        ? `${nflTeam} runs ${_bos.runRate.toFixed(0)}% of plays (${_bos.rushAttPg.toFixed(1)} att/g).`
+        : '';
+
+      return `
+        <div style="margin:18px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">Backfield Competition</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-left:2px solid ${_bos.color};border-radius:var(--radius);padding:14px 16px;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">
+            <div>
+              <div style="font-family:var(--display);font-size:22px;color:${_bos.color};line-height:1;">${_bos.label}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.45;">${_ownStr}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.45;">${_deltaStr}</div>
+              ${_runCtx ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${_runCtx}</div>` : ''}
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:3px;">PROJ IMPACT</div>
+              <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${_multCol};">${_multStr}</div>
+            </div>
+          </div>
+          <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:4px;display:flex;gap:6px;">
+            <span style="flex:1;">DEPTH CHART RIVALS</span>
+            <span style="width:52px;text-align:right;">CARRY SH.</span>
+            <span style="width:44px;text-align:right;">THREAT</span>
+          </div>
+          ${_rivalRows}
+        </div>`;
+    })();
+
     overviewHTML = `
       <div class="pp-workload-section">
         ${_gradeCirclesHTML}
@@ -5622,6 +5689,7 @@ async function loadPlayerProfile(pid) {
         ${_scorecardHTML}
         <div style="margin:18px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2026 Outlook</div>
         ${_scorecardHTML2026}
+        ${_bosCardHTML}
       </div>`;
 
     const noDataCard = label => `
