@@ -15501,7 +15501,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   window._bpData = {
     rosterId, teamRow, phase, phStyle, archetype, windowDesc, posColors,
     valueRank, projRank, overallGrade, gradeColor,
-    radarScores, shapeScores, clock, finish, eff, trendIcon, trendColor,
+    radarScores, prodRadarScores, shapeScores, clock, finish, eff, trendIcon, trendColor,
     posGradesHTML, ageBarHTML, pieCSS, pieLegHTML, constBarSegs, constLegend,
     lineupRowsHTML, benchBubbles, teamProj, csRowsHTML, capitalHTML,
     overviewHTML, buyTradeHTML, rebalanceHTML, swingHTML, needsHTML, rosterGridHTML,
@@ -15585,22 +15585,6 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
 
     <!-- ═══ CONTENT ═══ -->
     <div class="bp-content">
-
-      <!-- VALUE LANDSCAPE: Matrix + Risers/Fallers -->
-      <div class="bp-panel" style="--bpa:#a78bfa;">
-        <div class="bp-panel-title"><span class="bp-pdot" style="background:#a78bfa;"></span>VALUE LANDSCAPE<span class="bp-panel-sub">production vs future value · all teams</span></div>
-        <div class="bp-landscape-grid">
-          <div>
-            <div style="font-family:var(--mono);font-size:7px;letter-spacing:0.1em;color:rgba(255,255,255,0.25);margin-bottom:6px;">X = CURRENT PRODUCTION · Y = FUTURE VALUE (AGE-ADJUSTED)</div>
-            ${valueMatrixSVG}
-          </div>
-          <div>
-            <div class="bp-ts-section-title" style="margin-bottom:8px;">📈 RISERS &amp; FALLERS</div>
-            ${rf.risers.length ? '<div style="font-family:var(--mono);font-size:6.5px;letter-spacing:0.1em;color:rgba(74,222,128,0.6);margin-bottom:4px;">▲ RISING VALUE</div>' : ''}
-            ${rfHTML}
-          </div>
-        </div>
-      </div>
 
       <!-- ROW: Radars -->
       <div class="bp-row-split">
@@ -15823,7 +15807,7 @@ function openBlueprintFullscreen() {
           ${_bpFsMetricBlock(d)}
           <div class="bp-fs-p bp-panel-radar" style="--bpa:#fb7185;">
             <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">positional rank</span></div>
-            ${_bpRadarSVG(d.radarScores)}
+            ${_bpRadarSVG(d.radarScores, d.prodRadarScores)}
             <div class="bp-radar-legend">${_radarLeg}</div>
           </div>
           <div class="bp-fs-p bp-panel-radar" style="--bpa:#a78bfa;">
