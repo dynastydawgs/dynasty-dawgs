@@ -11299,7 +11299,8 @@ function _rbBackfieldOpportunity(pid) {
   const newThreat     = competitors.filter(c => c.isNew).reduce((s, c) => s + c.threatScore, 0);
   const compDelta     = Math.round((departedWorkload - newThreat) * 10) / 10; // + = better
   // Primary threat = backfield mates ranked ahead of this player on depth chart
-  const primaryThreat = primaryThreats.reduce((s, c) => s + c.threatScore, 0);
+  const primaryThreats = competitors.filter(c => c.dcRank < myDcRank);
+  const primaryThreat  = primaryThreats.reduce((s, c) => s + c.threatScore, 0);
 
   // ── My efficiency score (same composite as Overview tab) ─────────────────
   const myEffScore = _bosEfficiency(sp.full_name ?? sp.name ?? '', myAdv);
@@ -11320,7 +11321,6 @@ function _rbBackfieldOpportunity(pid) {
   // ── Heir apparent adjustment (Case A) ────────────────────────────────────
   // Young DC2 with a solid rookie year behind an aging/declining DC1.
   // The DC1 is losing their role — this player is the next man up.
-  const primaryThreats = competitors.filter(c => c.dcRank < myDcRank);
   const allPrimaryAging = primaryThreats.length > 0
     && primaryThreats.every(c => c.stage === 'cliff' || c.stage === 'declining');
   let heirAdj = 0;
