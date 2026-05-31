@@ -5625,10 +5625,17 @@ async function loadPlayerProfile(pid) {
       const _multStr  = _multPct === 0 ? 'Neutral (0%)' : `${_multPct > 0 ? '+' : ''}${_multPct}% to projection`;
       const _multCol  = _multPct > 0 ? 'var(--green)' : _multPct < 0 ? 'var(--red)' : 'var(--text-dim)';
 
+      const _ownPctStr = (() => {
+        if (!_bos.breaks?.dynamic || _bos.ownershipScore <= 0) return '';
+        const os = _bos.ownershipScore, b = _bos.breaks;
+        const tier = os >= b.p90 ? `top 10%` : os >= b.p75 ? `top 25%`
+                   : os >= b.p50 ? `top 50%` : `bottom 50%`;
+        return ` (${tier} of ${b.n} RBs)`;
+      })();
       const _ownStr   = _bos.switchedTeams
         ? `New team this season — last-season workload (different team) excluded from ownership score.`
         : _bos.ownershipScore > 0
-          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season.`
+          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.`
           : 'No last-season workload data — new role or first-year player.';
 
       const _deltaStr = _bos.compDelta > 5
@@ -7670,8 +7677,9 @@ let statTeamDB  = {};   // sleeperPlayerId → NFL team abbr they played for in 
 // Strips periods, apostrophes, hyphens, suffixes; lowercases.
 const _bosNorm  = n => (n ?? '').replace(/['.]/g,'').replace(/-/g,' ')
   .replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi,'').replace(/\s+/g,' ').trim().toLowerCase();
-let _bosAdvMap  = null; // normName → original advstatsDB key
-let _bosPidMap  = null; // normName → pid  (RBs only)
+let _bosAdvMap      = null; // normName → original advstatsDB key
+let _bosPidMap      = null; // normName → pid  (RBs only)
+let _bosBreaks      = null; // percentile breakpoints for ownership labels (computed lazily)
 
 // Bulk season stats cache — populated once before preWarmProjectionCache runs.
 // Maps pid → flat stats object so fetchSleeperStats() reads from memory
@@ -8315,7 +8323,7 @@ async function buildDatabase(onProgress) {
   dbReady = true;
   _calibrateSimInjRates();
   _avgRbPpt = null; // reset so getAvgRbPpt() recomputes from fresh data
-  _bosAdvMap = null; _bosPidMap = null; // reset BOS name caches on data reload
+  _bosAdvMap = null; _bosPidMap = null; _bosBreaks = null; // reset BOS caches on data reload
   onProgress?.(`Database ready — ${Object.keys(careerDB).length} players, ${Object.keys(compDB).length} comp buckets`, 100);
 }
 
@@ -11095,6 +11103,45 @@ const _bosGetPid = name => {
 // 1st-round RBs threaten like a 60% carry-share back; scales down to UDFA at 8%.
 const _bosRoundThreat = r => !r ? 8 : [0, 60, 42, 26, 16, 12, 10, 8][Math.min(r, 7)];
 
+// Compute ownership-score percentile breakpoints across all RBs with real data.
+// Excludes team-switchers (their old carry share is from a different backfield).
+// Falls back to static thresholds if fewer than 15 qualifying backs are found.
+// Cached in _bosBreaks and cleared on data reload.
+function _bosGetBreaks() {
+  if (_bosBreaks) return _bosBreaks;
+  if (!_bosAdvMap) _bosBuildCaches();
+
+  const scores = [];
+  for (const [pid, sp] of Object.entries(sleeperPlayers ?? {})) {
+    if (sp.position !== 'RB' || !sp.team) continue;
+    if (!depthDB?.[sp.team]?.RB?.length) continue; // only backs on teams with DC data
+    const switched = statTeamDB?.[String(pid)] != null && statTeamDB[String(pid)] !== sp.team;
+    if (switched) continue; // exclude team-switchers — old carry share is irrelevant
+    const adv = _bosGetAdv(sp.full_name ?? sp.name ?? '');
+    if (!adv) continue;
+    const os = (adv.carryShare * 0.55) + (adv.bfTgtShare * 0.30) + (adv.thirdDownSnapPct * 0.15);
+    if (os > 0) scores.push(os);
+  }
+
+  if (scores.length < 15) {
+    // Not enough data — fall back to static thresholds calibrated to 2024 season
+    _bosBreaks = { p90: 55, p75: 40, p50: 25, p30: 15, n: scores.length, dynamic: false };
+    return _bosBreaks;
+  }
+
+  scores.sort((a, b) => a - b);
+  const n = scores.length;
+  const pct = p => scores[Math.min(Math.floor(n * p), n - 1)];
+  _bosBreaks = {
+    p90: +pct(0.90).toFixed(1), // top 10%  → WORKHORSE
+    p75: +pct(0.75).toFixed(1), // top 25%  → FEATURED
+    p50: +pct(0.50).toFixed(1), // top 50%  → COMMITTEE
+    p30: +pct(0.30).toFixed(1), // bottom 30% → ROTATIONAL / DEPTH
+    n, dynamic: true,
+  };
+  return _bosBreaks;
+}
+
 function _rbBackfieldOpportunity(pid) {
   const sp = sleeperPlayers[pid];
   const fc = fcPlayerMap[pid];
@@ -11204,14 +11251,19 @@ function _rbBackfieldOpportunity(pid) {
   const primaryThreat = competitors
     .filter(c => c.dcRank < myDcRank).reduce((s, c) => s + c.threatScore, 0);
 
+  // ── Percentile-based ownership tiers ────────────────────────────────────
+  const breaks = _bosGetBreaks();
+
   // ── Projection multiplier ── ±6% max, four independent levers ──────────
-  // 1. Ownership tier
-  const ownAdj  = ownershipScore >= 55 ? 0.04 : ownershipScore >= 38 ? 0.02
-                : ownershipScore >= 18 ? 0.00 : -0.02;
-  // 2. Primary threat (players ranked ahead)
+  // 1. Ownership tier (percentile-driven)
+  const ownAdj  = ownershipScore >= breaks.p90 ? 0.04
+                : ownershipScore >= breaks.p75 ? 0.02
+                : ownershipScore >= breaks.p50 ? 0.00
+                : -0.02;
+  // 2. Primary threat (players ranked ahead on depth chart)
   const thrAdj  = primaryThreat >= 50 ? -0.04 : primaryThreat >= 30 ? -0.02
                 : primaryThreat >= 15 ? -0.01 : 0.00;
-  // 3. Competition delta (departed vs. new)
+  // 3. Competition delta (departed vs. new arrivals)
   const dltAdj  = compDelta >= 20 ? 0.02 : compDelta >= 10 ? 0.01
                 : compDelta <= -20 ? -0.02 : compDelta <= -10 ? -0.01 : 0.00;
   // 4. Team run rate (BAL/BUF type teams generate more carries for featured back)
@@ -11220,7 +11272,7 @@ function _rbBackfieldOpportunity(pid) {
   const projMultiplier = Math.round(
     Math.max(0.94, Math.min(1.06, 1 + ownAdj + thrAdj + dltAdj + runAdj)) * 1000) / 1000;
 
-  // ── Label ───────────────────────────────────────────────────────────────
+  // ── Label (percentile-based ownership tiers) ─────────────────────────────
   let label, color;
   if (switchedTeams && myDcRank === 1 && primaryThreat <= 30) {
     label = 'NEW STARTER'; color = 'var(--accent)';
@@ -11228,15 +11280,15 @@ function _rbBackfieldOpportunity(pid) {
     label = 'NEW ARRIVAL';  color = '#facc15';
   } else if (!myAdv && myDcRank <= 2 && compDelta >= 0) {
     label = 'NEW STARTER'; color = 'var(--accent)';
-  } else if (ownershipScore >= 55 && primaryThreat <= 20) {
+  } else if (ownershipScore >= breaks.p90 && primaryThreat <= 20) {
     label = 'WORKHORSE';   color = 'var(--green)';
-  } else if (ownershipScore >= 38 && primaryThreat <= 30) {
+  } else if (ownershipScore >= breaks.p75 && primaryThreat <= 30) {
     label = 'FEATURED';    color = '#86efac';
-  } else if (compDelta >= 18 && ownershipScore < 35) {
+  } else if (compDelta >= 18 && ownershipScore < breaks.p50) {
     label = 'EMERGING';    color = 'var(--blue)';
   } else if (primaryThreat > 45) {
     label = 'THREATENED';  color = 'var(--orange)';
-  } else if (ownershipScore >= 18) {
+  } else if (ownershipScore >= breaks.p50) {
     label = 'COMMITTEE';   color = '#facc15';
   } else if (myDcRank >= 3) {
     label = 'DEPTH BACK';  color = 'rgba(255,255,255,0.3)';
@@ -11245,7 +11297,7 @@ function _rbBackfieldOpportunity(pid) {
   }
 
   return {
-    label, color, switchedTeams,
+    label, color, switchedTeams, breaks,
     ownershipScore: Math.round(ownershipScore * 10) / 10,
     totalThreat:    Math.round(totalThreat    * 10) / 10,
     compDelta, primaryThreat: Math.round(primaryThreat * 10) / 10,
