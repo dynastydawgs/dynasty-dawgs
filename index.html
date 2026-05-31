@@ -5597,26 +5597,50 @@ async function loadPlayerProfile(pid) {
             ${_dcInj26 ? `<span class="pp-proj-stat">${_dcInj26}</span>` : ''}
           </div>
         </div>
-        <div class="pp-outcome ${_toGradeClass(_curOffScore)}">
+        ${(() => {
+          // Projected base offense: bottom-third teams regress toward avg; top/mid stay stable.
+          const NFL_AVG_RUSH  = 26.0;
+          const TOP_RUSH      = 29.5;
+          const _tsTier       = _curOffRank === null ? 'mid'
+                              : _curOffRank <= 11 ? 'top' : _curOffRank <= 21 ? 'mid' : 'bot';
+          const _projRushBase = _tsTier === 'bot'
+            ? +(((_curTeamRushPg + NFL_AVG_RUSH) / 2).toFixed(1))
+            : _tsTier === 'top' ? _curTeamRushPg
+            : +(_curTeamRushPg.toFixed(1));
+          const _projRushBull = _tsTier === 'bot' ? TOP_RUSH
+                              : _tsTier === 'mid' ? TOP_RUSH
+                              : +(_curTeamRushPg * 1.04).toFixed(1);
+          const _projRushBear = _tsTier === 'bot' ? _curTeamRushPg
+                              : _tsTier === 'mid' ? +(_curTeamRushPg * 0.94).toFixed(1)
+                              : +(((_curTeamRushPg + NFL_AVG_RUSH) / 2).toFixed(1));
+          const _projVolBase  = mkTeamCls(_projRushBase, 'rushAttPg', ['Run-Heavy','Run-Leaning','Balanced','Pass-Leaning']);
+          const _tierLabel    = _tsTier === 'bot' ? 'Bottom third' : _tsTier === 'mid' ? 'Middle third' : 'Top third';
+          const _baseScenario = _tsTier === 'bot' ? 'Expects regression to avg rush volume.'
+                              : _tsTier === 'mid' ? 'Stable — small variance expected.'
+                              : 'Elite offense — projects to maintain run volume.';
+          const _offProjScore = _tsTier === 'bot' ? Math.max(30, _curOffScore + 15)
+                              : _tsTier === 'top' ? _curOffScore : _curOffScore;
+          return `
+        <div class="pp-outcome ${_toGradeClass(_offProjScore)}">
           <div class="pp-outcome-label">2026 Offense</div>
           <div class="pp-outcome-pts" style="color:${_curOffRatCls.color};">${_curOffRank !== null ? `#${_curOffRank}` : '—'}<span style="font-size:12px;color:var(--text-dim);">/32</span></div>
-          <div class="pp-outcome-desc">${_curTeamCtxStr}. Ranked #${_curOffRank ?? '?'} in NFL.</div>
+          <div class="pp-outcome-desc">${_tierLabel} offense. ${_baseScenario}</div>
           <div class="pp-proj-stats">
             <span class="pp-proj-stat">${_curOffRatCls.label}</span>
-            <span class="pp-proj-stat">${_curTeamRushPg.toFixed(1)} rush att/g</span>
-            ${_curRunRate !== null ? `<span class="pp-proj-stat">${_curRunRate}% run rate</span>` : ''}
+            <span class="pp-proj-stat">Bear ${_projRushBear}/Base ${_projRushBase}/Bull ${_projRushBull} att/g</span>
           </div>
         </div>
         <div class="pp-outcome ${_toGradeClass(_curVolScore)}">
           <div class="pp-outcome-label">2026 Volume</div>
-          <div class="pp-outcome-pts" style="color:${_curVolClass.color};">${_curVolClass.label.split('-')[0]}</div>
-          <div class="pp-outcome-desc">${nflTeam} runs ${_curTeamRushPg.toFixed(1)} att/g — ${_curVolClass.label.toLowerCase()} scheme.</div>
+          <div class="pp-outcome-pts" style="color:${_projVolBase.color};">${_projVolBase.label.split('-')[0]}</div>
+          <div class="pp-outcome-desc">Proj base: ${_projRushBase} att/g — ${_projVolBase.label.toLowerCase()} scheme.</div>
           <div class="pp-proj-stats">
-            <span class="pp-proj-stat">${_curTeamRushPg.toFixed(1)} rush att/g</span>
-            ${_curPassAttPg !== null ? `<span class="pp-proj-stat">${_curPassAttPg} pass att/g</span>` : ''}
+            <span class="pp-proj-stat">Base ${_projRushBase} att/g</span>
+            <span class="pp-proj-stat">Bull ${_projRushBull} att/g</span>
             ${_curTeamYpc !== null ? `<span class="pp-proj-stat">${_curTeamYpc} team YPC</span>` : ''}
           </div>
-        </div>
+        </div>`;
+        })()}
       </div>`;
 
     const _gradeCirclesHTML = `
@@ -5797,6 +5821,47 @@ async function loadPlayerProfile(pid) {
         ${_scorecardHTML2026}
         ${_bosCardHTML}
         ${_effImpactCardHTML}
+        ${(() => {
+          if (!_curOffRank) return '';
+          const NFL_AVG_RUSH = 26.0;
+          const TOP_RUSH     = 29.5;
+          const _tsTier      = _curOffRank <= 11 ? 'top' : _curOffRank <= 21 ? 'mid' : 'bot';
+          const _projRushBase = _tsTier === 'bot' ? +(((_curTeamRushPg + NFL_AVG_RUSH) / 2).toFixed(1))
+                              : _curTeamRushPg;
+          const _projRushBull = _tsTier === 'bot' || _tsTier === 'mid' ? TOP_RUSH : +(_curTeamRushPg * 1.04).toFixed(1);
+          const _projRushBear = _tsTier === 'bot' ? _curTeamRushPg
+                              : _tsTier === 'mid' ? +(_curTeamRushPg * 0.94).toFixed(1)
+                              : +(((_curTeamRushPg + NFL_AVG_RUSH) / 2).toFixed(1));
+          const _tierLbl   = _tsTier === 'bot' ? 'Bottom-Third Offense' : _tsTier === 'mid' ? 'Mid-Tier Offense' : 'Elite Offense';
+          const _baseDesc  = _tsTier === 'bot' ? `Bottom-third offenses tend to add rush volume — base projects ${_projRushBase} att/g (regression to avg).`
+                           : _tsTier === 'mid' ? `Mid-tier offense — stable. Base projects ${_projRushBase} att/g.`
+                           : `Elite offense — projects to maintain ${_projRushBase} att/g run volume.`;
+          const _bdrCol    = _tsTier === 'bot' ? 'var(--green)' : _tsTier === 'top' ? 'var(--accent)' : 'var(--border)';
+          const _baseAdj   = _tsTier === 'bot' ? '+4%' : '0%';
+          const _bullAdj   = _tsTier === 'bot' ? '+9%' : _tsTier === 'mid' ? '+5%' : '+3%';
+          const _bearAdj   = '−4%';
+          return `
+        <div style="margin:12px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">Team Situation 2026</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-left:2px solid ${_bdrCol};border-radius:var(--radius);padding:12px 16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div>
+              <div style="font-family:var(--display);font-size:18px;color:${_bdrCol};line-height:1;">${_tierLbl}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${_baseDesc}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;margin-left:12px;">
+              <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:2px;">OFF RANK</div>
+              <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${_curOffRatCls.color};">#${_curOffRank}<span style="font-size:9px;color:var(--text-dim);">/32</span></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;font-family:var(--mono);font-size:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:7px;">
+            <span style="color:var(--red);">Bear ${_bearAdj} · ${_projRushBear} att/g</span>
+            <span style="color:var(--text-dim);">·</span>
+            <span style="color:${_tsTier === 'bot' ? 'var(--green)' : 'var(--text-muted)'};">Base ${_baseAdj} · ${_projRushBase} att/g</span>
+            <span style="color:var(--text-dim);">·</span>
+            <span style="color:var(--green);">Bull ${_bullAdj} · ${_projRushBull} att/g</span>
+          </div>
+        </div>`;
+        })()}
       </div>`;
 
     const noDataCard = label => `
@@ -9588,6 +9653,40 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       ceilPpr   = Math.round(fullStarterMedian * (12 / typGames));
     }
 
+    // ── Team Situation Adjustment ─────────────────────────────────────────────
+    // Bottom-third offenses are likely to regress toward the mean (more rush att/g),
+    // benefiting the featured back. Top-third offenses are stable. Middle is neutral.
+    // Each tier has different bear/base/bull scenario multipliers applied directly to
+    // floor/median/ceiling so the three projection cards reflect the team context.
+    {
+      const _tsSp    = sleeperPlayers[pid] ?? {};
+      const _tsTeam  = _tsSp.team ?? null;
+      const _tsCur   = teamDB?.[_tsTeam] ?? null;
+      const _tsRank  = (() => {
+        if (!_tsCur?.offRating) return null;
+        const _sorted = Object.values(teamDB ?? {})
+          .filter(v => v?.offRating != null)
+          .map(v => v.offRating)
+          .sort((a, b) => b - a);
+        const _idx = _sorted.indexOf(_tsCur.offRating);
+        return _idx >= 0 ? _idx + 1 : null;
+      })();
+      if (_tsRank !== null && (sleeperPlayers[pid]?.position ?? pos) === 'RB') {
+        // Tier: top=1-11, mid=12-21, bot=22-32
+        const _tsTier = _tsRank <= 11 ? 'top' : _tsRank <= 21 ? 'mid' : 'bot';
+        // Bear always assumes offense declines or stays bad; base/bull differ by tier.
+        const _tsBearM = 0.96;
+        const _tsBaseM = _tsTier === 'bot' ? 1.04 : 1.00;
+        const _tsBullM = _tsTier === 'bot' ? 1.09 : _tsTier === 'mid' ? 1.05 : 1.03;
+        floorPpr  = Math.round(floorPpr  * _tsBearM);
+        medianPpr = Math.round(medianPpr * _tsBaseM);
+        ceilPpr   = Math.round(ceilPpr   * _tsBullM);
+        // Re-enforce ordering after separate multipliers
+        floorPpr  = Math.min(floorPpr,  medianPpr - 10);
+        ceilPpr   = Math.max(ceilPpr,   medianPpr + 10);
+      }
+    }
+
     // ── PPG ──
     // Use typGames (17) for display so projected PPG is directly comparable to actual PPG
     // (both normalized to a full 17-game season basis).
@@ -9886,6 +9985,35 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         ${momBox}
         ${surgeBoxHtml}
         ${bosBox}
+        ${(() => {
+          if (!_curOffRank || pos !== 'RB') return '';
+          const NFL_AVG_RUSH = 26.0;
+          const TOP_RUSH     = 29.5;
+          const _tsTier      = _curOffRank <= 11 ? 'top' : _curOffRank <= 21 ? 'mid' : 'bot';
+          const _baseM       = _tsTier === 'bot' ? 1.04 : 1.00;
+          const _bearM       = 0.96;
+          const _bullM       = _tsTier === 'bot' ? 1.09 : _tsTier === 'mid' ? 1.05 : 1.03;
+          const _basePpgImp  = +(parseFloat(mPpg) * (_baseM - 1)).toFixed(1);
+          const _bullPpgImp  = +(parseFloat(mPpg) * (_bullM - 1)).toFixed(1);
+          const _bearPpgImp  = +(parseFloat(mPpg) * (_bearM - 1)).toFixed(1);
+          const _tierLbl     = _tsTier === 'bot' ? 'Bottom-Third Offense' : _tsTier === 'mid' ? 'Mid-Tier Offense' : 'Elite Offense';
+          const _baseStr     = _tsTier === 'bot'
+            ? `Base: regresses to avg (${_basePpgImp >= 0 ? '+' : ''}${_basePpgImp} PPG)`
+            : _tsTier === 'mid' ? `Base: stable (0 PPG)`
+            : `Base: stays elite (0 PPG)`;
+          const _bullStr     = `Bull: top offense (+${_bullPpgImp} PPG)`;
+          const _bearStr     = `Bear: stays weak/declines (${_bearPpgImp} PPG)`;
+          const baseCol      = _tsTier === 'bot' ? 'var(--green)' : 'var(--text-muted)';
+          const baseStr      = _tsTier === 'bot' ? `+${_basePpgImp} PPG` : '±0 PPG';
+          const baseArrow    = _tsTier === 'bot' ? '↑' : '→';
+          return `<div class="pp-factor">
+            <div class="pp-factor-lbl">Team Situation</div>
+            <div class="pp-factor-val" style="color:${baseCol};">${baseStr} ${baseArrow}</div>
+            <div class="pp-factor-sub">${_tierLbl} · #${_curOffRank}/32</div>
+            <div class="pp-factor-sub" style="opacity:0.7;">${_baseStr}</div>
+            <div class="pp-factor-sub" style="opacity:0.55;font-size:8.5px;">${_bullStr} · ${_bearStr}</div>
+          </div>`;
+        })()}
         ${(() => {
           if (!bos || bos.myEffScore == null) return '';
           const score   = Math.round(bos.myEffScore);
