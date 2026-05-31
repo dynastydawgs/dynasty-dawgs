@@ -5732,6 +5732,43 @@ async function loadPlayerProfile(pid) {
         </div>`;
     })();
 
+    // ── Efficiency Impact card (overview tab) ────────────────────────────────
+    const _effImpactCardHTML = (() => {
+      if (_effScore2 == null) return '';
+      const score  = Math.round(_effScore2);
+      const effAdj = _bos?.effAdj ?? (
+        score >= 75 ? 0.02 : score >= 60 ? 0.01 : score <= 25 ? -0.02 : score <= 40 ? -0.01 : 0
+      );
+      const label  = score >= 80 ? 'Efficiency Leader' : score >= 65 ? 'Above Average'
+                   : score >= 45 ? 'Average' : score >= 30 ? 'Below Average' : 'Inefficient';
+      const col    = effAdj > 0 ? 'var(--green)' : effAdj < 0 ? 'var(--red)' : 'var(--text-muted)';
+      const bdrCol = effAdj > 0 ? 'var(--green)' : effAdj < 0 ? 'var(--red)' : 'var(--border)';
+      const adjStr = effAdj === 0 ? 'Neutral — no projection adjustment'
+                   : effAdj > 0  ? `+${Math.round(effAdj * 100)}% to base projection · +${Math.round(effAdj * 100 / 2)}% to Vol &amp; Opp projection`
+                   : `${Math.round(effAdj * 100)}% to base projection · ${Math.round(effAdj * 100 / 2)}% to Vol &amp; Opp projection`;
+      const keyStats = [
+        _ryoeS2   != null && ryoePerAtt  != null ? `RYOE ${ryoePerAtt > 0 ? '+' : ''}${(+ryoePerAtt).toFixed(2)}/att` : null,
+        _succS    != null && successPct   != null ? `Succ ${(+successPct * 100).toFixed(0)}%` : null,
+        _yacS2    != null && yacPerCarry  != null ? `YAC ${(+yacPerCarry).toFixed(1)}/carry` : null,
+        _mtfS     != null && adsMtfPerAtt != null ? `MTF ${(+adsMtfPerAtt).toFixed(2)}/att` : null,
+      ].filter(Boolean).slice(0, 3).join(' · ');
+      return `
+        <div style="margin:12px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">Efficiency Impact</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-left:2px solid ${bdrCol};border-radius:var(--radius);padding:12px 16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div>
+              <div style="font-family:var(--display);font-size:20px;color:${col};line-height:1;">${label}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${adjStr}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:2px;">EFF SCORE</div>
+              <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${col};">${score}<span style="font-size:9px;color:var(--text-dim);">/100</span></div>
+            </div>
+          </div>
+          ${keyStats ? `<div style="font-size:10px;color:var(--text-dim);border-top:1px solid rgba(255,255,255,0.06);padding-top:7px;">${keyStats}</div>` : ''}
+        </div>`;
+    })();
+
     overviewHTML = `
       <div class="pp-workload-section">
         ${_gradeCirclesHTML}
@@ -5740,6 +5777,7 @@ async function loadPlayerProfile(pid) {
         <div style="margin:18px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">2026 Outlook</div>
         ${_scorecardHTML2026}
         ${_bosCardHTML}
+        ${_effImpactCardHTML}
       </div>`;
 
     const noDataCard = label => `
@@ -9827,6 +9865,23 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         ${momBox}
         ${surgeBoxHtml}
         ${bosBox}
+        ${(() => {
+          if (!bos || bos.myEffScore == null) return '';
+          const score   = Math.round(bos.myEffScore);
+          const adj     = bos.effAdj ?? 0;
+          const ppgImp  = +((parseFloat(mPpg) * adj)).toFixed(1);
+          const ppgStr  = ppgImp === 0 ? '±0 PPG' : `${ppgImp > 0 ? '+' : ''}${ppgImp} PPG`;
+          const lbl     = score >= 80 ? 'Efficiency Leader' : score >= 65 ? 'Above Avg Eff.'
+                        : score >= 45 ? 'Avg Efficiency' : score >= 30 ? 'Below Avg Eff.' : 'Inefficient';
+          const col     = adj > 0 ? 'var(--green)' : adj < 0 ? 'var(--red)' : 'var(--text-muted)';
+          const arrow   = adj > 0 ? '↑' : adj < 0 ? '↓' : '→';
+          return `<div class="pp-factor">
+            <div class="pp-factor-lbl">Efficiency Impact</div>
+            <div class="pp-factor-val" style="color:${col};">${ppgStr} ${arrow}</div>
+            <div class="pp-factor-sub">${lbl} · ${score}/100</div>
+            <div class="pp-factor-sub" style="opacity:0.6;font-size:8.5px;">efficient backs earn more touches</div>
+          </div>`;
+        })()}
       </div>
       <div class="pp-model-note">// ${modelNote}</div>`;
 
@@ -11226,26 +11281,25 @@ function _bosQs(val, field) {
   return Math.max(0, 25 - (q1 - val) / (avg - q1) * 25);
 }
 
-// Efficiency composite for any RB — 0 to 100 — using the same weights and benchmarks
-// as _effScore2 in the overview tab (RYOE/att 28% · success% 22% · YAC/carry 20% ·
-// MTF/att 15% · RZ TD rate 3%). Skips YPC/ptsPerTouch which need Sleeper stats.
+// Efficiency composite for any RB — 0 to 100 — mirrors _effScore2 weights.
+// RYOE/att 30% · Success% 25% · YAC/carry 20% · MTF/att 18% · RZ TD rate 3% · YPC 4%.
+// Skips YPC (needs Sleeper stats not advstatsDB); remaining weights are renormalized.
 // Returns null if fewer than 2 metrics are available.
 function _bosEfficiency(name, adv) {
   if (!adv) return null;
-  // ryoePerAtt from global ryoeDB (keyed by player name)
-  const _rNorm    = _bosNorm(name ?? '');
-  const _ryoeKey  = Object.keys(ryoeDB ?? {}).find(k => _bosNorm(k) === _rNorm);
+  const _rNorm     = _bosNorm(name ?? '');
+  const _ryoeKey   = Object.keys(ryoeDB ?? {}).find(k => _bosNorm(k) === _rNorm);
   const ryoePerAtt = _ryoeKey ? (ryoeDB[_ryoeKey]?.ryoePerAtt ?? null) : null;
 
   const parts = [
-    { s: _bosQs(ryoePerAtt,        'ryoePerAtt'),  w: 0.28 },
-    { s: _bosQs(adv.successPct,    'successPct'),  w: 0.22 },
+    { s: _bosQs(ryoePerAtt,        'ryoePerAtt'),  w: 0.30 },
+    { s: _bosQs(adv.successPct,    'successPct'),  w: 0.25 },
     { s: _bosQs(adv.yacPerCarry,   'yacPerCarry'), w: 0.20 },
-    { s: _bosQs(adv.mtfPerAtt,     'mtfPerAtt'),   w: 0.15 },
+    { s: _bosQs(adv.mtfPerAtt,     'mtfPerAtt'),   w: 0.18 },
     { s: _bosQs(adv.rzTdRate,      'rzTdRate'),    w: 0.03 },
   ].filter(p => p.s !== null);
 
-  if (parts.length < 2) return null; // not enough data to be meaningful
+  if (parts.length < 2) return null;
   const wSum = parts.reduce((s, p) => s + p.w, 0);
   return Math.round(parts.reduce((s, p) => s + p.s * p.w, 0) / wSum);
 }
@@ -11650,10 +11704,18 @@ function _rbBackfieldOpportunity(pid) {
       ownershipScore + (departedWorkload * absorptionRate) - workloadLoss + heirTransfer));
   }
 
-  // Personal Vol & Opp delta: how much did their individual opportunity change?
-  // For switchers this is the key signal — compare projected role on new team to their
-  // actual last-season role (even if that was DC2 backup getting 20% of carries).
-  // For returners this reflects absorbed workload and new-threat dilution.
+  // ── Efficiency → Vol & Opp scaling ──────────────────────────────────────
+  // Efficient backs earn trust from coaching staffs and tend to see role growth;
+  // inefficient backs lose carries at the margin. Scale projOwnershipScore by a
+  // small factor so the forward-looking projection reflects this tendency.
+  const effVolMult = myEffScore === null ? 1.0
+                   : myEffScore >= 75 ? 1.04 : myEffScore >= 60 ? 1.02
+                   : myEffScore <= 25 ? 0.94 : myEffScore <= 40 ? 0.97 : 1.0;
+  projOwnershipScore = isNaN(projOwnershipScore)
+    ? projOwnershipScore
+    : Math.min((breaks.p90 ?? 90), projOwnershipScore * effVolMult);
+
+  // Personal Vol & Opp delta
   const volOppDelta = projOwnershipScore - historicalOwnershipScore;
 
   // ── Projection multiplier ── ±7% max, six independent levers ──────────
@@ -11685,9 +11747,14 @@ function _rbBackfieldOpportunity(pid) {
   // 5. Heir apparent: young DC2 behind aging DC1 with proven rookie production
   // 6. Opportunity: proven veteran or weak backfield signals (Cases A + B)
   // (heirAdj and opptyAdj computed above; only one fires at a time by design)
+  // 7. Efficiency: efficient backs earn more carries going forward; inefficient backs lose them.
+  //    Separate from opptyAdj so the efficiency signal is independently visible.
+  const effAdj  = myEffScore === null ? 0
+                : myEffScore >= 75 ? 0.02 : myEffScore >= 60 ? 0.01
+                : myEffScore <= 25 ? -0.02 : myEffScore <= 40 ? -0.01 : 0;
 
   const projMultiplier = Math.round(
-    Math.max(0.93, Math.min(1.07, 1 + ownAdj + thrAdj + dltAdj + runAdj + heirAdj + opptyAdj)) * 1000) / 1000;
+    Math.max(0.93, Math.min(1.07, 1 + ownAdj + thrAdj + dltAdj + runAdj + heirAdj + opptyAdj + effAdj)) * 1000) / 1000;
 
   // ── Label (percentile-based ownership tiers) ─────────────────────────────
   let label, color;
@@ -11737,7 +11804,7 @@ function _rbBackfieldOpportunity(pid) {
 
   return {
     label, color, switchedTeams, breaks,
-    myEffScore, heirAdj, opptyAdj, backfieldWeak,
+    myEffScore, effAdj, heirAdj, opptyAdj, backfieldWeak,
     ownershipScore:         Math.round(ownershipScore         * 10) / 10,
     historicalOwnershipScore: Math.round(historicalOwnershipScore * 10) / 10,
     projOwnershipScore:     isNaN(projOwnershipScore) ? null : Math.round(projOwnershipScore * 10) / 10,
