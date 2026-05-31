@@ -2158,85 +2158,86 @@
   .proto-stat-val { font-family:var(--mono); font-size:13px; color:var(--text); font-weight:600; }
 
   /* ══ MASTER STATS TABLE ══════════════════════════════════════════════════ */
-  .ms-wrapper { max-width: 1440px; margin: 0 auto; padding: 32px 24px 60px; }
-  .ms-header { margin-bottom: 20px; }
+  .ms-wrapper { max-width:1500px; margin:0 auto; padding:28px 20px 60px; }
+  .ms-header { margin-bottom:16px; }
   .ms-kicker { font-family:var(--mono); font-size:9px; letter-spacing:0.2em; color:var(--text-dim); text-transform:uppercase; margin-bottom:4px; }
-  .ms-title  { font-family:var(--display); font-size:30px; letter-spacing:0.06em; color:var(--text); line-height:1; }
-  .ms-subtitle { font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:0.16em; text-transform:uppercase; margin-top:6px; }
-  .ms-controls { display:flex; align-items:center; gap:16px; margin:18px 0 14px; }
+  .ms-title  { font-family:var(--display); font-size:26px; letter-spacing:0.04em; color:var(--text); line-height:1; }
+  .ms-subtitle { font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:0.14em; text-transform:uppercase; margin-top:5px; }
+  .ms-controls { display:flex; align-items:center; gap:16px; margin:14px 0 10px; }
   .ms-search-wrap { position:relative; }
   .ms-search {
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
-    color:var(--text); font-family:var(--mono); font-size:11px; letter-spacing:0.06em;
-    padding:7px 12px 7px 30px; width:210px; outline:none; transition:border-color 0.2s;
+    color:var(--text); font-family:var(--sans); font-size:12px;
+    padding:6px 12px 6px 28px; width:200px; outline:none; transition:border-color 0.2s;
   }
   .ms-search::placeholder { color:var(--text-dim); }
   .ms-search:focus { border-color:var(--border-hover); }
   .ms-search-icon { position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:13px; color:var(--text-dim); pointer-events:none; line-height:1; }
-  .ms-count { font-family:var(--mono); font-size:10px; color:var(--text-dim); letter-spacing:0.12em; }
-  .ms-table-wrap { overflow-x:auto; border-radius:var(--radius-lg); border:1px solid var(--border); background:var(--surface); }
-  .ms-table { width:100%; border-collapse:collapse; font-size:11px; }
-  /* Group header */
+  .ms-count { font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:0.1em; }
+
+  /* Table shell */
+  .ms-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:6px; background:var(--surface); }
+  .ms-table { width:100%; border-collapse:collapse; }
+
+  /* ── Group header row ── */
   .ms-table .ms-group-row th {
-    font-family:var(--mono); font-size:8px; letter-spacing:0.18em; text-transform:uppercase;
-    color:var(--text-dim); padding:9px 10px 4px;
-    background:var(--surface); text-align:center; white-space:nowrap; border-bottom:none;
+    font-family:var(--sans); font-size:10px; font-weight:600;
+    color:var(--text-muted); padding:8px 8px 5px;
+    background:var(--surface); text-align:center; white-space:nowrap;
+    border-bottom:2px solid rgba(100,160,255,0.18);
   }
   .ms-table .ms-group-row th:first-child { text-align:left; }
-  /* Col headers */
+  .ms-grp-div { border-left:1px solid rgba(100,160,255,0.12) !important; }
+
+  /* ── Column header row ── */
   .ms-table .ms-col-row th {
-    font-family:var(--mono); font-size:9px; letter-spacing:0.1em; text-transform:uppercase;
-    color:var(--text-muted); padding:4px 10px 9px;
-    background:var(--surface); border-bottom:1px solid var(--border);
-    white-space:nowrap; cursor:pointer; user-select:none; text-align:right; transition:color 0.15s;
+    font-family:var(--mono); font-size:9px; letter-spacing:0.07em; text-transform:uppercase;
+    color:var(--text-dim); padding:3px 8px 6px; background:var(--surface);
+    white-space:nowrap; cursor:pointer; user-select:none;
+    text-align:right; transition:color 0.15s;
+    border-bottom:1px solid var(--border);
   }
-  .ms-table .ms-col-row th:first-child { text-align:left; min-width:170px; position:sticky; left:0; z-index:2; }
+  .ms-table .ms-col-row th:first-child { text-align:left; min-width:155px; position:sticky; left:0; z-index:2; background:var(--surface); }
   .ms-table .ms-col-row th:hover { color:var(--text); }
   .ms-table .ms-col-row th.ms-sorted { color:var(--accent); }
-  .ms-table .ms-col-row th.ms-sorted-asc::after  { content:' ↑'; }
-  .ms-table .ms-col-row th.ms-sorted-desc::after { content:' ↓'; }
-  .ms-grp-div { border-left:1px solid rgba(100,160,255,0.10) !important; }
-  /* Body rows */
-  .ms-table tbody tr { border-bottom:1px solid rgba(100,160,255,0.07); transition:background 0.12s; }
+  .ms-table .ms-col-row th.ms-sorted-asc::after  { content:' ↑'; font-size:8px; }
+  .ms-table .ms-col-row th.ms-sorted-desc::after { content:' ↓'; font-size:8px; }
+
+  /* ── Body rows ── */
+  .ms-table tbody tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.1s; }
   .ms-table tbody tr:last-child { border-bottom:none; }
-  .ms-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.012); }
-  .ms-table tbody tr:hover { background:rgba(100,160,255,0.045); }
+  .ms-table tbody tr:hover { background:rgba(100,160,255,0.04); }
   .ms-table tbody td {
-    padding:7px 10px; font-family:var(--mono); font-size:11px;
+    padding:4px 8px; font-family:var(--sans); font-size:12px;
     color:var(--text-muted); text-align:right; white-space:nowrap;
   }
   .ms-table tbody td:first-child {
     text-align:left; position:sticky; left:0; z-index:1;
-    background:var(--surface);
+    background:var(--surface); padding:4px 12px 4px 10px;
   }
-  .ms-table tbody tr:nth-child(even) td:first-child { background:#111d2e; }
-  .ms-table tbody tr:hover td:first-child { background:#162338; }
+  .ms-table tbody tr:hover td:first-child { background:#131e2e; }
+
   /* Player cell */
-  .ms-player-cell { display:flex; align-items:center; gap:8px; }
+  .ms-player-cell { display:flex; align-items:center; gap:7px; }
   .ms-thumb {
-    width:28px; height:28px; border-radius:50%; object-fit:cover; object-position:top center;
-    flex-shrink:0; border:1px solid var(--border); background:var(--surface2);
+    width:22px; height:22px; border-radius:50%; object-fit:cover; object-position:top center;
+    flex-shrink:0; border:1px solid rgba(255,255,255,0.08); background:var(--surface2);
   }
-  .ms-pname { font-family:var(--sans); font-size:12px; font-weight:500; color:var(--text); letter-spacing:0; white-space:nowrap; }
-  /* Values — DM Mono regular (400), same face as the original table */
-  .ms-val {
-    display:block; font-family:var(--sans); font-size:15px; font-weight:300;
-    color:var(--text); line-height:1; letter-spacing:0.02em;
-  }
-  td.ms-na .ms-val { color:var(--text-dim); opacity:0.4; }
-  /* Percentile rank — small colored number below value */
-  .ms-pct-rank {
-    display:block; font-family:var(--mono); font-size:9px; font-weight:600;
-    margin-top:3px; letter-spacing:0.06em; line-height:1; text-align:center;
-  }
-  .ms-pct-rank.ms-elite,
-  .ms-pct-rank.ms-good,
-  .ms-pct-rank.ms-avg,
-  .ms-pct-rank.ms-below,
-  .ms-pct-rank.ms-poor  { color:var(--blue); opacity:0.7; }
-  .ms-pct-rank.ms-na    { display:none; }
-  /* Two-line rows need a touch more padding */
-  .ms-table tbody td { padding:8px 10px; }
+  .ms-pname { font-family:var(--sans); font-size:12px; font-weight:500; color:var(--text); white-space:nowrap; }
+
+  /* Value — single clean line */
+  .ms-val { font-family:var(--sans); font-size:12px; font-weight:400; color:var(--text-muted); }
+  td.ms-na .ms-val { opacity:0.3; }
+
+  /* Percentile cell background highlights — replaces the sub-rank number */
+  td.ms-hl-hi     { background:rgba(99,179,237,0.18); }
+  td.ms-hl-hi     .ms-val { color:#93c5fd; font-weight:600; }
+  td.ms-hl-mid-hi { background:rgba(99,179,237,0.07); }
+  td.ms-hl-mid-hi .ms-val { color:var(--text); }
+  td.ms-hl-lo     { background:rgba(245,101,101,0.16); }
+  td.ms-hl-lo     .ms-val { color:#fca5a5; font-weight:500; }
+  td.ms-hl-mid-lo { background:rgba(245,101,101,0.06); }
+  .ms-pct-rank    { display:none; }
 
   /* ── Team Blueprint ──────────────────────────────────────────────────────── */
   .bp-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; display:flex; flex-direction:column; gap:14px; }
@@ -10917,13 +10918,16 @@ function _msRender() {
         const v = row[col.field];
         return `<td class="${gd}"><span class="ms-val" style="font-size:13px;">${v != null ? _msFmt(v, col.fmt) : '—'}</span></td>`;
       }
-      // Value in plain white; color lives only on the small rank number below
+      // Background highlight based on percentile — no sub-rank number
       const pct = row._pct[col.id];
-      const cls = _msPctClass(pct);
-      const rank = pct != null ? Math.round(pct) : null;
-      const rankLabel = rank != null ? `<span class="ms-pct-rank ${cls}">${rank}</span>` : '';
-      const tdCls = (gd + (cls === 'ms-na' ? ' ms-na' : '')).trim();
-      return `<td class="${tdCls}"><span class="ms-val">${_msFmt(row[col.field], col.fmt)}</span>${rankLabel}</td>`;
+      const hlCls = pct == null  ? 'ms-na'
+                  : pct >= 85   ? 'ms-hl-hi'
+                  : pct >= 65   ? 'ms-hl-mid-hi'
+                  : pct <= 15   ? 'ms-hl-lo'
+                  : pct <= 35   ? 'ms-hl-mid-lo'
+                  : '';
+      const tdCls = [gd, hlCls].filter(Boolean).join(' ');
+      return `<td class="${tdCls}"><span class="ms-val">${_msFmt(row[col.field], col.fmt)}</span></td>`;
     }).join('');
 
     return `<tr>${cells}</tr>`;
