@@ -11307,7 +11307,7 @@ function _rbBackfieldOpportunity(pid) {
     const cWasHereLast = statTeamDB?.[cPid ?? ''] === team;
     const cRound    = cSp?.draft_round ?? cSp?.college_draft_round ?? null;
     const cInfRound = !cRound
-      ? (cVal >= 4000 ? 1 : cVal >= 2000 ? 2 : cVal >= 1000 ? 3 : cVal >= 500 ? 4 : cVal >= 200 ? 5 : null)
+      ? (cVal >= 5000 ? 1 : cVal >= 3000 ? 2 : cVal >= 1500 ? 3 : cVal >= 700 ? 4 : cVal >= 300 ? 5 : cVal >= 100 ? 6 : null)
       : null;
 
     // Career-stage decay — RBs fall off faster than other positions.
@@ -11346,7 +11346,7 @@ function _rbBackfieldOpportunity(pid) {
       // Round value encodes talent + youth — no freshMult/talentMult on top.
       // Weak-backfield vacuum bonus: +15% when no proven workhorse exists on this team.
       const roundBase  = _bosRoundThreat(cRound ?? cInfRound ?? null);
-      const ctxBonus   = noProvenWorkhorse ? 1.15 : 1.0;
+      const ctxBonus   = noProvenWorkhorse ? 1.10 : 1.0;
       effWorkload      = roundBase * ctxBonus;
       threatScore      = Math.round(effWorkload * stageMult * effMult * 10) / 10;
     } else if (useHalfProven) {
