@@ -5633,14 +5633,14 @@ async function loadPlayerProfile(pid) {
         return ` (${tier} of ${b.n} RBs)`;
       })();
       const _projDelta = _bos.projOwnershipScore - _bos.ownershipScore;
-      const _projStr   = !_bos.switchedTeams && Math.abs(_projDelta) >= 3
-        ? ` · proj <span style="color:${_projDelta > 0 ? 'var(--green)' : 'var(--red)'};">${_bos.projOwnershipScore.toFixed(0)}% ${_projDelta > 0 ? '↑' : '↓'}</span> this season`
-        : '';
+      const _projCol   = _projDelta >= 3 ? 'var(--green)' : _projDelta <= -3 ? 'var(--red)' : 'var(--text-muted)';
+      const _projArrow = _projDelta >= 3 ? ' ↑' : _projDelta <= -3 ? ' ↓' : '';
+      const _projStr   = ` Projecting <span style="color:${_projCol};font-weight:600;">${_bos.projOwnershipScore.toFixed(0)}%${_projArrow}</span> this season.`;
       const _ownStr   = _bos.switchedTeams
         ? `New team — projecting <strong>${_bos.projOwnershipScore.toFixed(0)}%</strong> Vol &amp; Opp based on DC${_bos.dcRank} role &amp; competition.`
         : _bos.ownershipScore > 0
-          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}${_projStr}.`
-          : 'No last-season workload data — new role or first-year player.';
+          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.${_projStr}`
+          : `No last-season workload data.${_projStr}`;
 
       const _deltaStr = _bos.switchedTeams
         ? (_bos.volOppDelta >= 12
