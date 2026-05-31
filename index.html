@@ -4620,7 +4620,7 @@ async function loadPlayerProfile(pid) {
 
   // NFL draft capital — start with Sleeper data, fill gaps from ESPN
   let draftYear  = sp?.draft_year  ?? null;
-  let draftRound = sp?.draft_round ?? null;
+  let draftRound = sp?.draft_round ?? _draftRoundCache[String(pid)] ?? null;
   let draftPick  = sp?.draft_pick  ?? null;
   const nflTeam  = sp?.team        ?? null;
 
@@ -4650,6 +4650,8 @@ async function loadPlayerProfile(pid) {
       draftPick  = espn.selection ?? null;
       if (espn.year) draftYear = espn.year;
     }
+    // Cache resolved round so BOS can use it without re-fetching
+    if (draftRound) _draftRoundCache[String(pid)] = draftRound;
   }
 
   // Human-readable draft capital label
@@ -7893,6 +7895,7 @@ let dbBuilding  = null;
 // computeBaseProjection() runs cold for the league tab. Persisted to localStorage so numbers
 // survive page refreshes without requiring any profile to be opened.
 const projectionCache = {}; // pid → {floorPpr, medianPpr, ceilPpr, floorPpg, basePpg, bullPpg, pos}
+const _draftRoundCache = {}; // pid → round (int) — populated on profile load from ESPN fetch, used by BOS
 
 // § 14e  DB persistence — save/load compDB + careerDB + projection cache to localStorage
 function saveDB() {
@@ -11305,7 +11308,8 @@ function _rbBackfieldOpportunity(pid) {
                     : cAge <= 27 ? 1.0 : cAge <= 29 ? 0.85 : 0.65;
 
     const cWasHereLast = statTeamDB?.[cPid ?? ''] === team;
-    const cRound    = cSp?.draft_round ?? cSp?.college_draft_round ?? null;
+    const cRound    = cSp?.draft_round ?? cSp?.college_draft_round
+                    ?? (cPid ? _draftRoundCache[String(cPid)] : null) ?? null;
     const cInfRound = !cRound
       ? (cVal >= 5000 ? 1 : cVal >= 3000 ? 2 : cVal >= 1500 ? 3 : cVal >= 700 ? 4 : cVal >= 300 ? 5 : cVal >= 100 ? 6 : null)
       : null;
