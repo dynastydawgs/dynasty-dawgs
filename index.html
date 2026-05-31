@@ -12222,8 +12222,8 @@ function _bpWindowDesc(phase) {
 }
 
 // Pentagon radar SVG — 5 axes: QB, WR, RB, TE, Picks
-function _bpRadarSVG(scores) {
-  // scores: { QB:0-100, WR:0-100, RB:0-100, TE:0-100, Picks:0-100 }
+// valueScores = dynasty value ranks (pink), prodScores = production ranks (teal, optional)
+function _bpRadarSVG(valueScores, prodScores) {
   const cx = 90, cy = 90, r = 70;
   const axes = ['QB','WR','RB','TE','Picks'];
   const N = axes.length;
@@ -12232,32 +12232,39 @@ function _bpRadarSVG(scores) {
     const d = (val / 100) * r;
     return { x: cx + d * Math.cos(angle), y: cy + d * Math.sin(angle) };
   };
-  const outerPts = axes.map((_, i) => toXY(100, i));
-  const innerPts = axes.map((ax, i) => toXY(scores[ax] ?? 50, i));
-  const outerStr = outerPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const innerStr = innerPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const outerPts  = axes.map((_, i) => toXY(100, i));
+  const valuePts  = axes.map((ax, i) => toXY(valueScores[ax] ?? 50, i));
+  const prodPts   = prodScores ? axes.map((ax, i) => toXY(prodScores[ax] ?? 50, i)) : null;
+  const outerStr  = outerPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const valueStr  = valuePts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const prodStr   = prodPts  ? prodPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') : null;
 
-  // Grid rings at 25, 50, 75, 100
   const rings = [25, 50, 75, 100].map(pct => {
     const pts = axes.map((_, i) => toXY(pct, i));
     return `<polygon points="${pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>`;
   }).join('');
-
-  // Spoke lines
   const spokes = outerPts.map(p => `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>`).join('');
-
-  // Axis labels
   const labels = axes.map((ax, i) => {
     const lp = toXY(120, i);
     const textAnchor = lp.x < cx - 5 ? 'end' : lp.x > cx + 5 ? 'start' : 'middle';
     return `<text x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}" text-anchor="${textAnchor}" dominant-baseline="middle" font-family="monospace" font-size="9" fill="rgba(255,255,255,0.45)" letter-spacing="0.06em">${ax}</text>`;
   }).join('');
 
-  return `<svg viewBox="0 0 180 180" width="160" height="160" style="overflow:visible;">
+  // Legend
+  const legend = prodStr ? `
+    <g transform="translate(4,170)">
+      <rect x="0" y="0" width="7" height="7" rx="1" fill="rgba(251,113,133,0.5)" stroke="#fb7185" stroke-width="0.8"/>
+      <text x="10" y="6" font-family="monospace" font-size="7" fill="rgba(255,255,255,0.45)">VALUE</text>
+      <rect x="44" y="0" width="7" height="7" rx="1" fill="rgba(45,212,168,0.35)" stroke="#2dd4bf" stroke-width="0.8"/>
+      <text x="54" y="6" font-family="monospace" font-size="7" fill="rgba(255,255,255,0.45)">PRODUCTION</text>
+    </g>` : '';
+
+  return `<svg viewBox="0 0 180 180" width="160" height="170" style="overflow:visible;">
     ${rings}${spokes}
     <polygon points="${outerStr}" fill="rgba(251,113,133,0.04)" stroke="rgba(251,113,133,0.2)" stroke-width="1"/>
-    <polygon class="bp-radar-poly" points="${innerStr}" fill="rgba(251,113,133,0.22)" stroke="#fb7185" stroke-width="1.5"/>
-    ${labels}
+    ${prodStr ? `<polygon points="${prodStr}" fill="rgba(45,212,168,0.18)" stroke="#2dd4bf" stroke-width="1.5" stroke-dasharray="3,2"/>` : ''}
+    <polygon class="bp-radar-poly" points="${valueStr}" fill="rgba(251,113,133,0.18)" stroke="#fb7185" stroke-width="1.5"/>
+    ${labels}${legend}
   </svg>`;
 }
 
@@ -12424,8 +12431,21 @@ function _bpRosterProfiles(rosterId) {
 
     const yearsExp = sp?.years_exp ?? null;
     const label = _bpClassifyPlayer(fc, age, classifyPpg, isStarter, yearsExp, posAvgPpg);
+
+    // Previous season label — use second-to-last careerDB season
+    const prevSznData   = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4).at(-2);
+    const prevRawPpg    = prevSznData ? +(prevSznData.ppr / prevSznData.games).toFixed(1) : null;
+    const prevTep       = (fc.position === 'TE' && activeTepBonus > 0 && prevRawPpg != null)
+                          ? +(prevRawPpg * 0.365 * activeTepBonus).toFixed(1) : 0;
+    const prevClassPpg  = prevRawPpg != null ? prevRawPpg + prevTep : null;
+    const prevYExp      = yearsExp != null ? Math.max(0, yearsExp - 1) : null;
+    const prevAge       = age != null ? age - 1 : null;
+    const prevLabel     = prevClassPpg != null && prevYExp != null
+                          ? _bpClassifyPlayer(fc, prevAge, prevClassPpg, isStarter, prevYExp, posAvgPpg)
+                          : null;
+
     const entry = { pid, name:fc.name, pos:fc.position, age, val, oRank,
-                    posRank:fc.positionRank ?? null, basePpg, isStarter, label };
+                    posRank:fc.positionRank ?? null, basePpg, classifyPpg, isStarter, label, prevLabel };
     (isStarter ? starters : bench).push(entry);
   }
 
@@ -12537,6 +12557,90 @@ function _bpShapeScores(rosterId, teamRow, allTeams, total, isSF) {
   const balanceScore = Math.round((1 - (balanceRank - 1) / Math.max(total - 1, 1)) * 100);
 
   return { Youth: youthScore, Depth: depthScore, Capital: capitalScore, Upside: upsideScore, Balance: balanceScore };
+}
+
+// ── Positional Slot Map ───────────────────────────────────────────────────────
+// Computes per-slot actual + projected PPG vs league average.
+// Slots: QB1, RB1, RB2, WR1, WR2, WR3, TE1 (plus any extra starters)
+function _bpSlotMap(rosterId, allTeams) {
+  const getActualPpg = (pid, pos) => {
+    const lastSzn = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4).at(-1);
+    if (!lastSzn) return null;
+    let ppg = +(lastSzn.ppr / lastSzn.games).toFixed(1);
+    if (pos === 'TE' && activeTepBonus > 0) ppg = +(ppg + ppg * 0.365 * activeTepBonus).toFixed(1);
+    return ppg;
+  };
+
+  const getTeamSlots = (rid) => {
+    const tProj = leagueProjData.find(t => t.roster_id === rid);
+    if (!tProj) return {};
+    const starters = (tProj.players ?? []).filter(p => tProj.starterPids?.has(p.pid));
+    const byPos = { QB:[], RB:[], WR:[], TE:[] };
+    for (const p of starters) { if (byPos[p.pos]) byPos[p.pos].push(p); }
+    for (const pos of Object.keys(byPos)) byPos[pos].sort((a,b) => (b.basePpg??0) - (a.basePpg??0));
+    const slots = {};
+    for (const pos of ['QB','RB','WR','TE']) {
+      byPos[pos].forEach((p, i) => { slots[`${pos}${i+1}`] = { pid:p.pid, pos, proj:p.basePpg??0 }; });
+    }
+    return slots;
+  };
+
+  // League averages per slot
+  const leagueAgg = {};
+  for (const t of allTeams) {
+    for (const [slot, d] of Object.entries(getTeamSlots(t.roster_id))) {
+      if (!leagueAgg[slot]) leagueAgg[slot] = { projS:0, projN:0, actS:0, actN:0 };
+      leagueAgg[slot].projS += d.proj; leagueAgg[slot].projN++;
+      const act = getActualPpg(d.pid, d.pos);
+      if (act != null) { leagueAgg[slot].actS += act; leagueAgg[slot].actN++; }
+    }
+  }
+  const leagueAvg = {};
+  for (const [slot, d] of Object.entries(leagueAgg)) {
+    leagueAvg[slot] = {
+      proj: d.projN ? +(d.projS / d.projN).toFixed(1) : null,
+      act:  d.actN  ? +(d.actS  / d.actN ).toFixed(1) : null,
+    };
+  }
+
+  // My slots with gaps
+  const mySlots = getTeamSlots(rosterId);
+  const result  = {};
+  for (const [slot, d] of Object.entries(mySlots)) {
+    const act     = getActualPpg(d.pid, d.pos);
+    const avgProj = leagueAvg[slot]?.proj ?? null;
+    const avgAct  = leagueAvg[slot]?.act  ?? null;
+    const fc = fcPlayerMap[d.pid];
+    result[slot] = {
+      pid: d.pid,
+      name: fc?.name ?? '—',
+      pos: d.pos,
+      proj: d.proj,
+      act,
+      avgProj,
+      avgAct,
+      gapProj: (d.proj != null && avgProj != null) ? +(d.proj - avgProj).toFixed(1) : null,
+      gapAct:  (act   != null && avgAct  != null) ? +(act   - avgAct ).toFixed(1) : null,
+    };
+  }
+
+  // Production scores per position (0-100, for radar)
+  // Score = how this team's avg projected PPG at each position ranks vs all teams
+  const prodScores = {};
+  for (const pos of ['QB','RB','WR','TE']) {
+    const mySlotKeys = Object.keys(mySlots).filter(s => s.startsWith(pos));
+    const myAvg = mySlotKeys.length
+      ? mySlotKeys.reduce((s,k) => s + (mySlots[k]?.proj??0), 0) / mySlotKeys.length : 0;
+    const allAvgs = allTeams.map(t => {
+      const ts = getTeamSlots(t.roster_id);
+      const keys = Object.keys(ts).filter(s => s.startsWith(pos));
+      return keys.length ? keys.reduce((s,k) => s + (ts[k]?.proj??0), 0) / keys.length : 0;
+    }).filter(v => v > 0).sort((a,b) => b - a);
+    const rank = allAvgs.filter(v => v > myAvg).length + 1;
+    prodScores[pos] = Math.round((1 - (rank - 1) / Math.max(allTeams.length - 1, 1)) * 100);
+  }
+
+  return { slots: result, leagueAvg, prodScores };
 }
 
 // Positional ages: team vs league average, per position
@@ -12885,7 +12989,7 @@ function _bpTradeStrategy(rosterId, allTeams, total) {
   // Phase-aware age ceiling: rebuilding teams target young, contenders target proven
   const targetAgeMax = {
     'WIN NOW': 35, 'CONTENDING': 33, 'RELOAD': 29,
-    'FRINGE': 27, 'AGING OUT': 26, 'REBUILDING': 25,
+    'FRINGE': 27, 'AGING OUT': 26, 'REBUILDING': 26,
   }[phase] ?? 30;
   const targetAgeOk = age => age <= targetAgeMax;
 
@@ -14103,7 +14207,7 @@ function _bpDeadCapital(rosterId, phase) {
     // ── REBUILD SELL SIGNALS: aging starters with no long-term fit ─────────
     // On rebuilding/fringe teams, even starting veterans are trade chips.
     // They're producing but they're 27+ — sell while the value is still high.
-    if (isRebuild && starterPids.has(pid) && age >= 27 && val >= 2500) {
+    if (isRebuild && starterPids.has(pid) && age >= 27) {
       const ageAdjLabel = age >= 30 ? 'aging producer' : 'veteran';
       const pProj = teamProj?.players?.find(p => p.pid === pid);
       const ppgStr = pProj?.basePpg != null ? ` (${pProj.basePpg.toFixed(1)} ppg)` : '';
@@ -14627,6 +14731,10 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     radarScores[ax] = Math.round((1 - (r - 1) / Math.max(total - 1, 1)) * 100);
   }
   radarScores.Picks = Math.round((1 - (pickValueRank - 1) / Math.max(total - 1, 1)) * 100);
+
+  // ── Slot map + production radar scores ───────────────────────────────────
+  const slotMap = _bpSlotMap(rosterId, allTeams);
+  const prodRadarScores = { ...slotMap.prodScores, Picks: radarScores.Picks };
 
   // ── Shape Radar (roster health) ───────────────────────────────────────────
   const shapeScores = _bpShapeScores(rosterId, teamRow, allTeams, total, isSF);
@@ -15154,17 +15262,29 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       .join('');
 
     const renderRow = p => {
-      const lm = _RP_LABELS[p.label] ?? _RP_LABELS['BACKUP'];
-      const pc = posColors[p.pos] ?? 'var(--text-dim)';
+      const lm  = _RP_LABELS[p.label]    ?? _RP_LABELS['BACKUP'];
+      const plm = p.prevLabel ? (_RP_LABELS[p.prevLabel] ?? null) : null;
+      const pc  = posColors[p.pos] ?? 'var(--text-dim)';
       const oRankStr = p.oRank && p.oRank < 999 ? `#${p.oRank}` : '';
-      const ppgStr   = p.basePpg != null ? `${p.basePpg.toFixed(1)} ppg` : '';
+      // Show actual last-season PPG → projected
+      const actStr  = p.classifyPpg != null ? `${p.classifyPpg.toFixed(1)}` : null;
+      const projStr = p.basePpg     != null ? `${p.basePpg.toFixed(1)}`     : null;
+      const ppgStr  = actStr && projStr && Math.abs(p.classifyPpg - p.basePpg) >= 0.5
+        ? `${actStr} → ${projStr} ppg`
+        : (actStr ? `${actStr} ppg` : (projStr ? `${projStr} ppg` : ''));
+      // Transition label: prev → current (only if changed)
+      const labelHTML = (plm && p.prevLabel !== p.label)
+        ? `<span class="bp-rp-label" style="color:${plm.color};background:${plm.bg};border-color:${plm.border};opacity:0.6;">${p.prevLabel}</span>
+           <span style="color:var(--text-dim);font-size:8px;margin:0 1px;">→</span>
+           <span class="bp-rp-label" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${p.label}</span>`
+        : `<span class="bp-rp-label" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${p.label}</span>`;
       const starterDot = p.isStarter ? `<span style="width:4px;height:4px;border-radius:50%;background:rgba(74,222,128,0.6);flex-shrink:0;margin-right:1px;" title="Starter"></span>` : '';
       return `<div class="bp-rp-row">
         <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;">
         ${starterDot}
         <span class="bp-rp-pos" style="color:${pc};">${p.pos}</span>
         <span class="bp-rp-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
-        <span class="bp-rp-label" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${p.label}</span>
+        ${labelHTML}
         ${oRankStr ? `<span class="bp-rp-rank">${oRankStr}</span>` : ''}
         ${ppgStr   ? `<span class="bp-rp-ppg">${ppgStr}</span>`   : ''}
       </div>`;
@@ -15359,7 +15479,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       <div class="bp-row-split">
         <div class="bp-panel bp-panel-radar" style="--bpa:#fb7185;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub">positional league rank</span></div>
-          ${_bpRadarSVG(radarScores)}
+          ${_bpRadarSVG(radarScores, prodRadarScores)}
           <div class="bp-radar-legend">${_radarLegIn}</div>
         </div>
         <div class="bp-panel bp-panel-radar" style="--bpa:#a78bfa;">
