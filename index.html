@@ -5638,37 +5638,43 @@ async function loadPlayerProfile(pid) {
                    : os >= b.p50 ? `top 50%` : `bottom 50%`;
         return ` (${tier} of ${b.n} RBs)`;
       })();
-      const _projVal   = _bos.myProjShare ?? _bos.projOwnershipScore ?? null;
-      const _projDelta = _projVal != null ? _projVal - _bos.ownershipScore : 0;
-      const _projCol   = _projDelta >= 3 ? 'var(--green)' : _projDelta <= -3 ? 'var(--red)' : 'var(--text-muted)';
-      const _projArrow = _projDelta >= 3 ? ' ↑' : _projDelta <= -3 ? ' ↓' : '';
-      const _projStr   = _projVal == null ? '' :
-        ` Projecting <span style="color:${_projCol};font-weight:600;">${_projVal.toFixed(0)}%${_projArrow}</span> of backfield volume this season.`;
-      const _dispShare = (_bos.myProjShare ?? _bos.projOwnershipScore ?? 0).toFixed(0);
-      const _ownStr   = _bos.switchedTeams
-        ? `New team — projecting <strong>${_dispShare}%</strong> of backfield volume based on DC${_bos.dcRank} role &amp; competition.`
-        : _bos.ownershipScore > 0
-          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.${_projStr}`
-          : `No last-season workload data.${_projStr}`;
+      // Projected Vol & Opp grade: scale current composite score by the ratio of
+      // projected ownership to historical ownership. Same 0-100 scale as the grade circles.
+      const _projVolOppRatio = (() => {
+        if (!_bos) return null;
+        const hist = _bos.switchedTeams
+          ? _bos.historicalOwnershipScore : _bos.ownershipScore;
+        if (!hist || hist <= 0) return null;
+        return (_bos.projOwnershipScore ?? hist) / hist;
+      })();
+      const _projVolOppGrade = (_usageScore != null && _projVolOppRatio != null)
+        ? Math.round(Math.min(100, Math.max(0, _usageScore * _projVolOppRatio))) : null;
+      const _projGradeDelta  = _projVolOppGrade != null ? _projVolOppGrade - (_usageScore ?? 0) : 0;
+      const _projGradeCol    = _projGradeDelta >= 4 ? 'var(--green)' : _projGradeDelta <= -4 ? 'var(--red)' : 'var(--text-muted)';
 
+      const _ownStr = _bos.switchedTeams
+        ? `New team — DC${_bos.dcRank} role.${_usageScore != null ? ` Vol &amp; Opp last season: <strong>${Math.round(_usageScore)}</strong>/100.` : ''}`
+        : _bos.ownershipScore > 0
+          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.`
+          : `No last-season workload data.`;
+
+      // Projected Vol & Opp grade string — shown for both switchers and returners.
+      const _projGradeStr = _projVolOppGrade != null
+        ? ` Projected Vol &amp; Opp: <span style="color:${_projGradeCol};font-weight:600;">${Math.round(_usageScore ?? 0)} → ${_projVolOppGrade}</span>${_projGradeDelta !== 0 ? ` (${_projGradeDelta >= 0 ? '+' : ''}${_projGradeDelta} pts)` : ''}.`
+        : '';
       const _deltaStr = _bos.switchedTeams
         ? (_bos.volOppDelta >= 12
-            ? `↑ Personal Vol &amp; Opp up ~${_bos.volOppDelta.toFixed(0)} pts vs last season (${_bos.historicalOwnershipScore.toFixed(0)}% → proj ${_bos.projOwnershipScore.toFixed(0)}%).`
+            ? `↑ Personal opportunity up vs last season.${_projGradeStr}`
            : _bos.volOppDelta <= -12
-            ? `↓ Personal Vol &amp; Opp down ~${Math.abs(_bos.volOppDelta).toFixed(0)} pts vs last season (${_bos.historicalOwnershipScore.toFixed(0)}% → proj ${_bos.projOwnershipScore.toFixed(0)}%).`
-            : `Vol &amp; Opp largely unchanged from last season (${_bos.historicalOwnershipScore.toFixed(0)}% → proj ${_bos.projOwnershipScore.toFixed(0)}%).`)
+            ? `↓ Personal opportunity down vs last season.${_projGradeStr}`
+            : `Role largely unchanged from last season.${_projGradeStr}`)
         : (() => {
             const _cdStr = _bos.compDelta > 5
-              ? `↑ ${_bos.compDelta.toFixed(1)} pts of backfield workload freed up this offseason.`
+              ? `↑ ${_bos.compDelta.toFixed(1)} pts of backfield workload freed up.`
               : _bos.compDelta < -5
-              ? `↓ ${Math.abs(_bos.compDelta).toFixed(1)} pts of new competition added this offseason.`
-              : 'Backfield competition largely unchanged from last season.';
-            // Personal Vol & Opp delta for returners: proj vs last season's ownership
-            const _pDelta = (_bos.projOwnershipScore ?? 0) - _bos.ownershipScore;
-            const _pDeltaStr = Math.abs(_pDelta) >= 2
-              ? ` Personal vol &amp; opp: <strong>${_bos.ownershipScore.toFixed(0)}% → ${(_bos.projOwnershipScore ?? 0).toFixed(0)}%</strong> (${_pDelta >= 0 ? '+' : ''}${_pDelta.toFixed(0)} pts).`
-              : '';
-            return _cdStr + _pDeltaStr;
+              ? `↓ ${Math.abs(_bos.compDelta).toFixed(1)} pts of new competition added.`
+              : 'Backfield competition largely unchanged.';
+            return _cdStr + _projGradeStr;
           })();
 
       // Top competitors (sorted by threat, max 4)
@@ -5680,12 +5686,10 @@ async function loadPlayerProfile(pid) {
         ? _rivals.map(c => {
             const _tag  = c.isRookie ? 'ROOKIE' : c.isNew ? 'NEW' : '';
             const _tagH = _tag ? `<span style="font-family:var(--mono);font-size:7px;padding:1px 4px;border-radius:2px;background:rgba(255,255,255,0.07);color:var(--text-dim);margin-left:4px;">${_tag}</span>` : '';
-            const _tCol = c.threatScore >= 50 ? 'var(--red)' : c.threatScore >= 25 ? 'var(--orange)' : 'var(--text-muted)';
             const _csStr = (c.projShare ?? 0) > 0 ? `${c.projShare.toFixed(0)}%` : '—';
             return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
               <span style="flex:1;font-size:11px;color:var(--text);">${c.name}${_tagH}</span>
               <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);width:52px;text-align:right;">${_csStr}</span>
-              <span style="font-family:var(--mono);font-size:9px;color:${_tCol};width:44px;text-align:right;">${c.threatScore.toFixed(0)} dmg</span>
             </div>`;
           }).join('')
         : `<div style="font-size:11px;color:var(--text-dim);padding:6px 0;">No depth chart rivals found.</div>`;
@@ -5709,15 +5713,13 @@ async function loadPlayerProfile(pid) {
               <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${_multCol};">${_multStr}</div>
             </div>
           </div>
-          ${_bos.myProjShare > 0 ? `<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:4px;">
-            <span style="flex:1;font-size:11px;color:var(--text-muted);font-style:italic;">This player (proj)</span>
-            <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_bos.color};width:52px;text-align:right;">${_bos.myProjShare.toFixed(0)}%</span>
-            <span style="width:44px;"></span>
+          ${_projVolOppGrade != null ? `<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:4px;">
+            <span style="flex:1;font-size:11px;color:var(--text-muted);font-style:italic;">Proj Vol &amp; Opp grade</span>
+            <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_projGradeCol};">${_projVolOppGrade}<span style="font-size:8px;color:var(--text-dim);">/100</span></span>
           </div>` : ''}
           <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:4px;display:flex;gap:6px;">
             <span style="flex:1;">DEPTH CHART RIVALS</span>
             <span style="width:52px;text-align:right;">PROJ VOL</span>
-            <span style="width:44px;text-align:right;" title="Danger score = raw vol × talent/age/freshness multipliers. Higher = bigger role threat to this player.">DANGER</span>
           </div>
           ${_rivalRows}
         </div>`;
@@ -11632,7 +11634,12 @@ function _rbBackfieldOpportunity(pid) {
     const heirTransfer = heirAdj > 0 && primaryThreats.length > 0
       ? (primaryThreats[0].carryShare ?? 0) * 0.30 : 0;
     const projCeiling = breaks.p90 ?? 90;
-    projOwnershipScore = Math.min(projCeiling, Math.max(0,
+    // DC rank floor: an established returner shouldn't project below a minimum
+    // even when many new players arrive. Prevents deep roster adds from inflating
+    // R5/UDFA rookies above the proven incumbent via normalization collapse.
+    const dcRankFloor = myDcRank === 1 ? (breaks.p30 ?? 15) * 0.80
+                      : myDcRank === 2 ? (breaks.p30 ?? 15) * 0.40 : 0;
+    projOwnershipScore = Math.min(projCeiling, Math.max(dcRankFloor,
       ownershipScore + (departedWorkload * absorptionRate) - workloadLoss + heirTransfer));
   }
 
