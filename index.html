@@ -5638,13 +5638,15 @@ async function loadPlayerProfile(pid) {
                    : os >= b.p50 ? `top 50%` : `bottom 50%`;
         return ` (${tier} of ${b.n} RBs)`;
       })();
-      const _projDelta = _bos.projOwnershipScore - _bos.ownershipScore;
+      const _projVal   = _bos.myProjShare ?? _bos.projOwnershipScore ?? null;
+      const _projDelta = _projVal != null ? _projVal - _bos.ownershipScore : 0;
       const _projCol   = _projDelta >= 3 ? 'var(--green)' : _projDelta <= -3 ? 'var(--red)' : 'var(--text-muted)';
       const _projArrow = _projDelta >= 3 ? ' ↑' : _projDelta <= -3 ? ' ↓' : '';
-      const _projStr   = isNaN(_bos.projOwnershipScore) ? '' :
-        ` Projecting <span style="color:${_projCol};font-weight:600;">${_bos.projOwnershipScore.toFixed(0)}%${_projArrow}</span> this season.`;
+      const _projStr   = _projVal == null ? '' :
+        ` Projecting <span style="color:${_projCol};font-weight:600;">${_projVal.toFixed(0)}%${_projArrow}</span> of carries this season.`;
+      const _dispShare = (_bos.myProjShare ?? _bos.projOwnershipScore ?? 0).toFixed(0);
       const _ownStr   = _bos.switchedTeams
-        ? `New team — projecting <strong>${_bos.projOwnershipScore.toFixed(0)}%</strong> Vol &amp; Opp based on DC${_bos.dcRank} role &amp; competition.`
+        ? `New team — projecting <strong>${_dispShare}%</strong> of backfield carries based on DC${_bos.dcRank} role &amp; competition.`
         : _bos.ownershipScore > 0
           ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.${_projStr}`
           : `No last-season workload data.${_projStr}`;
@@ -11646,12 +11648,13 @@ function _rbBackfieldOpportunity(pid) {
     ownershipScore:         Math.round(ownershipScore         * 10) / 10,
     historicalOwnershipScore: Math.round(historicalOwnershipScore * 10) / 10,
     projOwnershipScore:     isNaN(projOwnershipScore) ? null : Math.round(projOwnershipScore * 10) / 10,
-    myProjShare, competitors: normalizedCompetitors,
+    myProjShare,
+    competitors: normalizedCompetitors,
     volOppDelta:            Math.round(volOppDelta            * 10) / 10,
     totalThreat:        Math.round(totalThreat        * 10) / 10,
     compDelta, primaryThreat: Math.round(primaryThreat * 10) / 10,
     runRate, rushAttPg, dcRank: myDcRank,
-    projMultiplier, competitors,
+    projMultiplier,
     departedWorkload: Math.round(departedWorkload * 10) / 10,
   };
 }
