@@ -5399,9 +5399,9 @@ async function loadPlayerProfile(pid) {
     // Vol & Opp composite — rushing opportunity (75%) + receiving opportunity (25%).
     // Receiving is a first-class signal for modern RBs; pass-catching backs earn
     // significant workload through targets and receptions, not just carries.
-    //   Rushing opportunity (75%): carry share 20% · snap% 13% · RZ carry share 10%
+    //   Rushing opportunity (75%): carry share 22% · snap% 14% · RZ carry share 10%
     //                              touch share 5% · 3rd-down snap% 4%
-    //                              rush yds/g 11% · touches/g 7% · RZ carries 5%
+    //                              rush yds/g 11% · touches/g 7% · RZ carries 2%
     //   Receiving opportunity (25%): BF target share 10% · tgt/g 7% · rec/g 5% · rec yds/g 3%
     const _cryS2   = _rbScore(carryPct,         'carryPct');
     const _snpS    = hasSnap ? _rbScore(snapPct, 'snapPct') : null;
@@ -5417,9 +5417,9 @@ async function loadPlayerProfile(pid) {
     const _recPgS2 = _rbScore(recPg,      'recPg');
     const _recYdS  = _rbScore(recYdPg,    'recYdPg');
     const _usageParts = [
-      {s:_cryS2,  w:0.20}, {s:_snpS,   w:0.13}, {s:_rzCSs,  w:0.10},
+      {s:_cryS2,  w:0.22}, {s:_snpS,   w:0.14}, {s:_rzCSs,  w:0.10},
       {s:_tshS2,  w:0.05}, {s:_tdSnpS, w:0.04}, {s:_rushYdS,w:0.11},
-      {s:_tchS2,  w:0.07}, {s:_rzCrS,  w:0.05},
+      {s:_tchS2,  w:0.07}, {s:_rzCrS,  w:0.02},
       {s:_bfTgtS, w:0.10}, {s:_tgtPgS2,w:0.07}, {s:_recPgS2,w:0.05}, {s:_recYdS, w:0.03},
     ].filter(c=>c.s!==null);
     const _usageW    = _usageParts.reduce((a,c)=>a+c.w,0)||1;
