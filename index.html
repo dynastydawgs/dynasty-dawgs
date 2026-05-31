@@ -13592,6 +13592,51 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
   const csSet    = new Set(myPlayers.slice(0,3).map(p => p.pid));
   const tradeable = myPlayers.filter(p => !csSet.has(p.pid) && p.val >= 800);
 
+  // ── Slot map for gap analysis + trade impact check ──────────────────────────
+  const slotMap = _bpSlotMap(rosterId, allTeams);
+
+  // Trade impact check: returns true if trading these pids doesn't wreck a position
+  // For competitive teams (WIN NOW/CONTENDING/RELOAD): don't trade avg → weakness
+  // For rebuilding teams: don't crater total dynasty value
+  const posImpactOk = (tradedPids) => {
+    const isCompetitive = ['WIN NOW','CONTENDING','RELOAD'].includes(phase);
+    const isRebuilding  = ['REBUILDING','AGING OUT','FRINGE'].includes(phase);
+    if (!isCompetitive && !isRebuilding) return true;
+    const tradedSet = new Set(tradedPids);
+    for (const pid of tradedPids) {
+      const fc = fcPlayerMap[pid];
+      if (!fc || !myProj) continue;
+      const pos = fc.position;
+      if (isCompetitive) {
+        // Check: does removing this player make the position slot weak?
+        const curStarters = (myProj.players ?? [])
+          .filter(p => myProj.starterPids?.has(p.pid) && p.pos === pos)
+          .sort((a,b) => (b.basePpg??0) - (a.basePpg??0));
+        const allAtPos = (myProj.players ?? [])
+          .filter(p => p.pos === pos && !tradedSet.has(p.pid))
+          .sort((a,b) => (b.basePpg??0) - (a.basePpg??0));
+        const slotCount = curStarters.length;
+        if (!slotCount) continue;
+        const newAvg = allAtPos.slice(0, slotCount).reduce((s,p) => s+(p.basePpg??0), 0) / slotCount;
+        // Get league average at this position's starter slots
+        const leagueSlotAvg = Object.entries(slotMap.leagueAvg)
+          .filter(([k]) => k.startsWith(pos))
+          .map(([,v]) => v.proj ?? 0);
+        const leagueAvgPpg = leagueSlotAvg.length
+          ? leagueSlotAvg.reduce((s,v)=>s+v,0) / leagueSlotAvg.length : 0;
+        // Block if remaining lineup at pos falls below 80% of league average
+        if (leagueAvgPpg > 0 && newAvg < leagueAvgPpg * 0.80) return false;
+      }
+      if (isRebuilding) {
+        // Block if trading away a player with too much of our dynasty value
+        const playerVal = fcPlayerMap[pid]?.value ?? 0;
+        const totalVal  = myTeamRow?.totalValue ?? 1;
+        if (playerVal / totalVal > 0.35) return false; // don't trade 35%+ of roster value at once
+      }
+    }
+    return true;
+  };
+
   // Untradeable franchise player count by phase — same logic as acquisition targets
   const _untradeableN = { 'REBUILDING':4, 'AGING OUT':3, 'FRINGE':3, 'RELOAD':2, 'CONTENDING':2, 'WIN NOW':1 };
 
@@ -13711,23 +13756,32 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     const stars = byNeed(leaguePlayers.filter(p => p.val >= 4500 && p.age <= 30)).slice(0, 15);
     for (const star of stars) {
       const pkg = buildPkg(star.val);
-      if (pkg) return { type:'uptier', pkg, target:star,
+      if (!pkg) continue;
+      if (!posImpactOk(pkg.players.map(p => p.pid))) continue;
+      return { type:'uptier', pkg, target:star,
         rationale:`Package depth into ${star.name} — a genuine superstar. Pay the premium. Production is scarcer than value, and ${star.name} moves the needle every single week.` };
     }
     return null;
   };
 
   // FILL LINEUP: Trade a non-producing value asset for a proven veteran starter
+  // Uses slot map to target the weakest specific slot (e.g. RB2, WR3)
   const fillLineupMove = () => {
-    const pos = weakProdPos;
+    // Find weakest slot by projected PPG gap
+    const weakSlot = Object.entries(slotMap.slots)
+      .filter(([, s]) => s.gapProj != null && s.gapProj < 0)
+      .sort(([, a], [, b]) => (a.gapProj ?? 0) - (b.gapProj ?? 0))[0];
+    const pos = weakSlot ? weakSlot[1].pos : weakProdPos;
     const valueHogs = tradeable.filter(p => p.val >= 2000 && (p.ppg < 10 || (p.val >= 3000 && p.ppg < 14))).sort((a,b) => b.val-a.val);
     const vets = leaguePlayers.filter(p => p.pos === pos && p.ppg >= 9 && p.age >= 25 && p.age <= 32 && p.val >= 1500).sort((a,b) => b.ppg-a.ppg);
     for (const vet of vets.slice(0,6)) {
       for (const hog of valueHogs) {
         if (hog.val < vet.val*0.78 || hog.val > vet.val*1.32) continue;
+        if (!posImpactOk([hog.pid])) continue;
         const pk = myPicks.find(p => hog.val + p.val <= vet.val*1.40) ?? null;
+        const slotLabel = weakSlot ? weakSlot[0] : pos;
         return { type:'fill', pkg:{ players:[hog], picks:pk?[pk]:[] }, target:vet,
-          rationale:`${hog.name} holds value but doesn't start every week. ${vet.name} (${vet.ppg.toFixed(1)} ppg) is proven production at your weakest position.` };
+          rationale:`${hog.name} holds value but doesn't start every week. ${vet.name} (${vet.ppg.toFixed(1)} ppg) fills your ${slotLabel} — proven production at your weakest slot.` };
       }
     }
     return null;
@@ -13736,6 +13790,7 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
   // SELL AGING: Cash in aging vets before the cliff, collect picks/youth
   const sellAgingMove = (minAge = 27.5) => {
     for (const sell of myPlayers.filter(p => p.age >= minAge && p.val >= 1800).sort((a,b) => b.val-a.val)) {
+      if (!posImpactOk([sell.pid])) continue;
       const haul = buildPickHaul(sell);
       if (haul) return { type:'sell_aging', sell, haul,
         rationale:`${sell.name} is ${sell.age}yo — peak value is now. Value is renewable; convert it before age takes it away. You can manufacture value again. You can't stop the clock.` };
@@ -13837,7 +13892,7 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
 
     for (const tgt of byNeed(leaguePlayers.filter(p => p.age <= 25 && p.val >= 800 && p.val <= 5000)).slice(0, 20)) {
       // Widen lower tolerance — we may cover the gap with a pick
-      const offer = selling.find(p => p.val >= tgt.val*0.68 && p.val <= tgt.val*1.22 && p.age > tgt.age+2);
+      const offer = selling.find(p => p.val >= tgt.val*0.68 && p.val <= tgt.val*1.22 && p.age > tgt.age+2 && posImpactOk([p.pid]));
       if (!offer) continue;
 
       const gap = tgt.val - offer.val;
@@ -13967,20 +14022,95 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     },
   };
 
-  // ── FRINGE depletion check (computed BEFORE phaseMap — never inside the object literal) ────
-  const fringeVRank     = allTeams.filter(t => t.totalValue > (myTeamRow?.totalValue ?? 0)).length + 1;
-  const fringeVPct      = (fringeVRank - 1) / Math.max(total - 1, 1);
-  const fringeGoodPicks = myPicks.filter(p => (p.round ?? 99) <= 2).length;
-  // Depleted = bottom ~58% in total value AND fewer than 3 quality picks — no ammo for consolidation
-  const fringeDeplete   = fringeVPct >= 0.58 && fringeGoodPicks < 3;
-  const fringePaths = fringeDeplete
+  // ── RELOAD paths — slot-map driven ──────────────────────────────────────────
+  const reloadGoodPicks  = myPicks.filter(p => (p.round ?? 99) <= 2).length;
+  const reloadHasPicks   = reloadGoodPicks >= 2;
+  // Weakest slot for reload targeting
+  const reloadWeakSlot   = Object.entries(slotMap.slots)
+    .filter(([, s]) => s.gapProj != null && s.gapProj < 0)
+    .sort(([, a], [, b]) => (a.gapProj ?? 0) - (b.gapProj ?? 0))[0];
+  const reloadTargetPos  = reloadWeakSlot ? reloadWeakSlot[1].pos : weakProdPos;
+
+  // RELOAD Path A (has picks): trade picks for a proven starter at weakest slot
+  const reloadPicksMove = () => {
+    const goodPicks = myPicks.filter(p => (p.round ?? 99) <= 2).slice(0, 3);
+    if (goodPicks.length < 2) return uptierMove();
+    const pkEff = _bpEffVal(goodPicks.slice(0,2).map(p => ({ value: p.val })));
+    const tgts = leaguePlayers
+      .filter(p => p.pos === reloadTargetPos && p.ppg >= 9 && p.age <= 29 && p.val >= pkEff * 0.75 && p.val <= pkEff * 1.35)
+      .sort((a, b) => b.ppg - a.ppg);
+    if (tgts.length) {
+      const tgt = tgts[0];
+      const picks = goodPicks.slice(0, 2);
+      return { type:'fast_track', pkg:{ players:[], picks }, target:tgt,
+        rationale:`Your ${reloadWeakSlot?.[0] ?? reloadTargetPos} is ${(reloadWeakSlot?.[1]?.gapProj ?? 0).toFixed(1)} ppg below league average. ${tgt.name} (${tgt.ppg.toFixed(1)} ppg) fills that gap now — trade the picks, stop waiting on them to hit.` };
+    }
+    return uptierMove();
+  };
+
+  // RELOAD Path B (soft rebuild): trade aging vets for young pieces with upside
+  const reloadSoftRebuildMove = () => {
+    // Target: young players age <= 26 with upside at weak positions
+    const aging = tradeable.filter(p => p.age >= 27 && p.val >= 2500).sort((a,b) => b.val-a.val);
+    const youngTgts = byNeed(leaguePlayers.filter(p => p.age <= 26 && p.val >= 1500 && p.val <= 5000)).slice(0, 20);
+    for (const sell of aging) {
+      for (const tgt of youngTgts) {
+        if (tgt.val < sell.val * 0.70 || tgt.val > sell.val * 1.25) continue;
+        if (!posImpactOk([sell.pid])) continue;
+        return { type:'buy_low', pkg:{ players:[sell], picks:[] }, target:tgt,
+          rationale:`${sell.name} (${sell.age}yo) is peak value now. ${tgt.name} (${tgt.age}yo) has 4-5 more ascending seasons ahead. Same price today, completely different trajectories.` };
+      }
+    }
+    return youngProspectMove(27.0);
+  };
+
+  const reloadPaths = reloadHasPicks
     ? {
-        A:{ label:'SPREAD THE VALUE',    tagline:'Trade a star for 3 pieces — more total value and trade currency', color:'#f87171',      icon:'📤', gen:valueSpreadMove },
-        B:{ label:'GARAGE SALE',         tagline:'Sell every aging producer for blue-chip prospects + first round picks', color:'#a78bfa', icon:'🏷️', gen:() => youngProspectMove(25.0) },
+        A:{ label:'SPEND PICKS ON PRODUCTION', tagline:`Trade 2 firsts for a proven starter at your ${reloadWeakSlot?.[0] ?? reloadTargetPos} — needs now, not later`, color:'var(--orange)', icon:'🔥', gen:reloadPicksMove },
+        B:{ label:'SOFT REBUILD',              tagline:'Trade aging vets for young pieces — get younger with upside at weak spots', color:'#a78bfa', icon:'📈', gen:reloadSoftRebuildMove },
       }
     : {
-        A:{ label:'CONSOLIDATE & SWING', tagline:'Package spare pieces into one elite player',              color:'var(--orange)', icon:'🎰', gen:consolidateMove },
-        B: (rebuildPaths[rebuildTier ?? 'ONE_YEAR_PUNT'] ?? rebuildPaths.ONE_YEAR_PUNT).A,
+        A:{ label:'SOFT REBUILD',              tagline:'No picks to spend — trade aging vets for young pieces with upside', color:'#38bdf8', icon:'💎', gen:reloadSoftRebuildMove },
+        B:{ label:'COMMIT TO PRODUCTION',      tagline:'Package depth into one elite upgrade at your weakest spot',        color:'var(--orange)', icon:'🔥', gen:uptierMove },
+      };
+
+  // ── FRINGE paths — driven by slot gap analysis + pick capital ─────────────
+  const fringeGoodPicks  = myPicks.filter(p => (p.round ?? 99) <= 2).length;
+  const fringeWeakSlots  = Object.values(slotMap.slots).filter(s => s.gapProj != null && s.gapProj < -2.0);
+  const fringeTotalGap   = Object.values(slotMap.slots).reduce((s, sl) => s + Math.min(0, sl.gapProj ?? 0), 0);
+  // Push mode: has 2+ firsts AND gap is manageable (1-2 weak slots, total gap > -8 ppg)
+  const fringePushMode   = fringeGoodPicks >= 2 && fringeWeakSlots.length <= 2 && fringeTotalGap > -8.0;
+  // What slot to target in push mode
+  const fringePushSlot   = Object.entries(slotMap.slots)
+    .filter(([, s]) => s.gapProj != null && s.gapProj < 0)
+    .sort(([, a], [, b]) => (a.gapProj ?? 0) - (b.gapProj ?? 0))[0];
+
+  // FRINGE push: use picks to fill the specific gap
+  const fringePushMove = () => {
+    if (!fringePushSlot) return consolidateMove();
+    const targetPos = fringePushSlot[1].pos;
+    const slotGap   = fringePushSlot[1].gapProj ?? 0;
+    const goodPicks = myPicks.filter(p => (p.round ?? 99) <= 2).slice(0, 3);
+    const pkEff     = _bpEffVal(goodPicks.slice(0,2).map(p => ({ value: p.val })));
+    // Try: package picks + spare player for a starter at that position
+    const tgts = leaguePlayers
+      .filter(p => p.pos === targetPos && p.ppg >= 9 && p.age <= 30 && p.val <= pkEff * 1.30)
+      .sort((a,b) => b.ppg - a.ppg);
+    if (tgts.length && goodPicks.length >= 2) {
+      return { type:'fast_track', pkg:{ players:[], picks:goodPicks.slice(0,2) }, target:tgts[0],
+        rationale:`Your ${fringePushSlot[0]} is ${slotGap.toFixed(1)} ppg below league average — that's the gap between bubble and contender. ${tgts[0].name} (${tgts[0].ppg.toFixed(1)} ppg) fills it. You have the picks. Use them now.` };
+    }
+    return consolidateMove();
+  };
+
+  const fringePaths = fringePushMode
+    ? {
+        A:{ label:'PUSH CHIPS IN',       tagline:`${fringeWeakSlots.length} weak slot${fringeWeakSlots.length>1?'s':''} — use your picks to close the gap and compete`, color:'var(--orange)', icon:'🎰', gen:fringePushMove },
+        B:{ label:'CONSOLIDATE & SWING', tagline:'Package spare pieces into one elite player at your weakest spot', color:'#38bdf8', icon:'💎', gen:consolidateMove },
+      }
+    : {
+        A:{ label:'SPREAD THE VALUE',    tagline:'Trade a star for multiple pieces — more total value and trade currency', color:'#f87171', icon:'📤', gen:valueSpreadMove },
+        B:{ label:'GARAGE SALE',         tagline:'Not enough picks to compete — sell aging producers for blue-chip prospects', color:'#a78bfa', icon:'🏷️', gen:() => youngProspectMove(25.0) },
       };
 
   const phaseMap = {
@@ -13992,10 +14122,7 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
       A:{ label:'PUSH ALL-IN',             tagline:'Windows close — sacrifice value for production now',      color:'var(--green)',  icon:'⚡', gen:uptierMove },
       B:{ label:'PROTECT THE WINDOW',      tagline:'Same production, better age trajectory',                  color:'#38bdf8',      icon:'🔒', gen:protectWindowMove },
     },
-    'RELOAD':     {
-      A:{ label:'COMMIT TO PRODUCTION',    tagline:'Choose a side — treat this roster like a contender push', color:'var(--orange)', icon:'🔥', gen:uptierMove },
-      B:{ label:'COMMIT TO VALUE',         tagline:'Choose a side — full rebuild, picks and youth',           color:'#a78bfa',      icon:'📈', gen:() => youngProspectMove(27.0) },
-    },
+    'RELOAD':     reloadPaths,
     'FRINGE':     fringePaths,
     'AGING OUT':  {
       A:{ label:'ONE MORE RUN',            tagline:'Mortgage the future — championship or bust',              color:'var(--red)',    icon:'🚨', gen:uptierMove },
