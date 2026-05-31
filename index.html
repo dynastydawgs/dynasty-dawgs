@@ -9590,6 +9590,42 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       <div class="pp-factor-sub">entering age ${ageOnKickoff.toFixed(1)} · ${projSeasonYear()} kickoff</div>
     </div>`;
 
+    // Backfield Opportunity Score box (RB only)
+    // Shows how depth-chart competition + workload ownership adjusts the projection.
+    const bosBox = (() => {
+      if (pos !== 'RB') return '';
+      if (!Object.keys(advstatsDB).length || !Object.keys(depthDB).length) return `
+        <div class="pp-factor">
+          <div class="pp-factor-lbl">Backfield Opp.</div>
+          <div class="pp-factor-val" style="color:var(--text-dim);">—</div>
+          <div class="pp-factor-sub">depth chart data not loaded</div>
+        </div>`;
+      const bos = _rbBackfieldOpportunity(pid);
+      if (!bos) return `
+        <div class="pp-factor">
+          <div class="pp-factor-lbl">Backfield Opp.</div>
+          <div class="pp-factor-val" style="color:var(--text-dim);">—</div>
+          <div class="pp-factor-sub">no team depth chart found</div>
+        </div>`;
+      const pct    = Math.round((bos.projMultiplier - 1) * 100);
+      const pctStr = pct === 0 ? '±0%' : `${pct > 0 ? '+' : ''}${pct}%`;
+      const arrow  = pct > 0 ? '↑' : pct < 0 ? '↓' : '→';
+      const col    = pct > 0 ? 'var(--green)' : pct < 0 ? 'var(--red)' : 'var(--text-dim)';
+      // Subtitle: label + primary driver of the adjustment
+      const ownPart  = bos.ownershipScore > 0 ? `${bos.ownershipScore.toFixed(0)}% vol` : 'new role';
+      const deltaPart = bos.compDelta > 5  ? `↑ comp freed` :
+                        bos.compDelta < -5 ? `↓ new threats` : 'stable competition';
+      const subLine  = `${bos.label} · ${ownPart} · ${deltaPart}`;
+      // Explanation of what BOS measures (shown as second sub line)
+      const explainLine = `carry share + target role + depth chart competition`;
+      return `<div class="pp-factor">
+        <div class="pp-factor-lbl">Backfield Opp.</div>
+        <div class="pp-factor-val" style="color:${col};">${pctStr} ${arrow}</div>
+        <div class="pp-factor-sub" title="${explainLine}">${subLine}</div>
+        <div class="pp-factor-sub" style="opacity:0.6;font-size:8.5px;">${explainLine}</div>
+      </div>`;
+    })();
+
     // Momentum box
     // Shared surge box renderer — used for both rookies (signal only) and sophomores (+ adj)
     function _surgeBox(sd, adj) {
@@ -9728,6 +9764,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         ${ageBox}
         ${momBox}
         ${surgeBoxHtml}
+        ${bosBox}
       </div>
       <div class="pp-model-note">// ${modelNote}</div>`;
 
