@@ -11516,8 +11516,8 @@ function _rbBackfieldOpportunity(pid) {
           const roundExpected = _bosRoundThreat(cRound);
           const outRatio = roundExpected > 0 ? Math.min(1, effWorkload / roundExpected) : 1;
           const maxBoost  = cRound === 1 ? 0.20 : 0.12;
-          const minFrac   = 0.40; // guaranteed floor: 40% of maxBoost for any proven R1/R2 soph
-          const boostFrac = minFrac + (1 - minFrac) * outRatio; // 0.40 → 1.0 as outRatio goes 0 → 1
+          const minFrac   = 0.60; // guaranteed floor: 60% of maxBoost for any proven R1/R2 soph
+          const boostFrac = minFrac + (1 - minFrac) * outRatio; // 0.60 → 1.0 as outRatio goes 0 → 1
           return 1.0 + maxBoost * boostFrac;
         })();
         threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * capBoost * 10) / 10;
