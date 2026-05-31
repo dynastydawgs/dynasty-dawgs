@@ -11335,7 +11335,7 @@ function _rbBackfieldOpportunity(pid) {
       // Early picks (R1-R2): trust capital more — they're expected to develop further.
       // Late picks (R3+): trust actual data more — they already outperformed expectations.
       const roundProj  = _bosRoundThreat(cRound ?? cInfRound ?? null);
-      const capWeight  = !cRound || cRound >= 5 ? 0.10 : cRound <= 2 ? 0.55 : 0.30;
+      const capWeight  = !cRound || cRound >= 5 ? 0.12 : cRound <= 2 ? 0.55 : 0.30;
       const ctxBonus   = noProvenWorkhorse ? 1.10 : 1.0;
       effWorkload      = ((roundProj * capWeight) + (cWorkload * (1 - capWeight))) * ctxBonus;
       // No freshMult/talentMult — partially encoded in the round component of the blend
