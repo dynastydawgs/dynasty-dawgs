@@ -5643,10 +5643,10 @@ async function loadPlayerProfile(pid) {
       const _projCol   = _projDelta >= 3 ? 'var(--green)' : _projDelta <= -3 ? 'var(--red)' : 'var(--text-muted)';
       const _projArrow = _projDelta >= 3 ? ' ↑' : _projDelta <= -3 ? ' ↓' : '';
       const _projStr   = _projVal == null ? '' :
-        ` Projecting <span style="color:${_projCol};font-weight:600;">${_projVal.toFixed(0)}%${_projArrow}</span> of carries this season.`;
+        ` Projecting <span style="color:${_projCol};font-weight:600;">${_projVal.toFixed(0)}%${_projArrow}</span> of backfield volume this season.`;
       const _dispShare = (_bos.myProjShare ?? _bos.projOwnershipScore ?? 0).toFixed(0);
       const _ownStr   = _bos.switchedTeams
-        ? `New team — projecting <strong>${_dispShare}%</strong> of backfield carries based on DC${_bos.dcRank} role &amp; competition.`
+        ? `New team — projecting <strong>${_dispShare}%</strong> of backfield volume based on DC${_bos.dcRank} role &amp; competition.`
         : _bos.ownershipScore > 0
           ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.${_projStr}`
           : `No last-season workload data.${_projStr}`;
@@ -11553,8 +11553,9 @@ function _rbBackfieldOpportunity(pid) {
     // transfer from their historical workload to this back over the course of the season.
     const heirTransfer = heirAdj > 0 && primaryThreats.length > 0
       ? (primaryThreats[0].carryShare ?? 0) * 0.30 : 0;
-    projOwnershipScore = Math.max(0,
-      ownershipScore + (departedWorkload * absorptionRate) - workloadLoss + heirTransfer);
+    const projCeiling = breaks.p90 ?? 90;
+    projOwnershipScore = Math.min(projCeiling, Math.max(0,
+      ownershipScore + (departedWorkload * absorptionRate) - workloadLoss + heirTransfer));
   }
 
   // Personal Vol & Opp delta: how much did their individual opportunity change?
