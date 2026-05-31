@@ -11299,19 +11299,27 @@ function _rbBackfieldOpportunity(pid) {
       : 1.00;
 
     // ── Effective workload + threat score ────────────────────────────────
-    // Rookies (cYrs=0) and low-workload sophomores (cYrs=1, cWorkload<20) use
-    // draft-capital projection. The round value already encodes talent AND youth,
-    // so freshMult and talentMult are NOT applied — applying them would double-count.
-    // A weak-backfield context bonus (+15%) fires when no proven workhorse exists.
-    //
+    // Rookies (cYrs=0) always use draft-capital projection (no real data).
+    // Sophomores (cYrs=1) use capital projection unless they are "proven" —
+    // defined as ≥10 PPG last season. A sophomore who averaged 10+ PPG earned
+    // their role and should be evaluated on actual production, not round alone.
     // Veterans and proven sophomores use actual workload with freshMult + talentMult.
     // New arrivals (changed teams) get a 30% workload discount.
+    const cLastSznPpg = (() => {
+      if (!cPid) return 0;
+      const szns = (careerDB[cPid] ?? []).filter(s => (s.games ?? 0) >= 4);
+      if (!szns.length) return 0;
+      const last = szns.at(-1);
+      return last.ppr / last.games;
+    })();
     let effWorkload;
     let threatScore;
-    const useCapProj = cYrs === 0 || (cYrs === 1 && cWorkload < 20);
+    const useCapProj = cYrs === 0 || (cYrs === 1 && cLastSznPpg < 10);
     if (useCapProj) {
+      // Round value encodes talent + youth — no freshMult/talentMult on top.
+      // Weak-backfield vacuum bonus: +15% when no proven workhorse exists on this team.
       const roundBase  = _bosRoundThreat(cRound ?? cInfRound ?? null);
-      const ctxBonus   = noProvenWorkhorse ? 1.15 : 1.0; // vacuum boost for young back
+      const ctxBonus   = noProvenWorkhorse ? 1.15 : 1.0;
       effWorkload      = roundBase * ctxBonus;
       threatScore      = Math.round(effWorkload * stageMult * effMult * 10) / 10;
     } else {
