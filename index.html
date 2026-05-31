@@ -12442,6 +12442,18 @@ function _bpRosterProfiles(rosterId) {
     if (!isStarter && !isKeyBench) continue;
 
     const yearsExp = sp?.years_exp ?? null;
+
+    // Skip backup QBs (depth order ≥ 2) unless rookie or sophomore — they clutter the
+    // roster profile section without meaningful dynasty relevance.
+    if (fc.position === 'QB') {
+      const _nflTeam    = sp?.team ?? '';
+      const _dcEntry    = depthDB?.[_nflTeam]?.QB?.find(e => _dcNormName(e.name) === _dcNormName(sp?.name));
+      const _dcOrder    = _dcEntry?.rank ?? sp?.depth_chart_order ?? 1;
+      const _isBackupQb = _dcOrder >= 2;
+      const _isYoung    = (yearsExp ?? 99) <= 1; // rookie (0) or sophomore (1)
+      if (_isBackupQb && !_isYoung) continue;
+    }
+
     const label = _bpClassifyPlayer(fc, age, classifyPpg, isStarter, yearsExp, posAvgPpg);
 
     // Previous season label — use second-to-last careerDB season
