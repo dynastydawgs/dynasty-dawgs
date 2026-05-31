@@ -5657,11 +5657,19 @@ async function loadPlayerProfile(pid) {
            : _bos.volOppDelta <= -12
             ? `↓ Personal Vol &amp; Opp down ~${Math.abs(_bos.volOppDelta).toFixed(0)} pts vs last season (${_bos.historicalOwnershipScore.toFixed(0)}% → proj ${_bos.projOwnershipScore.toFixed(0)}%).`
             : `Vol &amp; Opp largely unchanged from last season (${_bos.historicalOwnershipScore.toFixed(0)}% → proj ${_bos.projOwnershipScore.toFixed(0)}%).`)
-        : (_bos.compDelta > 5
-            ? `↑ ${_bos.compDelta.toFixed(1)} pts of backfield workload freed up this offseason.`
-           : _bos.compDelta < -5
-            ? `↓ ${Math.abs(_bos.compDelta).toFixed(1)} pts of new competition added this offseason.`
-            : 'Backfield competition largely unchanged from last season.');
+        : (() => {
+            const _cdStr = _bos.compDelta > 5
+              ? `↑ ${_bos.compDelta.toFixed(1)} pts of backfield workload freed up this offseason.`
+              : _bos.compDelta < -5
+              ? `↓ ${Math.abs(_bos.compDelta).toFixed(1)} pts of new competition added this offseason.`
+              : 'Backfield competition largely unchanged from last season.';
+            // Personal Vol & Opp delta for returners: proj vs last season's ownership
+            const _pDelta = (_bos.projOwnershipScore ?? 0) - _bos.ownershipScore;
+            const _pDeltaStr = Math.abs(_pDelta) >= 2
+              ? ` Personal vol &amp; opp: <strong>${_bos.ownershipScore.toFixed(0)}% → ${(_bos.projOwnershipScore ?? 0).toFixed(0)}%</strong> (${_pDelta >= 0 ? '+' : ''}${_pDelta.toFixed(0)} pts).`
+              : '';
+            return _cdStr + _pDeltaStr;
+          })();
 
       // Top competitors (sorted by threat, max 4)
       const _rivals = [...(_bos.competitors ?? [])]
@@ -5677,7 +5685,7 @@ async function loadPlayerProfile(pid) {
             return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
               <span style="flex:1;font-size:11px;color:var(--text);">${c.name}${_tagH}</span>
               <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);width:52px;text-align:right;">${_csStr}</span>
-              <span style="font-family:var(--mono);font-size:9px;color:${_tCol};width:44px;text-align:right;">${c.threatScore.toFixed(0)} thr</span>
+              <span style="font-family:var(--mono);font-size:9px;color:${_tCol};width:44px;text-align:right;">${c.threatScore.toFixed(0)} dmg</span>
             </div>`;
           }).join('')
         : `<div style="font-size:11px;color:var(--text-dim);padding:6px 0;">No depth chart rivals found.</div>`;
@@ -5709,7 +5717,7 @@ async function loadPlayerProfile(pid) {
           <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:4px;display:flex;gap:6px;">
             <span style="flex:1;">DEPTH CHART RIVALS</span>
             <span style="width:52px;text-align:right;">PROJ VOL</span>
-            <span style="width:44px;text-align:right;">THREAT</span>
+            <span style="width:44px;text-align:right;" title="Danger score = raw vol × talent/age/freshness multipliers. Higher = bigger role threat to this player.">DANGER</span>
           </div>
           ${_rivalRows}
         </div>`;
@@ -11314,13 +11322,18 @@ function _rbBackfieldOpportunity(pid) {
   const rushAttPg = teamCtx?.rushAttPg ?? NFL_TEAM_RUSH_ATT_PG_2025[team] ?? 26.0;
 
   // ── Pre-scan: does this backfield have a proven workhorse? ───────────────
-  // Used to give rookie/sophomore backs a slight projection boost when stepping
-  // into a vacuum — if nobody has ≥20 workload points of history, young backs
-  // are more likely to absorb a larger role than their round alone suggests.
+  // Bonus fires for rookies/sophs entering a true vacuum. Requires both:
+  //   • ≥30 workload points (real three-down carry share, not just a cameo), AND
+  //   • ≥10 PPG last season (production proof — high-volume bad backs don't block the bonus).
   const noProvenWorkhorse = !dcRbs.some(e => {
-    if (_bosNorm(e.name) === myNorm) return false; // skip subject player
+    if (_bosNorm(e.name) === myNorm) return false;
     const pAdv = _bosGetAdv(e.name);
-    return pAdv && _bosOwn(pAdv.carryShare, pAdv.bfTgtShare, pAdv.rzCarryShare, pAdv.thirdDownSnapPct) >= 20;
+    if (!pAdv) return false;
+    if (_bosOwn(pAdv.carryShare, pAdv.bfTgtShare, pAdv.rzCarryShare, pAdv.thirdDownSnapPct) < 30) return false;
+    const ePid   = _bosGetPid(e.name, team);
+    const eSzns  = (careerDB[ePid ?? ''] ?? []).filter(s => (s.games ?? 0) >= 4);
+    const eLastPpg = eSzns.length ? eSzns.at(-1).ppr / eSzns.at(-1).games : 0;
+    return eLastPpg >= 10;
   });
 
   // ── Competitors on current depth chart ─────────────────────────────────
@@ -11424,11 +11437,20 @@ function _rbBackfieldOpportunity(pid) {
         threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * 10) / 10;
       } else {
         effWorkload = cWorkload;
-        // R1/R2 proven sophomores get a capital boost — elite draft pedigree + proven
-        // production signals further role growth beyond what last year's workload shows.
-        const capBoost = (cYrs === 1 && cLastSznPpg >= 10)
-          ? (cRound === 1 ? 1.20 : cRound === 2 ? 1.12 : 1.0)
-          : 1.0;
+        // R1/R2 proven sophomores (≥10 PPG) get a capital boost only if their actual
+        // workload met or exceeded what their draft round projected. A player who got
+        // fewer carries than expected for their round doesn't earn the bonus — it implies
+        // the offense hasn't trusted them yet. Scales smoothly: meeting 100% of round
+        // expectation = full boost; 70% of expectation = no boost; linear between.
+        const capBoost = (() => {
+          if (cYrs !== 1 || cLastSznPpg < 10 || !cRound || cRound > 2) return 1.0;
+          const roundExpected = _bosRoundThreat(cRound);
+          const outRatio = roundExpected > 0 ? effWorkload / roundExpected : 1;
+          const maxBoost = cRound === 1 ? 0.20 : 0.12; // as a delta above 1.0
+          if (outRatio >= 1.0) return 1.0 + maxBoost;
+          if (outRatio <= 0.7) return 1.0;
+          return 1.0 + maxBoost * ((outRatio - 0.7) / 0.3); // linear ramp 0.7→1.0
+        })();
         threatScore = Math.round(effWorkload * talentMult * freshMult * stageMult * effMult * capBoost * 10) / 10;
       }
     }
@@ -11444,6 +11466,10 @@ function _rbBackfieldOpportunity(pid) {
   }
 
   // ── Departed competition: teammates last year who are no longer here ────
+  // Quality-adjusted: backs who were already declining don't count as much lost workload.
+  // We compare their last-season PPG to their career-best PPG; if they were still
+  // performing near peak the full workload counts; if they were clearly on the cliff,
+  // we discount proportionally so the returner doesn't get an inflated "freed workload" boost.
   let departedWorkload = 0;
   for (const [cPid2, cTeam2] of Object.entries(statTeamDB ?? {})) {
     if (cTeam2 !== team || cPid2 === String(pid)) continue;
@@ -11451,16 +11477,33 @@ function _rbBackfieldOpportunity(pid) {
     if (!cSp2 || cSp2.position !== 'RB' || cSp2.team === team) continue;
     const cAdv2 = _bosGetAdv(cSp2.full_name ?? cSp2.name ?? '');
     if (cAdv2) {
-      departedWorkload += _bosOwn(
+      const rawWl = _bosOwn(
         +((cAdv2.carryShare       ?? 0) || 0),
         +((cAdv2.bfTgtShare       ?? 0) || 0),
         +((cAdv2.rzCarryShare     ?? 0) || 0),
         +((cAdv2.thirdDownSnapPct ?? 0) || 0)
       );
+      // Quality factor: how close to peak was this back when they left?
+      const cAge2   = cSp2.birth_date
+        ? (Date.now() - new Date(cSp2.birth_date)) / (365.25 * 24 * 3600 * 1000) : 27;
+      const cStage2 = cAge2 >= 29 ? 'cliff' : cAge2 >= 27 ? 'declining' : 'prime';
+      const cSzns2  = (careerDB[cPid2] ?? []).filter(s => (s.games ?? 0) >= 4);
+      const cBestPpg2 = cSzns2.length ? Math.max(...cSzns2.map(s => s.ppr / s.games)) : 0;
+      const cLastPpg2 = cSzns2.length ? cSzns2.at(-1).ppr / cSzns2.at(-1).games : 0;
+      const retentionRatio = cBestPpg2 > 0 ? Math.min(1, cLastPpg2 / cBestPpg2) : 1;
+      // Prime backs count in full; declining/cliff backs are quality-discounted.
+      const qualityFactor = cStage2 === 'prime' ? 1.0
+                          : cStage2 === 'declining' ? Math.max(0.6, retentionRatio)
+                          : Math.max(0.4, retentionRatio); // cliff
+      departedWorkload += rawWl * qualityFactor;
     }
   }
 
-  const newThreat     = competitors.filter(c => c.isNew).reduce((s, c) => s + c.threatScore, 0);
+  // compDelta uses effWorkload (raw % share) for new arrivals — same scale as
+  // departedWorkload. threatScore includes youth/talent multipliers and is
+  // intentionally higher as a "danger signal", but comparing it to raw departed
+  // workload would distort whether the backfield genuinely improved or got worse.
+  const newThreat     = competitors.filter(c => c.isNew).reduce((s, c) => s + c.effWorkload, 0);
   const compDelta     = Math.round((departedWorkload - newThreat) * 10) / 10; // + = better
   // Primary threat = backfield mates ranked ahead of this player on depth chart
   const primaryThreats = competitors.filter(c => c.dcRank < myDcRank);
@@ -11487,10 +11530,14 @@ function _rbBackfieldOpportunity(pid) {
   // The DC1 is losing their role — this player is the next man up.
   const allPrimaryAging = primaryThreats.length > 0
     && primaryThreats.every(c => c.stage === 'cliff' || c.stage === 'declining');
+  // PPG trajectory for heir check: is the player improving year over year?
+  const myPrevSznPpg = myCareerSzns.length >= 2
+    ? myCareerSzns.at(-2).ppr / myCareerSzns.at(-2).games : 0;
+  const ppgRising = myLastSznPpg > myPrevSznPpg && myPrevSznPpg > 0;
   let heirAdj = 0;
   if (!switchedTeams && myDcRank === 2
-      && (sp.years_exp ?? 99) <= 2
-      && myLastSznPpg >= 7
+      && (sp.years_exp ?? 99) <= 3   // expanded: catches 3rd-year late bloomers too
+      && (myLastSznPpg >= 8.5 || (ppgRising && myLastSznPpg >= 7))
       && allPrimaryAging) {
     // Check efficiency edge over the aging DC1
     const agingDc1     = primaryThreats[0];
@@ -11553,8 +11600,11 @@ function _rbBackfieldOpportunity(pid) {
     // those at the same level or below dilute the pool less.
     const newThreatsAbove = competitors.filter(c => c.dcRank < myDcRank && c.isNew);
     const newThreatsPeer  = competitors.filter(c => c.dcRank >= myDcRank && c.isNew);
-    const workloadLoss    = newThreatsAbove.reduce((s, c) => s + c.threatScore * 0.60, 0)
-                          + newThreatsPeer.reduce((s, c)  => s + c.threatScore * 0.25, 0);
+    // Use effWorkload (raw %) not threatScore — both sides of the equation need the
+    // same scale. threatScore inflates young/talented arrivals via talent/fresh multipliers,
+    // which would over-compress the returner's projection unfairly.
+    const workloadLoss    = newThreatsAbove.reduce((s, c) => s + c.effWorkload * 0.60, 0)
+                          + newThreatsPeer.reduce((s, c)  => s + c.effWorkload * 0.25, 0);
     // Heir apparent: the aging DC1 is ceding their role — project ~30% carry share
     // transfer from their historical workload to this back over the course of the season.
     const heirTransfer = heirAdj > 0 && primaryThreats.length > 0
