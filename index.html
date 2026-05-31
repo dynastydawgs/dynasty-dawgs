@@ -11577,20 +11577,42 @@ function _rbBackfieldOpportunity(pid) {
   //     arrivals, and heir apparent workload transfer from a fading DC1
   let projOwnershipScore;
   if (switchedTeams) {
-    // No meaningful ownership data on new team — estimate from projected role.
-    // breaks.p75 ≈ featured DC1, breaks.p30 ≈ backup, scale down for contested roles.
-    // DC2 roleBase scales with career history: proven vets project much closer
-    // to a featured role than a generic backup would. This also prevents the
-    // normalization pool from being too small (which would inflate rookies).
+    // How well is this player holding up relative to their career peak?
+    // A vet still firing near peak deserves a much higher projection than a generic
+    // DC1 baseline; one who has clearly slipped should stay at the generic level.
+    const myRetentionRatio = myBestSznPpg > 0
+      ? Math.min(1, myLastSznPpg / myBestSznPpg) : 0;
+
+    // Quality multiplier applied to any role baseline.
+    // Rewards proven veterans who are still near peak. Near-peak elite backs
+    // (14+ PPG best szn, 80%+ retention) project close to a true workhorse role.
+    const qualityMult = (() => {
+      if (myBestSznPpg >= 14 && myRetentionRatio >= 0.80) return 1.25;
+      if (myBestSznPpg >= 14 && myRetentionRatio >= 0.65) return 1.12;
+      if (myBestSznPpg >= 10 && myRetentionRatio >= 0.80) return 1.15;
+      if (myBestSznPpg >= 10 && myRetentionRatio >= 0.65) return 1.06;
+      if (myBestSznPpg >= 7  && myRetentionRatio >= 0.80) return 1.05;
+      return 1.0;
+    })();
+
+    // DC2 roleBase scales with career history (prevents rookie inflation in normalization).
     const dc2RoleBase = myBestSznPpg >= 10 ? breaks.p75 * 0.65
                       : myBestSznPpg >= 7  ? breaks.p75 * 0.55
                       :                      (breaks.p30 + breaks.p50) * 0.5;
-    const roleBase   = myDcRank === 1 ? breaks.p75
+    const baseRole   = myDcRank === 1 ? breaks.p75
                      : myDcRank === 2 ? dc2RoleBase
                      : breaks.p30 * 0.4;
-    const contention = primaryThreat <= 15 ? 1.00
-                     : primaryThreat <= 30  ? 0.85
-                     : primaryThreat <= 50  ? 0.65 : 0.50;
+    // Apply quality multiplier and cap at p90 (workhorse ceiling — nobody realistically
+    // projects above top-10% before they've played a snap for the new team).
+    const roleBase = Math.min(breaks.p90 ?? 90, baseRole * qualityMult);
+
+    // Contention uses effWorkload (raw %) not threatScore. A talented young rival's
+    // threatScore is inflated by talent/freshness multipliers — using it here would
+    // compress a proven vet's projection more than their actual expected workload warrants.
+    const primaryRawThreat = primaryThreats.reduce((s, c) => s + c.effWorkload, 0);
+    const contention = primaryRawThreat <= 15 ? 1.00
+                     : primaryRawThreat <= 30  ? 0.85
+                     : primaryRawThreat <= 50  ? 0.65 : 0.50;
     projOwnershipScore = roleBase * contention;
   } else {
     // Returner: start from last-season ownership, then model workload flows.
