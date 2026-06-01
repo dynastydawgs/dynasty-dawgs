@@ -5745,10 +5745,14 @@ async function loadPlayerProfile(pid) {
             return ` Projected Vol &amp; Opp: <span style="color:${_projGradeCol};font-weight:600;">${_from}${_projVolOppGrade}</span>${_usageScore != null && _projGradeDeltaR !== 0 ? ` (${_projGradeDeltaR >= 0 ? '+' : ''}${_projGradeDeltaR} pts)` : ''}.`;
           })()
         : '';
+      // For switchers use grade delta for the arrow — raw volOppDelta compares
+      // different teams' ownership scales and can mislead (DC2 on a run-heavy team
+      // may project lower raw pts but higher normalized grade than DC1 on a pass team).
+      const _switcherGradeDelta = Math.round(_projGradeDelta);
       const _deltaStr = _bos.switchedTeams
-        ? (_bos.volOppDelta >= 12
+        ? (_switcherGradeDelta >= 8
             ? `↑ Personal opportunity up vs last season.${_projGradeStr}`
-           : _bos.volOppDelta <= -12
+           : _switcherGradeDelta <= -8
             ? `↓ Personal opportunity down vs last season.${_projGradeStr}`
             : `Role largely unchanged from last season.${_projGradeStr}`)
         : (() => {
