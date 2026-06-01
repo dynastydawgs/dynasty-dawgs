@@ -5711,25 +5711,11 @@ async function loadPlayerProfile(pid) {
         const last = szns.at(-1);
         return +(last.ppr / last.games).toFixed(1);
       })();
-      const _histOwn = _bos.historicalOwnershipScore ?? 0;
-      const _volDeltaPpg = (() => {
-        if (_bosLastPpg == null) return null;
-        if (_bos.switchedTeams) {
-          if (_projVolOppGrade == null || !_usageScore || _usageScore <= 0) return null;
-          const _gradeDelta = _projVolOppGrade - _usageScore;
-          return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
-            _bosLastPpg * (_gradeDelta / _usageScore)
-          )).toFixed(1));
-        }
-        // Returners: use compDelta × absorptionRate as the opportunity change signal.
-        // volOppDelta is clipped by ceiling caps and understates real competition gains.
-        if (_histOwn <= 0) return null;
-        const _absRate = _bos.dcRank === 1 ? 0.60 : _bos.dcRank === 2 ? 0.25 : 0.08;
-        const _retRatio = (_bos.compDelta * _absRate) / _histOwn;
-        return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
-          _bosLastPpg * _retRatio
-        )).toFixed(1));
-      })();
+      // PROJ IMPACT = lastPPG × (projMultiplier − 1).
+      // This is exactly what gets applied to the projection numbers — display matches reality.
+      const _volDeltaPpg = _bosLastPpg != null
+        ? +(Math.round(_bosLastPpg * (_bos.projMultiplier - 1) * 10) / 10)
+        : null;
       const _multStr = _volDeltaPpg != null
         ? (_volDeltaPpg === 0 ? '±0 PPG' : `${_volDeltaPpg > 0 ? '+' : ''}${_volDeltaPpg} PPG`)
         : (_bos.myProjShare > 0 ? `${_bos.myProjShare.toFixed(0)}% proj vol` : '—');
@@ -5788,7 +5774,7 @@ async function loadPlayerProfile(pid) {
             <div style="text-align:right;flex-shrink:0;">
               <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:3px;">PROJ IMPACT</div>
               <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${_multCol};">${_multStr}</div>
-              <div style="font-family:var(--mono);font-size:7.5px;color:var(--text-dim);margin-top:2px;opacity:0.7;">vs last season opportunity</div>
+              <div style="font-family:var(--mono);font-size:7.5px;color:var(--text-dim);margin-top:2px;opacity:0.7;">applied to base projection</div>
             </div>
           </div>
           ${(() => {
@@ -9943,46 +9929,10 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         const last = szns.at(-1);
         return +(last.ppr / last.games).toFixed(1);
       })();
-      const _bosHistOwn = bos.historicalOwnershipScore ?? 0;
-      const _bosProjGrade = (() => {
-        const proj = bos.projOwnershipScore;
-        if (proj == null) return null;
-        const b = bos.breaks ?? {};
-        if (!b.p30) return null;
-        if (proj >= (b.p90 ?? 999)) return 92;
-        if (proj >= (b.p75 ?? 999)) return Math.round(75 + (proj - b.p75) / ((b.p90 ?? b.p75+1) - b.p75) * 17);
-        if (proj >= (b.p50 ?? 999)) return Math.round(50 + (proj - b.p50) / (b.p75 - b.p50) * 25);
-        if (proj >= (b.p30 ?? 999)) return Math.round(30 + (proj - b.p30) / (b.p50 - b.p30) * 20);
-        return Math.round(Math.max(5, proj / b.p30 * 30));
-      })();
-      const _bosHistGrade = (() => {
-        const hist = _bosHistOwn;
-        if (hist <= 0) return null;
-        const b = bos.breaks ?? {};
-        if (!b.p30) return null;
-        if (hist >= (b.p90 ?? 999)) return 92;
-        if (hist >= (b.p75 ?? 999)) return Math.round(75 + (hist - b.p75) / ((b.p90 ?? b.p75+1) - b.p75) * 17);
-        if (hist >= (b.p50 ?? 999)) return Math.round(50 + (hist - b.p50) / (b.p75 - b.p50) * 25);
-        if (hist >= (b.p30 ?? 999)) return Math.round(30 + (hist - b.p30) / (b.p50 - b.p30) * 20);
-        return Math.round(Math.max(5, hist / b.p30 * 30));
-      })();
-      const _bosVolDeltaPpg = (() => {
-        if (_bosLastSznPpg == null) return null;
-        if (bos.switchedTeams) {
-          // Grade delta: normalized across teams
-          const hg = _bosHistGrade, pg = _bosProjGrade;
-          if (hg == null || pg == null || hg <= 0) return null;
-          return +(Math.max(-_bosLastSznPpg, Math.min(_bosLastSznPpg,
-            _bosLastSznPpg * ((pg - hg) / hg)
-          )).toFixed(1));
-        }
-        if (_bosHistOwn <= 0) return null;
-        const _bosAbsRate = bos.dcRank === 1 ? 0.60 : bos.dcRank === 2 ? 0.25 : 0.08;
-        const _bosRetRatio = (bos.compDelta * _bosAbsRate) / _bosHistOwn;
-        return +(Math.max(-_bosLastSznPpg, Math.min(_bosLastSznPpg,
-          _bosLastSznPpg * _bosRetRatio
-        )).toFixed(1));
-      })();
+      // Same formula as overview: lastPPG × (projMultiplier − 1) = actual applied impact.
+      const _bosVolDeltaPpg = _bosLastSznPpg != null
+        ? +(Math.round(_bosLastSznPpg * (bos.projMultiplier - 1) * 10) / 10)
+        : null;
       const ppgDelta = _bosVolDeltaPpg ?? +((parseFloat(mPpg) * (bos.projMultiplier - 1)).toFixed(1));
       const ppgStr  = ppgDelta === 0 ? '±0 PPG' : `${ppgDelta > 0 ? '+' : ''}${ppgDelta} PPG`;
       const arrow   = ppgDelta > 0 ? '↑' : ppgDelta < 0 ? '↓' : '→';
@@ -10002,9 +9952,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
                         bos.compDelta < -5 ? `↓ new threats` : 'stable competition';
       const subLine  = `${bos.label} · ${ownPart} · ${deltaPart}`;
       // Explanation of what BOS measures (shown as second sub line)
-      const explainLine = _bosVolDeltaPpg != null
-        ? `opportunity change vs last season · ${bos.label.toLowerCase()}`
-        : `carry share + target role + depth chart competition`;
+      const explainLine = `carry share + depth chart competition · applied to projection`;
       return `<div class="pp-factor">
         <div class="pp-factor-lbl">Backfield Opp.</div>
         <div class="pp-factor-val" style="color:${col};">${ppgStr} ${arrow}</div>
