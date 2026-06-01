@@ -3158,6 +3158,19 @@
 .tr-delay-5 { animation-delay:0.25s; }
 .tr-delay-6 { animation-delay:0.30s; }
 
+/* Unified player card — wraps career arc + stat profile + scenario as one panel */
+.tr-unified {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-left-width: 3px;
+  border-radius: 10px;
+  padding: 20px 20px 16px;
+  animation: trFadeUp 0.5s ease both;
+}
+.tr-unified .tr-card-hdr { margin-bottom: 2px; }
+.tr-unified .tr-grid     { margin-bottom: 0; }
+.tr-unified .tr-card { background:transparent; border:none; border-radius:0; padding:0; animation:none; }
+
 /* Scenario strip */
 .tr-sc-wrap   { padding:8px 4px 4px; }
 .tr-sc-track  { position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,0.07);margin-bottom:36px; }
@@ -11445,19 +11458,21 @@ async function trendsLoadPlayer(pid) {
           ${cache ? `<div class="tr-hero-stat-val" style="font-size:15px;margin-top:8px;">${cache.medianPpr}</div><div class="tr-hero-stat-lbl">PROJ PTS</div>` : ''}
         </div>
       </div>
-      <div class="tr-grid">
-        <div class="tr-card tr-delay-1">
-          <div class="tr-card-hdr">CAREER_ARC <span style="opacity:0.4;font-size:7px;margin-left:8px;">dot size = games played</span></div>
-          <div id="trends-chart-career" style="min-height:280px;"></div>
+      <div class="tr-unified tr-delay-1" style="border-left-color:${accent};">
+        <div class="tr-grid">
+          <div>
+            <div class="tr-card-hdr">CAREER_ARC <span style="opacity:0.4;font-size:7px;margin-left:8px;">dot size = games played · faint line = ${pos} avg</span></div>
+            <div id="trends-chart-career" style="min-height:280px;"></div>
+          </div>
+          ${statsPanel}
         </div>
-        ${statsPanel}
-      </div>
-      ${cache ? `<div class="tr-card tr-delay-3">
-        <div class="tr-card-hdr">2026_SCENARIO_RANGE</div>
-        <div class="tr-sc-wrap">${buildScenarioStrip(cache, accent)}</div>
-      </div>` : ''}`;
+        ${cache ? `<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:18px;margin-top:4px;">
+          <div class="tr-card-hdr">2026_SCENARIO_RANGE</div>
+          <div class="tr-sc-wrap">${buildScenarioStrip(cache, accent)}</div>
+        </div>` : ''}
+      </div>`;
 
-    requestAnimationFrame(() => renderTrendsCharts(pid, accent, qualSzns, grades));
+    requestAnimationFrame(() => renderTrendsCharts(pid, accent, qualSzns, grades, pos));
   } catch(e) {
     console.error('[Trends]', e);
     content.innerHTML = `<div class="tr-empty" style="color:var(--red);">// ERROR: ${e.message}</div>`;
@@ -11505,7 +11520,7 @@ function buildTrendsCharts(pid) {
   `;
 }
 
-function renderTrendsCharts(pid, accent = '#38bdf8', qualSeasons = null, grades = []) {
+function renderTrendsCharts(pid, accent = '#38bdf8', qualSeasons = null, grades = [], pos = null) {
   if (typeof Plotly === 'undefined') { console.warn('[Trends] Plotly not loaded'); return; }
   const cache = projectionCache[pid];
   if (!qualSeasons) {
@@ -11549,7 +11564,39 @@ function renderTrendsCharts(pid, accent = '#38bdf8', qualSeasons = null, grades 
       hovertemplate: '%{customdata}<extra></extra>',
     };
 
+    // ── Position average line ─────────────────────────────────────────────
+    // For each year the focal player played, compute avg PPG across all
+    // careerDB players at the same position (min 5 qualifying players per year).
+    const posAvgTrace = (() => {
+      if (!pos) return null;
+      const byYear = {};
+      for (const [pid2, szns] of Object.entries(careerDB)) {
+        const sp2 = sleeperPlayers[pid2];
+        if (!sp2 || sp2.position !== pos) continue;
+        for (const s of szns) {
+          if ((s.games ?? 0) < 4) continue;
+          const yr = s.season;
+          if (!byYear[yr]) byYear[yr] = { sum: 0, n: 0 };
+          byYear[yr].sum += s.ppg ?? s.ppr / s.games;
+          byYear[yr].n++;
+        }
+      }
+      const avgY = qualSeasons.map(s => {
+        const d = byYear[s.season];
+        return (d && d.n >= 5) ? +(d.sum / d.n).toFixed(2) : null;
+      });
+      if (avgY.every(v => v === null)) return null;
+      return {
+        x: years, y: avgY,
+        mode: 'lines', type: 'scatter', name: `${pos} avg`,
+        line: { color: 'rgba(255,255,255,0.18)', width: 1.5, dash: 'dot', shape: 'spline', smoothing: 0.6 },
+        hovertemplate: `${pos} avg: <b>%{y:.1f} PPG</b><extra></extra>`,
+        cliponaxis: false,
+      };
+    })();
+
     const traces = [histTrace];
+    if (posAvgTrace) traces.push(posAvgTrace);
 
     if (cache?.basePpg) {
       const projPpg = +cache.basePpg.toFixed(2);
