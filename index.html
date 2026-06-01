@@ -12112,8 +12112,9 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     const hasMeaningfulProd = myLastSznPpg >= 7.0 && _lastSznGames >= 6;
 
     if (!hasMeaningfulProd) {
-      // ~12% normalized cap: p50×0.40 ≈ 10–12 raw pts in most pools
-      const dc3Cap = (breaks.p50 ?? 25) * 0.40;
+      // ~10-12% normalized cap. Use p50×0.28 so the cap holds even when
+      // dynamic breaks are high (real p50 ≈ 35-45 in active-RB pools).
+      const dc3Cap = (breaks.p50 ?? 25) * 0.28;
       projOwnershipScore = Math.min(projOwnershipScore, dc3Cap);
     }
 
