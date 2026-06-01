@@ -12053,6 +12053,23 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     ? projOwnershipScore
     : Math.min(_effCeiling, projOwnershipScore * effVolMult);
 
+  // ── DC3 share cap ────────────────────────────────────────────────────────
+  // RB3s should not project meaningful backfield share unless they have real
+  // production history or high draft pedigree as a rookie.
+  // Exempt: ≥5 PPG last season (meaningful contributor) OR R1–R4 rookie.
+  if (myDcRank >= 3) {
+    const myRound = sp?.draft_round ?? sp?.college_draft_round
+                  ?? _draftRoundCache[String(pid)] ?? null;
+    const isHighPedigreeRookie = (sp?.years_exp ?? 99) === 0
+                                 && myRound != null && myRound <= 4;
+    const hasMeaningfulProd   = myLastSznPpg >= 5.0;
+    if (!isHighPedigreeRookie && !hasMeaningfulProd) {
+      // Cap at a value that normalizes to roughly ≤10% in a typical backfield pool.
+      const dc3Cap = (breaks.p30 ?? 15) * 0.45;
+      projOwnershipScore = Math.min(projOwnershipScore, dc3Cap);
+    }
+  }
+
   // Personal Vol & Opp delta
   const volOppDelta = projOwnershipScore - historicalOwnershipScore;
 
