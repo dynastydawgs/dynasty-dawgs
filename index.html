@@ -12013,7 +12013,12 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
       ? myCareerSzns.reduce((best, s) => (s.ppr / s.games) > (best.ppr / best.games) ? s : best)
       : null;
     const _seasonsSincePeak = _peakSzn?.season ? (2026 - _peakSzn.season) : 99;
-    const _eliteVetEligible = _myStage !== 'cliff' && _seasonsSincePeak <= 3;
+    // Not cliff-age, peak was recent, AND still retaining ≥65% of peak output.
+    // A back who peaked at 15 PPG but now averages 8 PPG has fallen to RB2 —
+    // their old peak shouldn't inflate their DC2 projection.
+    const _eliteVetEligible = _myStage !== 'cliff'
+                           && _seasonsSincePeak <= 3
+                           && myRetentionRatio >= 0.65;
     const dc2RoleBase = (myBestSznPpg >= 13 && _eliteVetEligible) ? breaks.p75 * 0.95  // elite proven vet, recent peak
                       : myBestSznPpg >= 10 ? breaks.p75 * 0.72  // proven vet
                       : myBestSznPpg >= 7  ? breaks.p75 * 0.55  // decent vet
