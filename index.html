@@ -982,14 +982,17 @@
   .pp-tab.t-proj    { color: rgba(45,214,168,0.6); }
   .pp-tab.t-comps   { color: rgba(56,196,232,0.6); }
   .pp-tab.t-adv     { color: rgba(245,158,66,0.6); }
+  .pp-tab.t-trends  { color: rgba(56,196,232,0.6);  }
   .pp-tab.t-outlook { color: rgba(168,139,250,0.6); }
   .pp-tab:hover.t-proj    { color: var(--green);  background: rgba(45,214,168,0.08);  box-shadow: 0 0 14px rgba(45,214,168,0.18); }
   .pp-tab:hover.t-comps   { color: var(--blue);   background: rgba(56,196,232,0.08);  box-shadow: 0 0 14px rgba(56,196,232,0.18); }
   .pp-tab:hover.t-adv     { color: var(--orange); background: rgba(245,158,66,0.08);  box-shadow: 0 0 14px rgba(245,158,66,0.18); }
+  .pp-tab:hover.t-trends  { color: var(--blue);    background: rgba(56,196,232,0.08);  box-shadow: 0 0 14px rgba(56,196,232,0.18);  }
   .pp-tab:hover.t-outlook { color: #a78bfa;        background: rgba(168,139,250,0.08); box-shadow: 0 0 14px rgba(168,139,250,0.18); }
   .pp-tab.active.t-proj    { color: var(--green);  background: rgba(45,214,168,0.10); border-color: rgba(45,214,168,0.3);  box-shadow: 0 0 16px rgba(45,214,168,0.22); }
   .pp-tab.active.t-comps   { color: var(--blue);   background: rgba(56,196,232,0.10); border-color: rgba(56,196,232,0.3);  box-shadow: 0 0 16px rgba(56,196,232,0.22); }
   .pp-tab.active.t-adv     { color: var(--orange); background: rgba(245,158,66,0.10); border-color: rgba(245,158,66,0.3);  box-shadow: 0 0 16px rgba(245,158,66,0.22); }
+  .pp-tab.active.t-trends  { color: var(--blue);    background: rgba(56,196,232,0.10);  border-color: rgba(56,196,232,0.3);  box-shadow: 0 0 16px rgba(56,196,232,0.22);  }
   .pp-tab.active.t-outlook { color: #a78bfa;        background: rgba(168,139,250,0.10); border-color: rgba(168,139,250,0.3); box-shadow: 0 0 16px rgba(168,139,250,0.22); }
   .pp-tab-panel { padding: 16px 20px 0; }
   .pp-tab-divider {
@@ -5533,7 +5536,8 @@ async function loadPlayerProfile(pid) {
             <circle cx="40" cy="40" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="5"/>
             <circle cx="40" cy="40" r="${r}" fill="none" stroke="${col}" stroke-width="5"
               stroke-dasharray="${circ}" stroke-dashoffset="${off}"
-              stroke-linecap="round" transform="rotate(-90 40 40)"/>
+              stroke-linecap="round" transform="rotate(-90 40 40)"
+              class="pp-grade-arc" data-target="${off}" data-circ="${circ}"/>
           </svg>
           <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--display);font-size:22px;line-height:1;color:${col};">${sc !== null ? sc : '—'}</div>
         </div>
@@ -7797,6 +7801,7 @@ async function loadPlayerProfile(pid) {
           </div>
           <div class="pp-tabs">
             <button class="pp-tab t-proj active" onclick="switchPpTab('proj',this)">Projections</button>
+            <button class="pp-tab t-trends"  onclick="switchPpTab('trends',this)">Trends</button>
             <button class="pp-tab t-comps"   onclick="switchPpTab('comps',this)">Comps</button>
             <button class="pp-tab t-adv"     onclick="switchPpTab('adv',this)">Advanced</button>
             <button class="pp-tab t-outlook" onclick="switchPpTab('outlook',this)">Outlook</button>
@@ -7855,6 +7860,11 @@ async function loadPlayerProfile(pid) {
         <!-- TAB: Overview -->
         <div class="pp-tab-panel" id="pp-tab-overview" style="display:none; padding:0;">
           ${overviewHTML || `<div style="padding:48px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">// OVERVIEW — COMING SOON</div>`}
+        </div>
+
+        <!-- TAB: Trends -->
+        <div class="pp-tab-panel" id="pp-tab-trends" style="display:none; padding:16px 20px 20px;">
+          <div id="pp-trends-content"></div>
         </div>
 
       </div>
@@ -10171,7 +10181,11 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       </div>`;
     })();
 
-    projEl.innerHTML = tepBar + careerChartHtml + `
+    // Inject career chart into Trends tab
+    const trendsEl = document.getElementById('pp-trends-content');
+    if (trendsEl && careerChartHtml) trendsEl.innerHTML = careerChartHtml;
+
+    projEl.innerHTML = tepBar + `
       <div class="pp-outcomes">
         ${card('bear', dispFloorPpr, dispFPpg, projStats(floorPpr,  pos, rbActuals), descs[0])}
         ${card('base', dispMedPpr,   dispMPpg, projStats(medianPpr, pos, rbActuals), descs[1])}
@@ -11342,12 +11356,29 @@ function switchPpTab(tab, btn) {
   if (labelText) {
     const labels = {
       proj:    `${projSeasonYear()} Season Outlook — PPR`,
+      trends:  'Career Trends',
       comps:   `${projSeasonYear()} Similarity Scores`,
       adv:      'Advanced Stats — 2025',
       outlook:  `${projSeasonYear()} Outlook — Current Team`,
       overview: 'Overview — 2025 vs 2026'
     };
     labelText.textContent = labels[tab] ?? labels.proj;
+  }
+
+  // Animate grade circle arcs when Overview tab opens
+  if (tab === 'overview') {
+    setTimeout(() => {
+      card.querySelectorAll('.pp-grade-arc').forEach(arc => {
+        const target = arc.dataset.target;
+        if (target == null) return;
+        arc.style.transition = 'none';
+        arc.style.strokeDashoffset = arc.dataset.circ;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          arc.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1)';
+          arc.style.strokeDashoffset = target;
+        }));
+      });
+    }, 30);
   }
 }
 
