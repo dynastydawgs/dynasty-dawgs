@@ -5823,23 +5823,62 @@ async function loadPlayerProfile(pid) {
         ${_effImpactCardHTML}
         ${(() => {
           if (!_curOffRank) return '';
-          const NFL_AVG_RUSH = 26.0;
-          const TOP_RUSH     = 29.5;
-          const _tsTier      = _curOffRank <= 11 ? 'top' : _curOffRank <= 21 ? 'mid' : 'bot';
-          const _projRushBase = _tsTier === 'bot' ? +(((_curTeamRushPg + NFL_AVG_RUSH) / 2).toFixed(1))
-                              : _curTeamRushPg;
+          const NFL_AVG_RUSH  = 26.0;
+          const TOP_RUSH      = 29.5;
+          const _tsTierOf     = r => r <= 11 ? 'top' : r <= 21 ? 'mid' : 'bot';
+          const _tsTier       = _tsTierOf(_curOffRank);
+
+          // Old team rank (for switchers)
+          const _ovOldTeamEntry = teamChanged ? (teamDB?.[statTeam] ?? null) : null;
+          const _ovOldRank      = (() => {
+            if (!_ovOldTeamEntry?.offRating) return null;
+            const _s = Object.values(teamDB ?? {}).filter(v => v?.offRating != null)
+              .map(v => v.offRating).sort((a, b) => b - a);
+            const _i = _s.indexOf(_ovOldTeamEntry.offRating);
+            return _i >= 0 ? _i + 1 : null;
+          })();
+          const _rankDelta = (teamChanged && _ovOldRank) ? _curOffRank - _ovOldRank : 0;
+
+          // Rush att/g projections
+          const _projRushBase = teamChanged
+            ? _curTeamRushPg  // switcher: new team's actual volume, no regression assumption
+            : (_tsTier === 'bot' ? +(((_curTeamRushPg + NFL_AVG_RUSH) / 2).toFixed(1)) : _curTeamRushPg);
           const _projRushBull = _tsTier === 'bot' || _tsTier === 'mid' ? TOP_RUSH : +(_curTeamRushPg * 1.04).toFixed(1);
           const _projRushBear = _tsTier === 'bot' ? _curTeamRushPg
                               : _tsTier === 'mid' ? +(_curTeamRushPg * 0.94).toFixed(1)
                               : +(((_curTeamRushPg + NFL_AVG_RUSH) / 2).toFixed(1));
-          const _tierLbl   = _tsTier === 'bot' ? 'Bottom-Third Offense' : _tsTier === 'mid' ? 'Mid-Tier Offense' : 'Elite Offense';
-          const _baseDesc  = _tsTier === 'bot' ? `Bottom-third offenses tend to add rush volume — base projects ${_projRushBase} att/g (regression to avg).`
-                           : _tsTier === 'mid' ? `Mid-tier offense — stable. Base projects ${_projRushBase} att/g.`
-                           : `Elite offense — projects to maintain ${_projRushBase} att/g run volume.`;
-          const _bdrCol    = _tsTier === 'bot' ? 'var(--green)' : _tsTier === 'top' ? 'var(--accent)' : 'var(--border)';
-          const _baseAdj   = _tsTier === 'bot' ? '+4%' : '0%';
-          const _bullAdj   = _tsTier === 'bot' ? '+9%' : _tsTier === 'mid' ? '+5%' : '+3%';
-          const _bearAdj   = '−4%';
+
+          // Adjustment labels — switchers use rank delta, returners use tier
+          const _baseAdj = (() => {
+            if (teamChanged && _ovOldRank) {
+              if (_rankDelta >= 16) return '−3%';
+              if (_rankDelta >= 8)  return '−1.5%';
+              if (_rankDelta <= -16) return '+3%';
+              if (_rankDelta <= -8)  return '+1.5%';
+              return '0%';
+            }
+            return _tsTier === 'bot' ? '+4%' : '0%';
+          })();
+          const _bullAdj = _tsTier === 'bot' ? (teamChanged ? '+6%' : '+9%') : _tsTier === 'mid' ? '+4%' : '+3%';
+          const _bearAdj = '−4%';
+
+          const _tierLbl  = _tsTier === 'bot' ? 'Bottom-Third Offense' : _tsTier === 'mid' ? 'Mid-Tier Offense' : 'Elite Offense';
+          const _baseCol  = _baseAdj.startsWith('+') ? 'var(--green)' : _baseAdj.startsWith('−') || _baseAdj.startsWith('-') ? 'var(--red)' : 'var(--text-muted)';
+          const _bdrCol   = _tsTier === 'bot' ? (_baseAdj.startsWith('+') ? 'var(--green)' : 'var(--red)') : _tsTier === 'top' ? 'var(--accent)' : 'var(--border)';
+
+          const _baseDesc = (() => {
+            if (teamChanged && _ovOldRank) {
+              if (_rankDelta >= 16) return `Moved from #${_ovOldRank} → #${_curOffRank}. Real volume loss — projects ${_projRushBase} att/g.`;
+              if (_rankDelta >= 8)  return `Slight vol downgrade from #${_ovOldRank} → #${_curOffRank}. Projects ${_projRushBase} att/g.`;
+              if (_rankDelta <= -16) return `Moved from #${_ovOldRank} → #${_curOffRank}. Real volume gain — projects ${_projRushBase} att/g.`;
+              if (_rankDelta <= -8)  return `Slight vol upgrade from #${_ovOldRank} → #${_curOffRank}. Projects ${_projRushBase} att/g.`;
+              return `Similar offense tier to last season (#${_ovOldRank} → #${_curOffRank}). Projects ${_projRushBase} att/g.`;
+            }
+            return _tsTier === 'bot' ? `Bottom-third offenses tend to add rush volume — base projects ${_projRushBase} att/g (regression to avg).`
+                 : _tsTier === 'mid' ? `Mid-tier offense — stable. Base projects ${_projRushBase} att/g.`
+                 : `Elite offense — projects to maintain ${_projRushBase} att/g run volume.`;
+          })();
+
           return `
         <div style="margin:12px 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);">Team Situation 2026</div>
         <div style="background:var(--bg);border:1px solid var(--border);border-left:2px solid ${_bdrCol};border-radius:var(--radius);padding:12px 16px;">
@@ -5856,7 +5895,7 @@ async function loadPlayerProfile(pid) {
           <div style="display:flex;gap:10px;font-family:var(--mono);font-size:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:7px;">
             <span style="color:var(--red);">Bear ${_bearAdj} · ${_projRushBear} att/g</span>
             <span style="color:var(--text-dim);">·</span>
-            <span style="color:${_tsTier === 'bot' ? 'var(--green)' : 'var(--text-muted)'};">Base ${_baseAdj} · ${_projRushBase} att/g</span>
+            <span style="color:${_baseCol};">Base ${_baseAdj} · ${_projRushBase} att/g</span>
             <span style="color:var(--text-dim);">·</span>
             <span style="color:var(--green);">Bull ${_bullAdj} · ${_projRushBull} att/g</span>
           </div>
@@ -9654,30 +9693,57 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     }
 
     // ── Team Situation Adjustment ─────────────────────────────────────────────
-    // Bottom-third offenses are likely to regress toward the mean (more rush att/g),
-    // benefiting the featured back. Top-third offenses are stable. Middle is neutral.
-    // Each tier has different bear/base/bull scenario multipliers applied directly to
-    // floor/median/ceiling so the three projection cards reflect the team context.
-    const _tsSp    = sleeperPlayers[pid] ?? {};
-    const _tsTeam  = _tsSp.team ?? null;
-    const _tsCur   = teamDB?.[_tsTeam] ?? null;
-    const _tsRank  = (() => {
-      if (!_tsCur?.offRating) return null;
+    // Returners on bad offenses: regression-to-mean boost (offense likely improves).
+    // Switchers: compare old team rank vs new team rank — the delta drives the adjustment.
+    //   Good→Bad: negative base (real volume loss). Bad→Good: positive base (volume gain).
+    //   Regression-to-mean story only applies to returners stuck on a bad team.
+    const _tsSp      = sleeperPlayers[pid] ?? {};
+    const _tsTeam    = _tsSp.team ?? null;
+    const _tsCur     = teamDB?.[_tsTeam] ?? null;
+    const _tsSwitched = bos?.switchedTeams ?? false;
+    const _tsOldTeam  = _tsSwitched ? (statTeamDB?.[String(pid)] ?? null) : null;
+    const _tsOldCur   = _tsOldTeam ? (teamDB?.[_tsOldTeam] ?? null) : null;
+    // Helper: get rank (1=best) for a given teamDB entry
+    const _tsGetRank  = (teamEntry) => {
+      if (!teamEntry?.offRating) return null;
       const _sorted = Object.values(teamDB ?? {})
         .filter(v => v?.offRating != null)
         .map(v => v.offRating)
         .sort((a, b) => b - a);
-      const _idx = _sorted.indexOf(_tsCur.offRating);
+      const _idx = _sorted.indexOf(teamEntry.offRating);
       return _idx >= 0 ? _idx + 1 : null;
-    })();
+    };
+    const _tsRank    = _tsGetRank(_tsCur);
+    const _tsOldRank = _tsGetRank(_tsOldCur);
     {
       if (_tsRank !== null && (sleeperPlayers[pid]?.position ?? pos) === 'RB') {
-        // Tier: top=1-11, mid=12-21, bot=22-32
-        const _tsTier = _tsRank <= 11 ? 'top' : _tsRank <= 21 ? 'mid' : 'bot';
-        // Bear always assumes offense declines or stays bad; base/bull differ by tier.
-        const _tsBearM = 0.96;
-        const _tsBaseM = _tsTier === 'bot' ? 1.04 : 1.00;
-        const _tsBullM = _tsTier === 'bot' ? 1.09 : _tsTier === 'mid' ? 1.05 : 1.03;
+        // Tier helpers: top=1-11, mid=12-21, bot=22-32
+        const _tsTierOf = r => r <= 11 ? 'top' : r <= 21 ? 'mid' : 'bot';
+        const _tsTier    = _tsTierOf(_tsRank);
+        const _tsOldTier = _tsOldRank ? _tsTierOf(_tsOldRank) : null;
+
+        let _tsBaseM, _tsBullM;
+
+        if (_tsSwitched && _tsOldRank !== null) {
+          // Switcher: base adjustment driven by rank delta (new vs old team)
+          // Positive delta = moved to worse offense; negative = moved to better
+          const _rankDelta = _tsRank - _tsOldRank; // e.g. +15 = moved 15 spots worse
+          // Base: reflects real volume change — no regression-to-mean assumption for switchers
+          _tsBaseM = _rankDelta >=  16 ? 0.97   // good → bad: real volume loss
+                   : _rankDelta >=   8 ? 0.985  // slight downgrade
+                   : _rankDelta <=  -16 ? 1.03  // bad → good: real volume gain
+                   : _rankDelta <=   -8 ? 1.015 // slight upgrade
+                   : 1.00;                       // similar tier: flat
+          // Bull: new offense improves toward avg (bad) or stays elite (good)
+          _tsBullM = _tsTier === 'bot' ? 1.06
+                   : _tsTier === 'mid' ? 1.04 : 1.03;
+        } else {
+          // Returner: standard regression-to-mean logic
+          _tsBaseM = _tsTier === 'bot' ? 1.04 : 1.00;
+          _tsBullM = _tsTier === 'bot' ? 1.09 : _tsTier === 'mid' ? 1.05 : 1.03;
+        }
+
+        const _tsBearM = 0.96; // bear always: offense declines or stays bad
         floorPpr  = Math.round(floorPpr  * _tsBearM);
         medianPpr = Math.round(medianPpr * _tsBaseM);
         ceilPpr   = Math.round(ceilPpr   * _tsBullM);
@@ -9987,31 +10053,61 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         ${bosBox}
         ${(() => {
           if (!_tsRank || pos !== 'RB') return '';
-          const NFL_AVG_RUSH = 26.0;
-          const TOP_RUSH     = 29.5;
-          const _tsTier      = _tsRank <= 11 ? 'top' : _tsRank <= 21 ? 'mid' : 'bot';
-          const _baseM       = _tsTier === 'bot' ? 1.04 : 1.00;
-          const _bearM       = 0.96;
-          const _bullM       = _tsTier === 'bot' ? 1.09 : _tsTier === 'mid' ? 1.05 : 1.03;
-          const _basePpgImp  = +(parseFloat(mPpg) * (_baseM - 1)).toFixed(1);
-          const _bullPpgImp  = +(parseFloat(mPpg) * (_bullM - 1)).toFixed(1);
-          const _bearPpgImp  = +(parseFloat(mPpg) * (_bearM - 1)).toFixed(1);
-          const _tierLbl     = _tsTier === 'bot' ? 'Bottom-Third Offense' : _tsTier === 'mid' ? 'Mid-Tier Offense' : 'Elite Offense';
-          const _baseStr     = _tsTier === 'bot'
-            ? `Base: regresses to avg (${_basePpgImp >= 0 ? '+' : ''}${_basePpgImp} PPG)`
-            : _tsTier === 'mid' ? `Base: stable (0 PPG)`
-            : `Base: stays elite (0 PPG)`;
-          const _bullStr     = `Bull: top offense (+${_bullPpgImp} PPG)`;
-          const _bearStr     = `Bear: stays weak/declines (${_bearPpgImp} PPG)`;
-          const baseCol      = _tsTier === 'bot' ? 'var(--green)' : 'var(--text-muted)';
-          const baseStr      = _tsTier === 'bot' ? `+${_basePpgImp} PPG` : '±0 PPG';
-          const baseArrow    = _tsTier === 'bot' ? '↑' : '→';
+          const _tsTierOf  = r => r <= 11 ? 'top' : r <= 21 ? 'mid' : 'bot';
+          const _tsTier    = _tsTierOf(_tsRank);
+          const _tsOldTier = _tsOldRank ? _tsTierOf(_tsOldRank) : null;
+          const _rankDelta = (_tsSwitched && _tsOldRank) ? _tsRank - _tsOldRank : 0;
+
+          // Derive the same multipliers used in the actual projection adjustment
+          let _tsBaseM, _tsBullM;
+          if (_tsSwitched && _tsOldRank !== null) {
+            _tsBaseM = _rankDelta >=  16 ? 0.97
+                     : _rankDelta >=   8 ? 0.985
+                     : _rankDelta <= -16 ? 1.03
+                     : _rankDelta <=  -8 ? 1.015
+                     : 1.00;
+            _tsBullM = _tsTier === 'bot' ? 1.06 : _tsTier === 'mid' ? 1.04 : 1.03;
+          } else {
+            _tsBaseM = _tsTier === 'bot' ? 1.04 : 1.00;
+            _tsBullM = _tsTier === 'bot' ? 1.09 : _tsTier === 'mid' ? 1.05 : 1.03;
+          }
+          const _tsBearM    = 0.96;
+          const _basePpgImp = +(parseFloat(mPpg) * (_tsBaseM - 1)).toFixed(1);
+          const _bullPpgImp = +(parseFloat(mPpg) * (_tsBullM - 1)).toFixed(1);
+          const _bearPpgImp = +(parseFloat(mPpg) * (_tsBearM - 1)).toFixed(1);
+
+          const _tierLbl = _tsTier === 'bot' ? 'Bottom-Third Offense' : _tsTier === 'mid' ? 'Mid-Tier Offense' : 'Elite Offense';
+          const _baseCol = _tsBaseM > 1.00 ? 'var(--green)' : _tsBaseM < 1.00 ? 'var(--red)' : 'var(--text-muted)';
+          const _baseValStr = _basePpgImp === 0 ? '±0 PPG'
+                            : `${_basePpgImp > 0 ? '+' : ''}${_basePpgImp} PPG`;
+          const _baseArrow  = _tsBaseM > 1.00 ? '↑' : _tsBaseM < 1.00 ? '↓' : '→';
+
+          // Switcher context line
+          const _switchCtx = _tsSwitched && _tsOldRank
+            ? (() => {
+                const dir = _rankDelta >= 8 ? `↓ Vol downgrade from #${_tsOldRank}`
+                          : _rankDelta <= -8 ? `↑ Vol upgrade from #${_tsOldRank}`
+                          : `→ Similar vol to #${_tsOldRank}`;
+                return `<div class="pp-factor-sub" style="opacity:0.65;">${dir} → #${_tsRank}</div>`;
+              })()
+            : '';
+
+          const _baseDescStr = _tsSwitched && _tsOldRank !== null
+            ? (_rankDelta >= 16  ? `Base: real vol loss (signed into bad offense)`
+              : _rankDelta >= 8  ? `Base: slight vol downgrade`
+              : _rankDelta <= -16 ? `Base: real vol gain (moved to better offense)`
+              : _rankDelta <= -8  ? `Base: slight vol upgrade`
+              : `Base: similar offense tier — stable`)
+            : (_tsTier === 'bot' ? `Base: regresses to avg rush vol`
+              : _tsTier === 'mid' ? `Base: stable` : `Base: stays elite`);
+
           return `<div class="pp-factor">
             <div class="pp-factor-lbl">Team Situation</div>
-            <div class="pp-factor-val" style="color:${baseCol};">${baseStr} ${baseArrow}</div>
+            <div class="pp-factor-val" style="color:${_baseCol};">${_baseValStr} ${_baseArrow}</div>
             <div class="pp-factor-sub">${_tierLbl} · #${_tsRank}/32</div>
-            <div class="pp-factor-sub" style="opacity:0.7;">${_baseStr}</div>
-            <div class="pp-factor-sub" style="opacity:0.55;font-size:8.5px;">${_bullStr} · ${_bearStr}</div>
+            ${_switchCtx}
+            <div class="pp-factor-sub" style="opacity:0.7;">${_baseDescStr} (${_baseValStr})</div>
+            <div class="pp-factor-sub" style="opacity:0.55;font-size:8.5px;">Bull: +${_bullPpgImp} PPG · Bear: ${_bearPpgImp} PPG</div>
           </div>`;
         })()}
         ${(() => {
