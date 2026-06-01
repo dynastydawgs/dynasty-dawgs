@@ -11544,6 +11544,7 @@ function renderTrendsCharts(pid, accent = '#38bdf8', qualSeasons = null, grades 
       marker: { size: mSize, color: mColor, line: { color: mBord, width: mBordW } },
       fill: 'tozeroy',
       fillcolor: accent + '15',
+      cliponaxis: false,
       customdata: qualSeasons.map((s,i) => `${years[i]}: <b>${ppgs[i].toFixed(1)} PPG</b><br>${games[i]} games`),
       hovertemplate: '%{customdata}<extra></extra>',
     };
@@ -11572,7 +11573,7 @@ function renderTrendsCharts(pid, accent = '#38bdf8', qualSeasons = null, grades 
         tickfont: { size: 12, color: DIMTXT, family: FONT } },
       yaxis: { showgrid: true, gridcolor: 'rgba(255,255,255,0.05)', gridwidth: 1,
         zeroline: false, showline: false, visible: false, fixedrange: true },
-      margin: { t: 32, b: 36, l: 8, r: 72 },
+      margin: { t: 32, b: 36, l: 28, r: 72 },
       showlegend: false, hovermode: 'closest',
       shapes: [{ type:'line', xref:'paper', yref:'y', x0:0, x1:1, y0:avg, y1:avg,
         line: { color:'rgba(255,255,255,0.1)', width:1, dash:'dot' } }],
