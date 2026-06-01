@@ -3097,6 +3097,7 @@
       <button class="topnav-tab" onclick="switchMainView('prototype2', this)">Prototype 2</button>
       <button class="topnav-tab" onclick="switchMainView('prototype3', this)">Prototype 3</button>
       <button class="topnav-tab" onclick="switchMainView('masterstats', this)">Master Stats</button>
+      <button class="topnav-tab" onclick="switchMainView('trends', this)">Trends</button>
     </div>
   </div>
 </nav>
@@ -3681,6 +3682,24 @@
       </div>
     </div>
   </div><!-- /mainview-masterstats -->
+
+  <!-- ── TRENDS ── -->
+  <div class="main-view" id="mainview-trends" style="display:none;">
+    <div style="padding:24px 28px;max-width:900px;margin:0 auto;">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:0.14em;color:var(--text-dim);margin-bottom:4px;">Dynasty Dawgs</div>
+      <div style="font-family:var(--display);font-size:26px;color:var(--text);margin-bottom:6px;">PLAYER TRENDS</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:24px;">Search a player to view career trajectory, health history, and projection scenarios.</div>
+      <div style="display:flex;gap:10px;margin-bottom:24px;">
+        <input id="trends-search" type="text" placeholder="Search player…" autocomplete="off"
+          style="flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 14px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none;"
+          oninput="trendsSearch(this.value)"/>
+      </div>
+      <div id="trends-search-results" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;margin-bottom:16px;max-height:220px;overflow-y:auto;"></div>
+      <div id="trends-content" style="min-height:200px;">
+        <div style="padding:48px 0;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">// SEARCH A PLAYER TO VIEW TRENDS</div>
+      </div>
+    </div>
+  </div><!-- /mainview-trends -->
 
   <footer class="footer">
     <span class="footer-brand">DYNASTYDAWGS</span>
@@ -7801,7 +7820,6 @@ async function loadPlayerProfile(pid) {
           </div>
           <div class="pp-tabs">
             <button class="pp-tab t-proj active" onclick="switchPpTab('proj',this)">Projections</button>
-            <button class="pp-tab t-trends"  onclick="switchPpTab('trends',this)">Trends</button>
             <button class="pp-tab t-comps"   onclick="switchPpTab('comps',this)">Comps</button>
             <button class="pp-tab t-adv"     onclick="switchPpTab('adv',this)">Advanced</button>
             <button class="pp-tab t-outlook" onclick="switchPpTab('outlook',this)">Outlook</button>
@@ -7862,10 +7880,8 @@ async function loadPlayerProfile(pid) {
           ${overviewHTML || `<div style="padding:48px 20px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">// OVERVIEW — COMING SOON</div>`}
         </div>
 
-        <!-- TAB: Trends -->
-        <div class="pp-tab-panel" id="pp-tab-trends" style="display:none; padding:16px 20px 20px;">
-          <div id="pp-trends-content"></div>
-        </div>
+        <!-- Trends content injected here by runProjection for reuse in top-level Trends view -->
+        <div id="pp-trends-content" style="display:none;"></div>
 
       </div>
     </div>`;
@@ -11149,7 +11165,7 @@ function togglePgb(el) {
 function switchMainView(view, btn) {
   document.querySelectorAll('.topnav-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  const views = ['league', 'profiles', 'model', 'prototype', 'prototype2', 'prototype3', 'masterstats'];
+  const views = ['league', 'profiles', 'model', 'prototype', 'prototype2', 'prototype3', 'masterstats', 'trends'];
   views.forEach(v => {
     const el = document.getElementById(`mainview-${v}`);
     if (el) el.style.display = v === view ? '' : 'none';
@@ -11159,6 +11175,7 @@ function switchMainView(view, btn) {
   }
   if (view === 'model') { renderModelBuilding(); }
   if (view === 'masterstats') { initMasterStats(); }
+  if (view === 'trends') { setTimeout(() => document.getElementById('trends-search')?.focus(), 50); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -11233,6 +11250,66 @@ function _msPercentile(sortedVals, val, higherIsBetter) {
   const below = sortedVals.filter(v => v < val).length;
   const pct = (below / Math.max(sortedVals.length - 1, 1)) * 100;
   return higherIsBetter ? pct : 100 - pct;
+}
+
+// ── Trends view ──────────────────────────────────────────────────────────────
+function trendsSearch(q) {
+  const res = document.getElementById('trends-search-results');
+  if (!res) return;
+  const norm = q.trim().toLowerCase();
+  if (norm.length < 2) { res.style.display = 'none'; return; }
+  const matches = Object.entries(fcPlayerMap)
+    .filter(([pid, fc]) => fc?.name?.toLowerCase().includes(norm) && fc?.position)
+    .sort((a, b) => (b[1].value ?? 0) - (a[1].value ?? 0))
+    .slice(0, 10);
+  if (!matches.length) { res.style.display = 'none'; return; }
+  res.style.display = '';
+  res.innerHTML = matches.map(([pid, fc]) => {
+    const sp  = sleeperPlayers[pid];
+    const pos = fc.position ?? sp?.position ?? '?';
+    const team = sp?.team ?? '—';
+    return `<div onclick="trendsLoadPlayer('${pid}')" style="padding:9px 14px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:center;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
+      <span style="color:var(--accent);font-size:9px;min-width:24px;">${pos}</span>
+      <span style="flex:1;">${fc.name}</span>
+      <span style="color:var(--text-dim);font-size:10px;">${team}</span>
+    </div>`;
+  }).join('');
+}
+
+function trendsLoadPlayer(pid) {
+  document.getElementById('trends-search-results').style.display = 'none';
+  const fc  = fcPlayerMap[pid];
+  const sp  = sleeperPlayers[pid];
+  const name = fc?.name ?? sp?.full_name ?? pid;
+  document.getElementById('trends-search').value = name;
+  const content = document.getElementById('trends-content');
+  if (!content) return;
+  content.innerHTML = `<div style="padding:32px 0;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);">Loading ${name}…</div>`;
+  // runProjection headless to get projection numbers, then build charts
+  const _sp = sp ?? {};
+  const age = _sp.birth_date ? ((new Date() - new Date(_sp.birth_date)) / (365.25*24*3600*1000)) : null;
+  runProjection(
+    pid, name, fc?.position ?? _sp.position ?? 'WR',
+    age ?? null, _sp.years_exp ?? null, null, null, null,
+    '', '', fc?.value ?? 0, _sp.college ?? null, _sp.team ?? null,
+    null, null, null, 0, 0,
+    false  // not headless — we want careerChartHtml to populate trends-content
+  ).then(() => {
+    // runProjection writes to pp-proj-content; we want the trends charts
+    // which are injected separately into pp-trends-content by runProjection.
+    // For the standalone Trends view, re-inject from the cached chart.
+    const cached = document.getElementById('pp-trends-content');
+    if (cached && cached.innerHTML) {
+      content.innerHTML = `
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+          <span style="font-family:var(--display);font-size:18px;color:var(--text);">${name}</span>
+          <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);padding:2px 7px;background:rgba(255,255,255,0.06);border-radius:4px;">${fc?.position ?? '?'} · ${sp?.team ?? '—'}</span>
+        </div>
+        ${cached.innerHTML}`;
+    }
+  }).catch(() => {
+    content.innerHTML = `<div style="padding:32px 0;text-align:center;font-family:var(--mono);font-size:11px;color:var(--red);">Could not load trends for ${name}.</div>`;
+  });
 }
 
 async function initMasterStats() {
@@ -11414,7 +11491,6 @@ function switchPpTab(tab, btn) {
   if (labelText) {
     const labels = {
       proj:    `${projSeasonYear()} Season Outlook — PPR`,
-      trends:  'Career Trends',
       comps:   `${projSeasonYear()} Similarity Scores`,
       adv:      'Advanced Stats — 2025',
       outlook:  `${projSeasonYear()} Outlook — Current Team`,
