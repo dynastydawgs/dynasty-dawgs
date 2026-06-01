@@ -5669,8 +5669,14 @@ async function loadPlayerProfile(pid) {
         const last = szns.at(-1);
         return +(last.ppr / last.games).toFixed(1);
       })();
-      const _volDeltaPpg = _bosLastPpg != null && (_bos.historicalOwnershipScore ?? 0) > 0
-        ? +(_bosLastPpg * (_bos.volOppDelta / _bos.historicalOwnershipScore)).toFixed(1)
+      // Use last-season PPG × (opportunity delta / last-season opportunity) for all players.
+      // Switchers have real last-season data too — just from their old team.
+      // Cap at ±lastPPG to prevent unrealistic swings for large role changes (backup→starter).
+      const _histOwn = _bos.historicalOwnershipScore ?? 0;
+      const _volDeltaPpg = _bosLastPpg != null && _histOwn > 0
+        ? +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
+            _bosLastPpg * (_bos.volOppDelta / _histOwn)
+          )).toFixed(1))
         : null;
       const _multStr = _volDeltaPpg != null
         ? (_volDeltaPpg === 0 ? '±0 PPG' : `${_volDeltaPpg > 0 ? '+' : ''}${_volDeltaPpg} PPG`)
@@ -9912,8 +9918,11 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         const last = szns.at(-1);
         return +(last.ppr / last.games).toFixed(1);
       })();
-      const _bosVolDeltaPpg = _bosLastSznPpg != null && (bos.historicalOwnershipScore ?? 0) > 0
-        ? +(_bosLastSznPpg * (bos.volOppDelta / bos.historicalOwnershipScore)).toFixed(1)
+      const _bosHistOwn = bos.historicalOwnershipScore ?? 0;
+      const _bosVolDeltaPpg = _bosLastSznPpg != null && _bosHistOwn > 0
+        ? +(Math.max(-_bosLastSznPpg, Math.min(_bosLastSznPpg,
+            _bosLastSznPpg * (bos.volOppDelta / _bosHistOwn)
+          )).toFixed(1))
         : null;
       const ppgDelta = _bosVolDeltaPpg ?? +((parseFloat(mPpg) * (bos.projMultiplier - 1)).toFixed(1));
       const ppgStr  = ppgDelta === 0 ? '±0 PPG' : `${ppgDelta > 0 ? '+' : ''}${ppgDelta} PPG`;
