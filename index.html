@@ -12903,14 +12903,30 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
       });
     }
   }
-  // Also cap any DC3+ rival that exceeds 12%
+  // Cap DC3+ rivals that exceed 12%, redistributing excess to DC1/DC2 players
+  // (focal player + rivals ranked ≤ 2) so the total stays at targetPct.
+  let _rivalExcess = 0;
   normalizedCompetitors = normalizedCompetitors.map(c => {
     if ((c.dcRank ?? 99) <= 2 || c.projShare <= DC3_PCT_CAP) return c;
-    const cLastSznPpg  = (() => { if (!c.pid) return 0; const s = (careerDB[c.pid] ?? []).filter(x => (x.games ?? 0) >= 4); return s.length ? s.at(-1).ppr / s.at(-1).games : 0; })();
+    const cLastSznPpg   = (() => { if (!c.pid) return 0; const s = (careerDB[c.pid] ?? []).filter(x => (x.games ?? 0) >= 4); return s.length ? s.at(-1).ppr / s.at(-1).games : 0; })();
     const cLastSznGames = (() => { if (!c.pid) return 0; const s = (careerDB[c.pid] ?? []).filter(x => (x.games ?? 0) >= 4); return s.length ? (s.at(-1).games ?? 0) : 0; })();
-    const cExempt = cLastSznPpg >= 7.0 && cLastSznGames >= 6;
-    return cExempt ? c : { ...c, projShare: DC3_PCT_CAP };
+    if (cLastSznPpg >= 7.0 && cLastSznGames >= 6) return c; // exempt
+    _rivalExcess += c.projShare - DC3_PCT_CAP;
+    return { ...c, projShare: DC3_PCT_CAP };
   });
+  // Redistribute rival excess to DC1/DC2 — includes focal player if they're DC1/DC2
+  if (_rivalExcess > 0) {
+    const _dc12ShareFocal = myDcRank <= 2 ? myProjShare : 0;
+    const _dc12ShareRivals = normalizedCompetitors.filter(c => (c.dcRank ?? 99) <= 2).reduce((s, c) => s + c.projShare, 0);
+    const _dc12Total = _dc12ShareFocal + _dc12ShareRivals;
+    if (_dc12Total > 0) {
+      if (myDcRank <= 2) myProjShare = Math.round((myProjShare + _rivalExcess * (myProjShare / _dc12Total)) * 10) / 10;
+      normalizedCompetitors = normalizedCompetitors.map(c => {
+        if ((c.dcRank ?? 99) > 2) return c;
+        return { ...c, projShare: Math.round((c.projShare + _rivalExcess * (c.projShare / _dc12Total)) * 10) / 10 };
+      });
+    }
+  }
 
   return {
     label, color, switchedTeams, breaks,
