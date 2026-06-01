@@ -4592,6 +4592,8 @@ document.addEventListener('click', e => {
 
 // Called from search results or from team breakdown player click
 async function loadPlayerProfile(pid) {
+  const _area = document.getElementById('pp-profile-area');
+  try {
   // Switch to Player Profiles main view if not already active
   const profBtn = document.querySelector('.topnav-tab:last-child');
   if (profBtn && !profBtn.classList.contains('active')) switchMainView('profiles', profBtn);
@@ -7877,6 +7879,10 @@ async function loadPlayerProfile(pid) {
     renderSimilarity(pid, pos, age ?? null, draftRound, draftPick, fcVal, pprTotal, actualGames, isConfirmedUDFA);
     renderHistoricComps(pid, pos, age ?? null, yearsExp, draftRound, draftPick, fcVal, pprTotal, actualGames, isConfirmedUDFA);
   }, 80);
+  } catch(e) {
+    console.error('[loadPlayerProfile]', e);
+    if (_area) _area.innerHTML = `<div style="padding:32px 20px;font-family:var(--mono);font-size:11px;color:var(--red);">Profile error: ${e.message}<br><span style="color:var(--text-dim);font-size:9px;">${e.stack?.split('\n')[1] ?? ''}</span></div>`;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
