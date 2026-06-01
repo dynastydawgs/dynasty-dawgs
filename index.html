@@ -12231,10 +12231,39 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   }, 0);
   const rawPool    = myRaw + rivalsRaw;
   const normScale  = rawPool > 0 ? targetPct / rawPool : 1;
-  const myProjShare = Math.round(myRaw * normScale * 10) / 10;
-  const normalizedCompetitors = competitors.map(c => {
+  let myProjShare = Math.round(myRaw * normScale * 10) / 10;
+  let normalizedCompetitors = competitors.map(c => {
     const rProj = c.pid != null ? (_teamProj[String(c.pid)] ?? c.effWorkload) : c.effWorkload;
     return { ...c, projShare: Math.round((rProj || 0) * normScale * 10) / 10 };
+  });
+
+  // ── Post-normalization DC3 share cap ─────────────────────────────────────
+  // Raw-score caps can't hold a firm % ceiling when pool sizes vary (small pools
+  // inflate normScale). Cap DC3+ non-exempt shares at 12% after normalization,
+  // redistributing the excess proportionally to DC1/DC2 backs.
+  const DC3_PCT_CAP = 12;
+  const _dc3LastSznGames = myCareerSzns.length ? (myCareerSzns.at(-1).games ?? 0) : 0;
+  const _dc3Exempt = myLastSznPpg >= 7.0 && _dc3LastSznGames >= 6;
+  if (myDcRank >= 3 && !_dc3Exempt && myProjShare > DC3_PCT_CAP) {
+    const excess = myProjShare - DC3_PCT_CAP;
+    myProjShare = DC3_PCT_CAP;
+    // Redistribute excess to DC1/DC2 rivals proportionally by their current share
+    const dc12Total = normalizedCompetitors.filter(c => (c.dcRank ?? 99) <= 2)
+                                           .reduce((s, c) => s + c.projShare, 0);
+    if (dc12Total > 0) {
+      normalizedCompetitors = normalizedCompetitors.map(c => {
+        if ((c.dcRank ?? 99) > 2) return c;
+        return { ...c, projShare: Math.round((c.projShare + excess * (c.projShare / dc12Total)) * 10) / 10 };
+      });
+    }
+  }
+  // Also cap any DC3+ rival that exceeds 12%
+  normalizedCompetitors = normalizedCompetitors.map(c => {
+    if ((c.dcRank ?? 99) <= 2 || c.projShare <= DC3_PCT_CAP) return c;
+    const cLastSznPpg  = (() => { if (!c.pid) return 0; const s = (careerDB[c.pid] ?? []).filter(x => (x.games ?? 0) >= 4); return s.length ? s.at(-1).ppr / s.at(-1).games : 0; })();
+    const cLastSznGames = (() => { if (!c.pid) return 0; const s = (careerDB[c.pid] ?? []).filter(x => (x.games ?? 0) >= 4); return s.length ? (s.at(-1).games ?? 0) : 0; })();
+    const cExempt = cLastSznPpg >= 7.0 && cLastSznGames >= 6;
+    return cExempt ? c : { ...c, projShare: DC3_PCT_CAP };
   });
 
   return {
