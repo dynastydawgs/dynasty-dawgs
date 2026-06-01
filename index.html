@@ -3158,6 +3158,18 @@
 .tr-delay-5 { animation-delay:0.25s; }
 .tr-delay-6 { animation-delay:0.30s; }
 
+/* Scenario strip */
+.tr-sc-wrap   { padding:8px 4px 4px; }
+.tr-sc-track  { position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,0.07);margin-bottom:36px; }
+.tr-sc-fill   { position:absolute;inset:0;border-radius:3px; }
+.tr-sc-base   { position:absolute;top:50%;transform:translate(-50%,-50%); }
+.tr-sc-base-dot { width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transition:box-shadow 0.3s; }
+.tr-sc-tick   { position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);width:1.5px;height:14px;background:rgba(255,255,255,0.7);border-radius:1px; }
+.tr-sc-labels { position:relative;height:38px; }
+.tr-sc-pt     { position:absolute;text-align:center;transform:translateX(-50%); }
+.tr-sc-pt-tag { font-family:var(--mono);font-size:8px;letter-spacing:0.14em;margin-bottom:3px; }
+.tr-sc-pt-val { font-family:var(--display);font-size:17px;line-height:1; }
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@latest/dist/apexcharts.min.js"></script>
 </head>
@@ -11445,28 +11457,50 @@ async function trendsLoadPlayer(pid) {
         </div>
       </div>
       <div class="tr-grid">
-        <div>
-          <div class="tr-card tr-delay-1">
-            <div class="tr-card-hdr">CAREER_PPG</div>
-            <div id="trends-chart-ppg" style="min-height:240px;"></div>
-          </div>
+        <div class="tr-card tr-delay-1">
+          <div class="tr-card-hdr">CAREER_ARC <span style="opacity:0.4;font-size:7px;margin-left:8px;">dot size = games played</span></div>
+          <div id="trends-chart-career" style="min-height:280px;"></div>
         </div>
         ${statsPanel}
       </div>
-      <div class="tr-card tr-delay-3" style="margin-bottom:16px;">
-        <div class="tr-card-hdr">GAMES_PLAYED · AVAILABILITY</div>
-        <div id="trends-chart-games" style="min-height:140px;"></div>
-      </div>
-      ${cache ? `<div class="tr-card tr-delay-4">
+      ${cache ? `<div class="tr-card tr-delay-3">
         <div class="tr-card-hdr">2026_SCENARIO_RANGE</div>
-        <div id="trends-chart-scenario" style="min-height:110px;"></div>
+        <div class="tr-sc-wrap">${buildScenarioStrip(cache, accent)}</div>
       </div>` : ''}`;
 
-    requestAnimationFrame(() => renderTrendsCharts(pid, accent));
+    requestAnimationFrame(() => renderTrendsCharts(pid, accent, qualSzns));
   } catch(e) {
     console.error('[Trends]', e);
     content.innerHTML = `<div class="tr-empty" style="color:var(--red);">// ERROR: ${e.message}</div>`;
   }
+}
+
+function buildScenarioStrip(cache, accent) {
+  const { floorPpr, medianPpr, ceilPpr, basePpg } = cache;
+  const span    = Math.max(ceilPpr - floorPpr, 1);
+  const basePct = Math.round((medianPpr - floorPpr) / span * 100);
+  return `
+    <div class="tr-sc-track">
+      <div class="tr-sc-fill" style="background:linear-gradient(90deg,#ef4444 0%,#f5c842 45%,${accent} 100%);opacity:0.65;"></div>
+      <div class="tr-sc-base" style="left:${basePct}%;">
+        <div class="tr-sc-tick"></div>
+        <div class="tr-sc-base-dot" style="background:${accent};box-shadow:0 0 14px ${accent},0 0 28px ${accent}55;"></div>
+      </div>
+    </div>
+    <div class="tr-sc-labels">
+      <div class="tr-sc-pt" style="left:0%;">
+        <div class="tr-sc-pt-tag" style="color:#ef4444;">BEAR</div>
+        <div class="tr-sc-pt-val" style="color:#ef4444;">${floorPpr}</div>
+      </div>
+      <div class="tr-sc-pt" style="left:${basePct}%;">
+        <div class="tr-sc-pt-tag" style="color:#fff;">BASE</div>
+        <div class="tr-sc-pt-val" style="color:#fff;">${medianPpr} <span style="font-family:var(--mono);font-size:10px;opacity:0.5;">${basePpg?.toFixed(1)} PPG</span></div>
+      </div>
+      <div class="tr-sc-pt" style="left:100%;">
+        <div class="tr-sc-pt-tag" style="color:${accent};">BULL</div>
+        <div class="tr-sc-pt-val" style="color:${accent};">${ceilPpr}</div>
+      </div>
+    </div>`;
 }
 
 function buildTrendsCharts(pid) {
@@ -11482,103 +11516,70 @@ function buildTrendsCharts(pid) {
   `;
 }
 
-function renderTrendsCharts(pid, accent = '#38bdf8') {
-  const cache      = projectionCache[pid];
-  const allSeasons = (careerDB[pid] ?? []).sort((a, b) => a.season - b.season);
-  const qualSeasons = allSeasons.filter(s => (s.games ?? 0) >= 4).slice(-7);
+function renderTrendsCharts(pid, accent = '#38bdf8', qualSeasons = null) {
+  const cache = projectionCache[pid];
+  if (!qualSeasons) {
+    const allSeasons = (careerDB[pid] ?? []).sort((a, b) => a.season - b.season);
+    qualSeasons = allSeasons.filter(s => (s.games ?? 0) >= 4).slice(-7);
+  } else {
+    qualSeasons = qualSeasons.slice(-7);
+  }
 
   const base = {
-    chart:   { background: 'transparent', toolbar: { show: false }, fontFamily: 'var(--mono)', foreColor: 'rgba(255,255,255,0.35)', sparkline: { enabled: false } },
+    chart:   { background: 'transparent', toolbar: { show: false }, fontFamily: 'var(--mono)', foreColor: 'rgba(255,255,255,0.35)' },
     theme:   { mode: 'dark' },
-    grid:    { borderColor: 'rgba(255,255,255,0.04)', strokeDashArray: 4, padding: { left: 2, right: 16 } },
+    grid:    { borderColor: 'rgba(255,255,255,0.04)', strokeDashArray: 4, padding: { left: 10, right: 24, top: 20, bottom: 0 } },
     tooltip: { theme: 'dark', style: { fontFamily: 'var(--mono)', fontSize: '11px' } },
     legend:  { show: false },
-    states:  { hover: { filter: { type: 'lighten', value: 0.15 } } },
   };
 
-  // ── 1. Career PPG ───────────────────────────────────────────────────────
-  if (qualSeasons.length >= 2 && document.getElementById('trends-chart-ppg')) {
+  // ── Career Arc: smooth area chart, dot size = games played availability ─────
+  if (qualSeasons.length >= 2 && document.getElementById('trends-chart-career')) {
     const ppgs  = qualSeasons.map(s => +(s.ppg ?? s.ppr / s.games).toFixed(1));
+    const games = qualSeasons.map(s => s.games ?? 0);
     const cats  = qualSeasons.map(s => `'${String(s.season).slice(2)}`);
-    const peak  = Math.max(...ppgs);
     const avg   = +(ppgs.reduce((a, b) => a + b, 0) / ppgs.length).toFixed(1);
-    const colFor = v => v >= 14 ? '#2dd6a8' : v >= 10 ? '#f5c842' : v >= 7 ? '#f5a030' : '#64748b';
+    const peakIdx = ppgs.indexOf(Math.max(...ppgs));
+    const hasForecast = !!cache?.basePpg;
+    if (hasForecast) { ppgs.push(+cache.basePpg.toFixed(1)); cats.push("'26"); games.push(17); }
+    const markerSizes = games.map(g => g >= 15 ? 6 : g >= 11 ? 5 : 4);
 
-    if (cache?.basePpg) { ppgs.push(+cache.basePpg.toFixed(1)); cats.push("'26 proj"); }
-    const colors = ppgs.map((v, i) => i === ppgs.length - 1 && cache?.basePpg ? accent : colFor(v));
-
-    new ApexCharts(document.getElementById('trends-chart-ppg'), {
+    new ApexCharts(document.getElementById('trends-chart-career'), {
       ...base,
-      chart: { ...base.chart, type: 'bar', height: 240,
-        animations: { enabled: true, easing: 'easeinout', speed: 800, animateGradually: { enabled: true, delay: 80 } } },
+      chart: { ...base.chart, type: 'area', height: 300,
+        animations: { enabled: true, easing: 'easeinout', speed: 1000,
+          animateGradually: { enabled: true, delay: 120 } } },
       series: [{ name: 'PPG', data: ppgs }],
-      colors,
-      fill: { type: 'gradient', gradient: { shade:'dark', type:'vertical', shadeIntensity:0.4, opacityFrom:1, opacityTo:0.65, stops:[0,100] } },
-      plotOptions: { bar: { borderRadius: 6, columnWidth: '58%', distributed: true, dataLabels: { position: 'top' } } },
-      dataLabels: { enabled: true, offsetY: -10,
-        style: { fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: '700', colors },
-        formatter: v => v.toFixed(1) },
-      xaxis: { categories: cats, axisBorder: { show: false }, axisTicks: { show: false },
-        labels: { style: { fontSize: '11px', colors: 'rgba(255,255,255,0.35)' } } },
-      yaxis: { min: 0, labels: { formatter: v => v.toFixed(0), style: { fontSize: '10px', colors: 'rgba(255,255,255,0.3)' } } },
-      annotations: { yaxis: [{ y: avg, borderColor: 'rgba(255,255,255,0.12)', strokeDashArray: 5,
-        label: { text: `avg ${avg}`, position: 'right', offsetX: -8,
-          style: { color: 'rgba(255,255,255,0.35)', background: 'transparent', fontSize: '9px', fontFamily: 'var(--mono)' } } }] },
-    }).render();
-  }
-
-  // ── 2. Games played ─────────────────────────────────────────────────────
-  if (qualSeasons.length >= 2 && document.getElementById('trends-chart-games')) {
-    const games  = qualSeasons.map(s => s.games ?? 0);
-    const cats   = qualSeasons.map(s => `'${String(s.season).slice(2)}`);
-    const colors = games.map(g => g >= 15 ? '#2dd6a8' : g >= 11 ? '#f5c842' : '#f56030');
-
-    new ApexCharts(document.getElementById('trends-chart-games'), {
-      ...base,
-      chart: { ...base.chart, type: 'bar', height: 140,
-        animations: { enabled: true, easing: 'easeinout', speed: 700, animateGradually: { enabled: true, delay: 80 } } },
-      series: [{ name: 'Games', data: games }],
-      colors,
-      fill: { type: 'gradient', gradient: { shade:'dark', type:'vertical', shadeIntensity:0.3, opacityFrom:1, opacityTo:0.6, stops:[0,100] } },
-      plotOptions: { bar: { borderRadius: 5, columnWidth: '58%', distributed: true, dataLabels: { position: 'top' } } },
-      dataLabels: { enabled: true, offsetY: -10,
-        style: { fontSize: '11px', fontFamily: 'var(--mono)', fontWeight: '700', colors } },
-      xaxis: { categories: cats, axisBorder: { show: false }, axisTicks: { show: false },
-        labels: { style: { fontSize: '11px', colors: 'rgba(255,255,255,0.35)' } } },
-      yaxis: { min: 0, max: 18, tickAmount: 3,
-        labels: { formatter: v => v.toFixed(0), style: { fontSize: '10px', colors: 'rgba(255,255,255,0.3)' } } },
-      annotations: { yaxis: [{ y: 17, borderColor: 'rgba(255,255,255,0.12)', strokeDashArray: 5,
-        label: { text: 'full season', position: 'right', offsetX: -8,
-          style: { color: 'rgba(255,255,255,0.3)', background: 'transparent', fontSize: '9px', fontFamily: 'var(--mono)' } } }] },
-    }).render();
-  }
-
-  // ── 3. 2026 scenario range ───────────────────────────────────────────────
-  if (cache && document.getElementById('trends-chart-scenario')) {
-    const { floorPpr, medianPpr, ceilPpr, basePpg } = cache;
-    new ApexCharts(document.getElementById('trends-chart-scenario'), {
-      ...base,
-      chart: { ...base.chart, type: 'rangeBar', height: 100,
-        animations: { enabled: true, easing: 'easeinout', speed: 900 } },
-      series: [{ data: [{ x: '2026', y: [floorPpr, ceilPpr] }] }],
+      ...(hasForecast ? { forecastDataPoints: { count: 1, dashArray: 7, fillOpacity: 0.25 } } : {}),
+      stroke: { curve: 'smooth', width: 2.5, colors: [accent] },
+      fill: { type: 'gradient', gradient: { shadeIntensity: 1, type: 'vertical',
+        colorStops: [
+          { offset: 0,   color: accent, opacity: 0.45 },
+          { offset: 55,  color: accent, opacity: 0.08 },
+          { offset: 100, color: accent, opacity: 0.00 },
+        ]
+      }},
       colors: [accent],
-      fill: { type: 'gradient', gradient: { shade:'dark', type:'horizontal', gradientToColors:['#2dd6a8'], shadeIntensity:0.5, opacityFrom:0.6, opacityTo:0.9 } },
-      plotOptions: { bar: { horizontal: true, borderRadius: 6 } },
-      dataLabels: { enabled: false },
-      xaxis: { labels: { formatter: v => v + ' pts', style: { fontSize: '10px', colors: 'rgba(255,255,255,0.35)' } },
-        axisBorder: { show: false }, axisTicks: { show: false } },
-      yaxis: { labels: { show: false } },
-      annotations: { xaxis: [
-        { x: floorPpr, borderColor: 'rgba(239,68,68,0.6)', strokeDashArray: 0,
-          label: { text: `${floorPpr} BEAR`, borderColor: 'transparent', offsetY: -4,
-            style: { color: '#ef4444', background: 'rgba(239,68,68,0.1)', fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: '700' } } },
-        { x: medianPpr, borderColor: 'rgba(255,255,255,0.8)', strokeDashArray: 0,
-          label: { text: `${medianPpr} BASE · ${basePpg?.toFixed(1)} PPG`, borderColor: 'transparent', offsetY: -4,
-            style: { color: '#fff', background: 'rgba(255,255,255,0.12)', fontSize: '11px', fontFamily: 'var(--mono)', fontWeight: '700' } } },
-        { x: ceilPpr, borderColor: 'rgba(45,214,168,0.6)', strokeDashArray: 0,
-          label: { text: `${ceilPpr} BULL`, borderColor: 'transparent', offsetY: -4,
-            style: { color: '#2dd6a8', background: 'rgba(45,214,168,0.1)', fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: '700' } } },
-      ]},
+      markers: {
+        size: markerSizes,
+        strokeWidth: 0,
+        hover: { sizeOffset: 3 },
+        discrete: [{ seriesIndex:0, dataPointIndex:peakIdx, size:10,
+          fillColor: accent, strokeWidth: 2.5, strokeColor: '#fff' }],
+      },
+      dataLabels: { enabled: true, offsetY: -10,
+        style: { fontSize: '11px', fontFamily: 'var(--mono)', fontWeight: '700', colors: [accent] },
+        background: { enabled: false },
+        formatter: v => v?.toFixed(1) ?? '' },
+      xaxis: { categories: cats, axisBorder: { show: false }, axisTicks: { show: false },
+        labels: { style: { fontSize: '11px', colors: 'rgba(255,255,255,0.4)', fontFamily: 'var(--mono)' } } },
+      yaxis: { show: false },
+      annotations: { yaxis: [{ y: avg, borderColor: 'rgba(255,255,255,0.1)', strokeDashArray: 5,
+        label: { text: `avg ${avg}`, position: 'right', offsetX: -8,
+          style: { color: 'rgba(255,255,255,0.3)', background: 'transparent',
+            fontSize: '9px', fontFamily: 'var(--mono)' } } }] },
+      tooltip: { theme: 'dark', style: { fontFamily: 'var(--mono)', fontSize: '11px' },
+        y: { formatter: v => `${v} PPG` } },
     }).render();
   }
 }
