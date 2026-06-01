@@ -5669,15 +5669,26 @@ async function loadPlayerProfile(pid) {
         const last = szns.at(-1);
         return +(last.ppr / last.games).toFixed(1);
       })();
-      // Use last-season PPG × (opportunity delta / last-season opportunity) for all players.
-      // Switchers have real last-season data too — just from their old team.
-      // Cap at ±lastPPG to prevent unrealistic swings for large role changes (backup→starter).
+      // PROJ IMPACT: PPG delta vs last season opportunity.
+      // Switchers: use grade delta (0-100, normalized to team context) — raw ownership
+      //   points aren't comparable across different teams/backfields.
+      // Returners: use raw ownership delta — same team, directly comparable scale.
+      // Cap at ±lastPPG to prevent unrealistic swings.
       const _histOwn = _bos.historicalOwnershipScore ?? 0;
-      const _volDeltaPpg = _bosLastPpg != null && _histOwn > 0
-        ? +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
-            _bosLastPpg * (_bos.volOppDelta / _histOwn)
-          )).toFixed(1))
-        : null;
+      const _volDeltaPpg = (() => {
+        if (_bosLastPpg == null) return null;
+        if (_bos.switchedTeams) {
+          if (_projVolOppGrade == null || !_usageScore || _usageScore <= 0) return null;
+          const _gradeDelta = _projVolOppGrade - _usageScore;
+          return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
+            _bosLastPpg * (_gradeDelta / _usageScore)
+          )).toFixed(1));
+        }
+        if (_histOwn <= 0) return null;
+        return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
+          _bosLastPpg * (_bos.volOppDelta / _histOwn)
+        )).toFixed(1));
+      })();
       const _multStr = _volDeltaPpg != null
         ? (_volDeltaPpg === 0 ? '±0 PPG' : `${_volDeltaPpg > 0 ? '+' : ''}${_volDeltaPpg} PPG`)
         : (_bos.myProjShare > 0 ? `${_bos.myProjShare.toFixed(0)}% proj vol` : '—');
@@ -5730,7 +5741,8 @@ async function loadPlayerProfile(pid) {
       const _projGradeStr = _projVolOppGrade != null
         ? (() => {
             const _from = _usageScore != null ? `${Math.round(_usageScore)} → ` : '';
-            return ` Projected Vol &amp; Opp: <span style="color:${_projGradeCol};font-weight:600;">${_from}${_projVolOppGrade}</span>${_usageScore != null && _projGradeDelta !== 0 ? ` (${_projGradeDelta >= 0 ? '+' : ''}${_projGradeDelta} pts)` : ''}.`;
+            const _projGradeDeltaR = Math.round(_projGradeDelta);
+            return ` Projected Vol &amp; Opp: <span style="color:${_projGradeCol};font-weight:600;">${_from}${_projVolOppGrade}</span>${_usageScore != null && _projGradeDeltaR !== 0 ? ` (${_projGradeDeltaR >= 0 ? '+' : ''}${_projGradeDeltaR} pts)` : ''}.`;
           })()
         : '';
       const _deltaStr = _bos.switchedTeams
@@ -9940,11 +9952,50 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         return +(last.ppr / last.games).toFixed(1);
       })();
       const _bosHistOwn = bos.historicalOwnershipScore ?? 0;
-      const _bosVolDeltaPpg = _bosLastSznPpg != null && _bosHistOwn > 0
-        ? +(Math.max(-_bosLastSznPpg, Math.min(_bosLastSznPpg,
-            _bosLastSznPpg * (bos.volOppDelta / _bosHistOwn)
-          )).toFixed(1))
-        : null;
+      const _bosProjGrade = (() => {
+        // Replicate grade lookup for projections tab (same logic as overview _projVolOppGrade)
+        const proj = bos.projOwnershipScore;
+        if (proj == null) return null;
+        if (bos.switchedTeams) {
+          const b = bos.breaks ?? {};
+          if (!b.p30) return null;
+          if (proj >= (b.p90 ?? 999)) return 92;
+          if (proj >= (b.p75 ?? 999)) return Math.round(75 + (proj - b.p75) / ((b.p90 ?? b.p75+1) - b.p75) * 17);
+          if (proj >= (b.p50 ?? 999)) return Math.round(50 + (proj - b.p50) / (b.p75 - b.p50) * 25);
+          if (proj >= (b.p30 ?? 999)) return Math.round(30 + (proj - b.p30) / (b.p50 - b.p30) * 20);
+          return Math.round(Math.max(5, proj / b.p30 * 30));
+        }
+        return null; // returners handled via volOppDelta below
+      })();
+      const _bosVolDeltaPpg = (() => {
+        if (_bosLastSznPpg == null) return null;
+        if (bos.switchedTeams) {
+          // Use grade delta — raw ownership isn't comparable across teams
+          const histGrade = (() => {
+            const szns = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4);
+            return null; // fall back to raw if no grade available
+          })();
+          // Approximate historical grade from livePprPts/last season if available
+          // Use volOppDelta scaled by proj/hist ratio approach via bosProjGrade
+          if (_bosProjGrade == null || _bosHistOwn <= 0) return null;
+          // Estimate historical grade from historical ownership vs breaks
+          const _bosB = bos.breaks ?? {};
+          const hist = _bosHistOwn;
+          const histGradeEst = hist >= (_bosB.p90 ?? 999) ? 92
+            : hist >= (_bosB.p75 ?? 999) ? Math.round(75 + (hist - _bosB.p75) / ((_bosB.p90 ?? _bosB.p75+1) - _bosB.p75) * 17)
+            : hist >= (_bosB.p50 ?? 999) ? Math.round(50 + (hist - _bosB.p50) / (_bosB.p75 - _bosB.p50) * 25)
+            : hist >= (_bosB.p30 ?? 999) ? Math.round(30 + (hist - _bosB.p30) / (_bosB.p50 - _bosB.p30) * 20)
+            : Math.round(Math.max(5, hist / (_bosB.p30 ?? 1) * 30));
+          const gradeDelta = _bosProjGrade - histGradeEst;
+          return +(Math.max(-_bosLastSznPpg, Math.min(_bosLastSznPpg,
+            _bosLastSznPpg * (gradeDelta / Math.max(1, histGradeEst))
+          )).toFixed(1));
+        }
+        if (_bosHistOwn <= 0) return null;
+        return +(Math.max(-_bosLastSznPpg, Math.min(_bosLastSznPpg,
+          _bosLastSznPpg * (bos.volOppDelta / _bosHistOwn)
+        )).toFixed(1));
+      })();
       const ppgDelta = _bosVolDeltaPpg ?? +((parseFloat(mPpg) * (bos.projMultiplier - 1)).toFixed(1));
       const ppgStr  = ppgDelta === 0 ? '±0 PPG' : `${ppgDelta > 0 ? '+' : ''}${ppgDelta} PPG`;
       const arrow   = ppgDelta > 0 ? '↑' : ppgDelta < 0 ? '↓' : '→';
