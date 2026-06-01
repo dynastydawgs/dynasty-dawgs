@@ -5659,42 +5659,6 @@ async function loadPlayerProfile(pid) {
     const _bosCardHTML = (() => {
       if (!_bos) return '';
 
-      // PROJ IMPACT: expressed as PPG change vs last season's opportunity level.
-      // Formula: lastSeasonPPG × (volOppDelta / historicalOwnershipScore)
-      // This anchors the impact to last year — career history before that is irrelevant
-      // for workload forecasting. Rookies / zero-history players fall back to proj share.
-      const _bosLastPpg = (() => {
-        const szns = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4);
-        if (!szns.length) return null;
-        const last = szns.at(-1);
-        return +(last.ppr / last.games).toFixed(1);
-      })();
-      // PROJ IMPACT: PPG delta vs last season opportunity.
-      // Switchers: use grade delta (0-100, normalized to team context) — raw ownership
-      //   points aren't comparable across different teams/backfields.
-      // Returners: use raw ownership delta — same team, directly comparable scale.
-      // Cap at ±lastPPG to prevent unrealistic swings.
-      const _histOwn = _bos.historicalOwnershipScore ?? 0;
-      const _volDeltaPpg = (() => {
-        if (_bosLastPpg == null) return null;
-        if (_bos.switchedTeams) {
-          if (_projVolOppGrade == null || !_usageScore || _usageScore <= 0) return null;
-          const _gradeDelta = _projVolOppGrade - _usageScore;
-          return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
-            _bosLastPpg * (_gradeDelta / _usageScore)
-          )).toFixed(1));
-        }
-        if (_histOwn <= 0) return null;
-        return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
-          _bosLastPpg * (_bos.volOppDelta / _histOwn)
-        )).toFixed(1));
-      })();
-      const _multStr = _volDeltaPpg != null
-        ? (_volDeltaPpg === 0 ? '±0 PPG' : `${_volDeltaPpg > 0 ? '+' : ''}${_volDeltaPpg} PPG`)
-        : (_bos.myProjShare > 0 ? `${_bos.myProjShare.toFixed(0)}% proj vol` : '—');
-      const _multCol = (_volDeltaPpg ?? 0) > 0.05 ? 'var(--green)'
-                     : (_volDeltaPpg ?? 0) < -0.05 ? 'var(--red)' : 'var(--text-dim)';
-
       const _ownPctStr = (() => {
         if (!_bos.breaks?.dynamic || _bos.ownershipScore <= 0) return '';
         const os = _bos.ownershipScore, b = _bos.breaks;
@@ -5702,13 +5666,9 @@ async function loadPlayerProfile(pid) {
                    : os >= b.p50 ? `top 50%` : `bottom 50%`;
         return ` (${tier} of ${b.n} RBs)`;
       })();
-      // Projected Vol & Opp grade (0-100):
-      // • Switchers: old _usageScore is from a different role on a different team — useless
-      //   as a baseline. Instead derive the grade directly from where projOwnershipScore sits
-      //   in the ownership percentile breaks (p30/p50/p75/p90). Both are percentile-based on
-      //   the same RB population, so the interpolation is meaningful.
-      // • Returners: scale _usageScore by the proj/historical ownership ratio — valid because
-      //   the historical grade reflects their actual role and the ratio captures role change.
+      // Projected Vol & Opp grade (0-100) — must come before _volDeltaPpg which uses it.
+      // • Switchers: interpolate from percentile breaks (old _usageScore is from a different team).
+      // • Returners: scale _usageScore by proj/historical ownership ratio.
       const _projVolOppGrade = (() => {
         if (!_bos) return null;
         const proj = _bos.projOwnershipScore;
@@ -5745,9 +5705,37 @@ async function loadPlayerProfile(pid) {
             return ` Projected Vol &amp; Opp: <span style="color:${_projGradeCol};font-weight:600;">${_from}${_projVolOppGrade}</span>${_usageScore != null && _projGradeDeltaR !== 0 ? ` (${_projGradeDeltaR >= 0 ? '+' : ''}${_projGradeDeltaR} pts)` : ''}.`;
           })()
         : '';
+      // PROJ IMPACT: PPG delta vs last season opportunity.
+      // _projVolOppGrade must be computed above before this block.
+      const _bosLastPpg = (() => {
+        const szns = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4);
+        if (!szns.length) return null;
+        const last = szns.at(-1);
+        return +(last.ppr / last.games).toFixed(1);
+      })();
+      const _histOwn = _bos.historicalOwnershipScore ?? 0;
+      const _volDeltaPpg = (() => {
+        if (_bosLastPpg == null) return null;
+        if (_bos.switchedTeams) {
+          if (_projVolOppGrade == null || !_usageScore || _usageScore <= 0) return null;
+          const _gradeDelta = _projVolOppGrade - _usageScore;
+          return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
+            _bosLastPpg * (_gradeDelta / _usageScore)
+          )).toFixed(1));
+        }
+        if (_histOwn <= 0) return null;
+        return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
+          _bosLastPpg * (_bos.volOppDelta / _histOwn)
+        )).toFixed(1));
+      })();
+      const _multStr = _volDeltaPpg != null
+        ? (_volDeltaPpg === 0 ? '±0 PPG' : `${_volDeltaPpg > 0 ? '+' : ''}${_volDeltaPpg} PPG`)
+        : (_bos.myProjShare > 0 ? `${_bos.myProjShare.toFixed(0)}% proj vol` : '—');
+      const _multCol = (_volDeltaPpg ?? 0) > 0.05 ? 'var(--green)'
+                     : (_volDeltaPpg ?? 0) < -0.05 ? 'var(--red)' : 'var(--text-dim)';
+
       // For switchers use grade delta for the arrow — raw volOppDelta compares
-      // different teams' ownership scales and can mislead (DC2 on a run-heavy team
-      // may project lower raw pts but higher normalized grade than DC1 on a pass team).
+      // different teams' ownership scales and can mislead.
       const _switcherGradeDelta = Math.round(_projGradeDelta);
       const _deltaStr = _bos.switchedTeams
         ? (_switcherGradeDelta >= 8
