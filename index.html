@@ -12053,6 +12053,26 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     ? projOwnershipScore
     : Math.min(_effCeiling, projOwnershipScore * effVolMult);
 
+  // ── DC2 rookie volume floor ──────────────────────────────────────────────
+  // A rookie starting as DC2 has earned real early-down work. They have no
+  // usage history so the base calculation undersells them. Apply a draft-scaled
+  // floor so higher picks project proportionally more volume.
+  // Scales from R1 (~22% in typical pool) down to R5+ (~9%).
+  if (myDcRank === 2 && (sp?.years_exp ?? 99) === 0) {
+    const myRound = sp?.draft_round ?? sp?.college_draft_round
+                  ?? _draftRoundCache[String(pid)] ?? null;
+    const inferRound = myRound
+      ?? (fcVal >= 5000 ? 1 : fcVal >= 3000 ? 2 : fcVal >= 1500 ? 3 : fcVal >= 700 ? 4 : 5);
+    const rookieDc2Floor = inferRound <= 1 ? (breaks.p50 ?? 23) * 0.80
+                         : inferRound <= 2 ? (breaks.p50 ?? 23) * 0.60
+                         : inferRound <= 3 ? (breaks.p50 ?? 23) * 0.45
+                         : inferRound <= 4 ? (breaks.p30 ?? 14) * 0.85
+                         :                  (breaks.p30 ?? 14) * 0.55;
+    if (!isNaN(projOwnershipScore)) {
+      projOwnershipScore = Math.max(projOwnershipScore, rookieDc2Floor);
+    }
+  }
+
   // ── DC3 share cap ────────────────────────────────────────────────────────
   // RB3s should not project meaningful backfield share unless they have real
   // production history or high draft pedigree as a rookie.
