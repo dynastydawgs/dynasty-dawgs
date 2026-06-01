@@ -12003,15 +12003,28 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     })();
 
     // DC2 roleBase scales with career history (prevents rookie inflation in normalization).
-    const dc2RoleBase = myBestSznPpg >= 10 ? breaks.p75 * 0.65
-                      : myBestSznPpg >= 7  ? breaks.p75 * 0.55
+    // Elite proven vets (13+ PPG peak) get a meaningfully higher base — a 15 PPG back
+    // stepping into DC2 should project very differently from an 11 PPG back.
+    // Guard: elite boost only applies if not cliff-age AND peak was within last 3 seasons.
+    const _myAge = sp.birth_date
+      ? (Date.now() - new Date(sp.birth_date)) / (365.25 * 24 * 3600 * 1000) : 27;
+    const _myStage = _myAge >= 29 ? 'cliff' : _myAge >= 27 ? 'declining' : 'prime';
+    const _peakSzn = myCareerSzns.length
+      ? myCareerSzns.reduce((best, s) => (s.ppr / s.games) > (best.ppr / best.games) ? s : best)
+      : null;
+    const _seasonsSincePeak = _peakSzn?.season ? (2026 - _peakSzn.season) : 99;
+    const _eliteVetEligible = _myStage !== 'cliff' && _seasonsSincePeak <= 3;
+    const dc2RoleBase = (myBestSznPpg >= 13 && _eliteVetEligible) ? breaks.p75 * 0.95  // elite proven vet, recent peak
+                      : myBestSznPpg >= 10 ? breaks.p75 * 0.72  // proven vet
+                      : myBestSznPpg >= 7  ? breaks.p75 * 0.55  // decent vet
                       :                      (breaks.p30 + breaks.p50) * 0.5;
     const baseRole   = myDcRank === 1 ? breaks.p75
                      : myDcRank === 2 ? dc2RoleBase
                      : breaks.p30 * 0.4;
-    // Apply quality multiplier and cap at p90 (workhorse ceiling — nobody realistically
-    // projects above top-10% before they've played a snap for the new team).
-    const roleBase = Math.min(breaks.p90 ?? 90, baseRole * qualityMult);
+    // Apply quality multiplier. Cap at p75*1.20 for DC2 (workhorse ceiling reserved
+    // for DC1 — a switcher DC2 shouldn't project above the featured back range).
+    const dc2Cap = myDcRank === 2 ? (breaks.p75 ?? 40) * 1.20 : (breaks.p90 ?? 55);
+    const roleBase = Math.min(dc2Cap, baseRole * qualityMult);
 
     // Contention uses effWorkload (raw %) not threatScore. A talented young rival's
     // threatScore is inflated by talent/freshness multipliers — using it here would
