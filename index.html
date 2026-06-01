@@ -12087,13 +12087,13 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
 
     } else if (myDcRank === 2) {
       // DC2 rookie — scaled up from DC1 targets
-      const rookieDc2Floor = _rkInfer <= 1 ? (breaks.p75 ?? 40) * 0.90   // ~36 raw → ~37%
-                           : _rkInfer <= 2 ? (breaks.p75 ?? 40) * 0.75   // ~30 raw → ~31%
-                           : _rkInfer <= 3 ? (breaks.p75 ?? 40) * 0.60   // ~24 raw → ~26%
-                           : _rkInfer <= 4 ? (breaks.p50 ?? 25) * 0.85   // ~21 raw → ~23%
-                           : _rkInfer <= 5 ? (breaks.p50 ?? 25) * 0.68   // ~17 raw → ~19%
-                           : _rkInfer <= 6 ? (breaks.p30 ?? 15) * 0.95   // ~14 raw → ~16%
-                           :                (breaks.p30 ?? 15) * 0.70;   // ~11 raw → ~12%
+      const rookieDc2Floor = _rkInfer <= 1 ? (breaks.p75 ?? 40) * 0.68   // ~27 raw → ~28%
+                           : _rkInfer <= 2 ? (breaks.p75 ?? 40) * 0.56   // ~22 raw → ~24%
+                           : _rkInfer <= 3 ? (breaks.p75 ?? 40) * 0.45   // ~18 raw → ~20%
+                           : _rkInfer <= 4 ? (breaks.p50 ?? 25) * 0.65   // ~16 raw → ~18%
+                           : _rkInfer <= 5 ? (breaks.p50 ?? 25) * 0.52   // ~13 raw → ~15%
+                           : _rkInfer <= 6 ? (breaks.p30 ?? 15) * 0.72   // ~11 raw → ~12%
+                           :                (breaks.p30 ?? 15) * 0.52;   // ~8 raw  → ~9%
 
       projOwnershipScore = Math.max(projOwnershipScore, rookieDc2Floor);
     }
@@ -12121,13 +12121,13 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     if (_isRookieDc3 && !isNaN(projOwnershipScore)) {
       const _r3Infer = myRound
         ?? (fcVal >= 5000 ? 1 : fcVal >= 3000 ? 2 : fcVal >= 1500 ? 3 : fcVal >= 700 ? 4 : fcVal >= 300 ? 5 : fcVal >= 150 ? 6 : 7);
-      const dc3RookieFloor = _r3Infer <= 1 ? (breaks.p50 ?? 25) * 0.88   // ~22%
-                           : _r3Infer <= 2 ? (breaks.p50 ?? 25) * 0.70   // ~18%
-                           : _r3Infer <= 3 ? (breaks.p50 ?? 25) * 0.54   // ~14%
-                           : _r3Infer <= 4 ? (breaks.p50 ?? 25) * 0.42   // ~11%
-                           : _r3Infer <= 5 ? (breaks.p30 ?? 15) * 0.80   // ~8%
-                           : _r3Infer <= 6 ? (breaks.p30 ?? 15) * 0.55   // ~6%
-                           :                (breaks.p30 ?? 15) * 0.35;   // ~4% (R7/UDFA)
+      const dc3RookieFloor = _r3Infer <= 1 ? (breaks.p50 ?? 25) * 0.65   // ~17%
+                           : _r3Infer <= 2 ? (breaks.p50 ?? 25) * 0.52   // ~14%
+                           : _r3Infer <= 3 ? (breaks.p50 ?? 25) * 0.40   // ~11%
+                           : _r3Infer <= 4 ? (breaks.p50 ?? 25) * 0.30   // ~8%
+                           : _r3Infer <= 5 ? (breaks.p30 ?? 15) * 0.60   // ~6%
+                           : _r3Infer <= 6 ? (breaks.p30 ?? 15) * 0.40   // ~4%
+                           :                (breaks.p30 ?? 15) * 0.25;   // ~3% (R7/UDFA)
       projOwnershipScore = Math.max(projOwnershipScore, dc3RookieFloor);
     }
   }
