@@ -11760,11 +11760,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     const freshMult = cYrs === 0 ? 1.5 : cYrs === 1 ? 1.3 : cAge <= 25 ? 1.2
                     : cAge <= 27 ? 1.0 : cAge <= 29 ? 0.85 : 0.65;
 
-    // cWasHereLast: true if statTeamDB confirms they played here in 2025,
-    // OR if they're currently on this team with no 2025 stat entry (injured incumbent).
-    // An injured veteran already on the roster is NOT the same as a new external signing.
-    const cWasHereLast = statTeamDB?.[cPid ?? ''] === team
-      || (cSp?.team === team && statTeamDB?.[cPid ?? ''] == null && (cYrs ?? 0) > 0);
+    const cWasHereLast = statTeamDB?.[cPid ?? ''] === team;
     const _cRoundRaw = cSp?.draft_round ?? cSp?.college_draft_round
                      ?? (cPid ? _draftRoundCache[String(cPid)] : null) ?? null;
     // 99 = confirmed UDFA sentinel from _prefetchBosRounds — treat as null for round table
@@ -11826,19 +11822,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
       threatScore      = Math.round(effWorkload * stageMult * effMult * 10) / 10;
     } else {
       if (cWorkload < 5) {
-        if (cWasHereLast && cPid) {
-          // Injured/limited incumbent returning — use last active season PPG as proxy.
-          // Round projection would over-inflate them as if they were a rookie entering fresh.
-          const cAllSzns = (careerDB[cPid] ?? []).filter(s => (s.games ?? 0) >= 4);
-          const cLastActivePpg = cAllSzns.length ? cAllSzns.at(-1).ppr / cAllSzns.at(-1).games : 0;
-          effWorkload = cLastActivePpg >= 14 ? 50
-                      : cLastActivePpg >= 10 ? 38
-                      : cLastActivePpg >= 7  ? 25
-                      : cLastActivePpg >= 4  ? 14
-                      : _bosRoundThreat(cRound ?? cInfRound ?? null);
-        } else {
-          effWorkload = _bosRoundThreat(cRound ?? cInfRound ?? null);
-        }
+        effWorkload = _bosRoundThreat(cRound ?? cInfRound ?? null);
         threatScore = Math.round(effWorkload * stageMult * effMult * 10) / 10;
       } else if (!cWasHereLast) {
         effWorkload = cWorkload * 0.70;
