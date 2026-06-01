@@ -12087,8 +12087,8 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
 
     } else if (myDcRank === 2) {
       // DC2 rookie — scaled up from DC1 targets
-      const rookieDc2Floor = _rkInfer <= 1 ? (breaks.p75 ?? 40) * 0.68   // ~27 raw → ~28%
-                           : _rkInfer <= 2 ? (breaks.p75 ?? 40) * 0.56   // ~22 raw → ~24%
+      const rookieDc2Floor = _rkInfer <= 1 ? (breaks.p75 ?? 40) * 0.92   // ~37 raw → ~38%
+                           : _rkInfer <= 2 ? (breaks.p75 ?? 40) * 0.64   // ~26 raw → ~30%
                            : _rkInfer <= 3 ? (breaks.p75 ?? 40) * 0.45   // ~18 raw → ~20%
                            : _rkInfer <= 4 ? (breaks.p50 ?? 25) * 0.65   // ~16 raw → ~18%
                            : _rkInfer <= 5 ? (breaks.p50 ?? 25) * 0.52   // ~13 raw → ~15%
