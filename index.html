@@ -7883,6 +7883,7 @@ let _bosAdvMap      = null; // normName → original advstatsDB key
 let _bosPidMap      = null; // normName → pid  (RBs only)
 let _bosLastNameMap = null; // lastName → [pids]  — fallback for nickname/legal-name mismatches
 let _bosBreaks      = null; // percentile breakpoints for ownership labels (computed lazily)
+let _bosTeamProjCache = {}; // team → { pid: projOwnershipScore } — shared pool for cross-card consistency
 
 // Bulk season stats cache — populated once before preWarmProjectionCache runs.
 // Maps pid → flat stats object so fetchSleeperStats() reads from memory
@@ -8527,7 +8528,7 @@ async function buildDatabase(onProgress) {
   dbReady = true;
   _calibrateSimInjRates();
   _avgRbPpt = null; // reset so getAvgRbPpt() recomputes from fresh data
-  _bosAdvMap = null; _bosPidMap = null; _bosLastNameMap = null; _bosBreaks = null; // reset BOS caches on data reload
+  _bosAdvMap = null; _bosPidMap = null; _bosLastNameMap = null; _bosBreaks = null; _bosTeamProjCache = {}; // reset BOS caches on data reload
   onProgress?.(`Database ready — ${Object.keys(careerDB).length} players, ${Object.keys(compDB).length} comp buckets`, 100);
 }
 
@@ -11591,6 +11592,24 @@ function _bosGetBreaks() {
   return _bosBreaks;
 }
 
+// Returns { pid: projOwnershipScore } for all DC1-3 RBs on a team.
+// Computed once per team per session and cached — guarantees all players
+// on the same team normalize against the same shared pool.
+function _bosGetTeamProj(team) {
+  if (_bosTeamProjCache[team]) return _bosTeamProjCache[team];
+  const dcRbs = depthDB?.[team]?.RB ?? [];
+  const cache = {};
+  for (const dcEntry of dcRbs) {
+    if ((dcEntry.rank ?? 99) >= 4) continue;
+    const epid = _bosGetPid(dcEntry.name, team);
+    if (!epid) continue;
+    const lite = _rbBackfieldOpportunity(epid, true);
+    if (lite?.projOwnershipScore != null) cache[epid] = lite.projOwnershipScore;
+  }
+  _bosTeamProjCache[team] = cache;
+  return cache;
+}
+
 function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   const sp = sleeperPlayers[pid];
   const fc = fcPlayerMap[pid];
@@ -12033,44 +12052,37 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   }
 
   // ── Prefetch-only early return ────────────────────────────────────────────
-  // Used by the two-pass normalization: callers ask for just projOwnershipScore
-  // for a rival without triggering recursive prefetches or normalization work.
+  // Returns just projOwnershipScore for team-cache population.
+  // Exits before normalization so no recursive team-cache calls occur.
   if (_prefetchOnly) {
     return { projOwnershipScore: isNaN(projOwnershipScore) ? null : Math.round(projOwnershipScore * 10) / 10 };
   }
 
-  // ── Pass 2: gather rivals' independently projected scores ─────────────────
-  // Each rival's projOwnershipScore is computed via a prefetch-only call so the
-  // normalization pool reflects real projected workload on both sides, not raw
-  // historical effWorkload. Falls back to effWorkload when prefetch returns null.
-  const rivalProjScores = {};
-  for (const c of competitors) {
-    if (c.pid) {
-      const lite = _rbBackfieldOpportunity(c.pid, true);
-      rivalProjScores[c.pid] = lite?.projOwnershipScore ?? c.effWorkload;
-    }
-  }
+  // ── Shared team projection pool ───────────────────────────────────────────
+  // All RBs on the same team normalize against the same cached projOwnershipScores.
+  // This guarantees cross-card consistency: Kamara's card and Etienne's card show
+  // the same splits because they draw from the same shared pool.
+  const _teamProj = _bosGetTeamProj(team);
 
   // ── Normalize projected shares so top RBs sum to ~90-100% ───────────────
-  // Check if any RB4+ on this depth chart has meaningful historical production.
-  // If yes, reserve 10% for depth; if no competent RB4, top 3 own 100%.
   const hasCompetentRb4 = dcRbs.some(e => {
     if ((e.rank ?? 99) < 4) return false;
     const pAdv = _bosGetAdv(e.name);
     return pAdv && _bosOwn(pAdv.carryShare, pAdv.bfTgtShare, pAdv.rzCarryShare, pAdv.thirdDownSnapPct) >= 10;
   });
   const targetPct  = hasCompetentRb4 ? 90 : 100;
-  const myRaw      = isNaN(projOwnershipScore) ? 0 : (projOwnershipScore || 0);
-  // Use rivals' actual projected scores (pass 1) instead of raw effWorkload
-  const rivalsRaw  = competitors.reduce((s, c) => {
-    const rProj = c.pid != null ? (rivalProjScores[c.pid] ?? c.effWorkload) : c.effWorkload;
+  // Use this player's cached score for myRaw (same pool as rivals).
+  // Falls back to independently computed projOwnershipScore if not in cache.
+  const myRaw = _teamProj[String(pid)] ?? (isNaN(projOwnershipScore) ? 0 : (projOwnershipScore || 0));
+  const rivalsRaw = competitors.reduce((s, c) => {
+    const rProj = c.pid != null ? (_teamProj[String(c.pid)] ?? c.effWorkload) : c.effWorkload;
     return s + (rProj || 0);
   }, 0);
   const rawPool    = myRaw + rivalsRaw;
   const normScale  = rawPool > 0 ? targetPct / rawPool : 1;
   const myProjShare = Math.round(myRaw * normScale * 10) / 10;
   const normalizedCompetitors = competitors.map(c => {
-    const rProj = c.pid != null ? (rivalProjScores[c.pid] ?? c.effWorkload) : c.effWorkload;
+    const rProj = c.pid != null ? (_teamProj[String(c.pid)] ?? c.effWorkload) : c.effWorkload;
     return { ...c, projShare: Math.round((rProj || 0) * normScale * 10) / 10 };
   });
 
