@@ -5659,9 +5659,24 @@ async function loadPlayerProfile(pid) {
     const _bosCardHTML = (() => {
       if (!_bos) return '';
 
-      const _multPct  = Math.round((_bos.projMultiplier - 1) * 100);
-      const _multStr  = _multPct === 0 ? '±0% vs base' : `${_multPct > 0 ? '+' : ''}${_multPct}% vs base`;
-      const _multCol  = _multPct > 0 ? 'var(--green)' : _multPct < 0 ? 'var(--red)' : 'var(--text-dim)';
+      // PROJ IMPACT: expressed as PPG change vs last season's opportunity level.
+      // Formula: lastSeasonPPG × (volOppDelta / historicalOwnershipScore)
+      // This anchors the impact to last year — career history before that is irrelevant
+      // for workload forecasting. Rookies / zero-history players fall back to proj share.
+      const _bosLastPpg = (() => {
+        const szns = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4);
+        if (!szns.length) return null;
+        const last = szns.at(-1);
+        return +(last.ppr / last.games).toFixed(1);
+      })();
+      const _volDeltaPpg = _bosLastPpg != null && (_bos.historicalOwnershipScore ?? 0) > 0
+        ? +(_bosLastPpg * (_bos.volOppDelta / _bos.historicalOwnershipScore)).toFixed(1)
+        : null;
+      const _multStr = _volDeltaPpg != null
+        ? (_volDeltaPpg === 0 ? '±0 PPG' : `${_volDeltaPpg > 0 ? '+' : ''}${_volDeltaPpg} PPG`)
+        : (_bos.myProjShare > 0 ? `${_bos.myProjShare.toFixed(0)}% proj vol` : '—');
+      const _multCol = (_volDeltaPpg ?? 0) > 0.05 ? 'var(--green)'
+                     : (_volDeltaPpg ?? 0) < -0.05 ? 'var(--red)' : 'var(--text-dim)';
 
       const _ownPctStr = (() => {
         if (!_bos.breaks?.dynamic || _bos.ownershipScore <= 0) return '';
@@ -5761,7 +5776,7 @@ async function loadPlayerProfile(pid) {
             <div style="text-align:right;flex-shrink:0;">
               <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:3px;">PROJ IMPACT</div>
               <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${_multCol};">${_multStr}</div>
-              <div style="font-family:var(--mono);font-size:7.5px;color:var(--text-dim);margin-top:2px;opacity:0.7;">vs career base projection</div>
+              <div style="font-family:var(--mono);font-size:7.5px;color:var(--text-dim);margin-top:2px;opacity:0.7;">vs last season opportunity</div>
             </div>
           </div>
           ${_projVolOppGrade != null ? `<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:4px;">
@@ -9890,10 +9905,20 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           <div class="pp-factor-val" style="color:var(--text-dim);">—</div>
           <div class="pp-factor-sub">no team depth chart found</div>
         </div>`;
-      const ppgDelta = +((parseFloat(mPpg) * (bos.projMultiplier - 1)).toFixed(1));
+      // PROJ IMPACT: PPG delta vs last season opportunity (not career base).
+      const _bosLastSznPpg = (() => {
+        const szns = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4);
+        if (!szns.length) return null;
+        const last = szns.at(-1);
+        return +(last.ppr / last.games).toFixed(1);
+      })();
+      const _bosVolDeltaPpg = _bosLastSznPpg != null && (bos.historicalOwnershipScore ?? 0) > 0
+        ? +(_bosLastSznPpg * (bos.volOppDelta / bos.historicalOwnershipScore)).toFixed(1)
+        : null;
+      const ppgDelta = _bosVolDeltaPpg ?? +((parseFloat(mPpg) * (bos.projMultiplier - 1)).toFixed(1));
       const ppgStr  = ppgDelta === 0 ? '±0 PPG' : `${ppgDelta > 0 ? '+' : ''}${ppgDelta} PPG`;
       const arrow   = ppgDelta > 0 ? '↑' : ppgDelta < 0 ? '↓' : '→';
-      const col     = ppgDelta > 0 ? 'var(--green)' : ppgDelta < 0 ? 'var(--red)' : 'var(--text-dim)';
+      const col     = ppgDelta > 0.05 ? 'var(--green)' : ppgDelta < -0.05 ? 'var(--red)' : 'var(--text-dim)';
       // Subtitle: label + projected Vol & Opp signal + competition delta
       const b = bos.breaks ?? {};
       const _projDiff = bos.projOwnershipScore - bos.ownershipScore;
@@ -9909,7 +9934,9 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
                         bos.compDelta < -5 ? `↓ new threats` : 'stable competition';
       const subLine  = `${bos.label} · ${ownPart} · ${deltaPart}`;
       // Explanation of what BOS measures (shown as second sub line)
-      const explainLine = `carry share + target role + depth chart competition`;
+      const explainLine = _bosVolDeltaPpg != null
+        ? `opportunity change vs last season · ${bos.label.toLowerCase()}`
+        : `carry share + target role + depth chart competition`;
       return `<div class="pp-factor">
         <div class="pp-factor-lbl">Backfield Opp.</div>
         <div class="pp-factor-val" style="color:${col};">${ppgStr} ${arrow}</div>
