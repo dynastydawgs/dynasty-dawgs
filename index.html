@@ -5721,9 +5721,13 @@ async function loadPlayerProfile(pid) {
             _bosLastPpg * (_gradeDelta / _usageScore)
           )).toFixed(1));
         }
+        // Returners: use compDelta × absorptionRate as the opportunity change signal.
+        // volOppDelta is clipped by ceiling caps and understates real competition gains.
         if (_histOwn <= 0) return null;
+        const _absRate = _bos.dcRank === 1 ? 0.60 : _bos.dcRank === 2 ? 0.25 : 0.08;
+        const _retRatio = (_bos.compDelta * _absRate) / _histOwn;
         return +(Math.max(-_bosLastPpg, Math.min(_bosLastPpg,
-          _bosLastPpg * (_bos.volOppDelta / _histOwn)
+          _bosLastPpg * _retRatio
         )).toFixed(1));
       })();
       const _multStr = _volDeltaPpg != null
@@ -5808,10 +5812,6 @@ async function loadPlayerProfile(pid) {
               ${_depRows}${_newRows}
             </div>`;
           })()}
-          ${_projVolOppGrade != null ? `<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:4px;">
-            <span style="flex:1;font-size:11px;color:var(--text-muted);font-style:italic;">Proj Vol &amp; Opp score</span>
-            <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_projGradeCol};">${_projVolOppGrade}<span style="font-size:8px;color:var(--text-dim);">/100</span></span>
-          </div>` : ''}
           <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:4px;display:flex;gap:6px;">
             <span style="flex:1;">BACKFIELD SHARES</span>
             <span style="width:52px;text-align:right;">PROJ VOL</span>
@@ -9977,8 +9977,10 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           )).toFixed(1));
         }
         if (_bosHistOwn <= 0) return null;
+        const _bosAbsRate = bos.dcRank === 1 ? 0.60 : bos.dcRank === 2 ? 0.25 : 0.08;
+        const _bosRetRatio = (bos.compDelta * _bosAbsRate) / _bosHistOwn;
         return +(Math.max(-_bosLastSznPpg, Math.min(_bosLastSznPpg,
-          _bosLastSznPpg * (bos.volOppDelta / _bosHistOwn)
+          _bosLastSznPpg * _bosRetRatio
         )).toFixed(1));
       })();
       const ppgDelta = _bosVolDeltaPpg ?? +((parseFloat(mPpg) * (bos.projMultiplier - 1)).toFixed(1));
@@ -12096,9 +12098,12 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   const effVolMult = myEffScore === null ? 1.0
                    : myEffScore >= 75 ? 1.07 : myEffScore >= 60 ? 1.04
                    : myEffScore <= 25 ? 0.91 : myEffScore <= 40 ? 0.95 : 1.0;
+  // Ceiling: never cap below the player's own historical score.
+  // A workhorse already above p90 shouldn't lose ground from the effVolMult cap.
+  const _effCeiling = Math.max(breaks.p90 ?? 90, ownershipScore);
   projOwnershipScore = isNaN(projOwnershipScore)
     ? projOwnershipScore
-    : Math.min((breaks.p90 ?? 90), projOwnershipScore * effVolMult);
+    : Math.min(_effCeiling, projOwnershipScore * effVolMult);
 
   // Personal Vol & Opp delta
   const volOppDelta = projOwnershipScore - historicalOwnershipScore;
