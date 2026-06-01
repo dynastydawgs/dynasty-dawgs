@@ -9729,6 +9729,15 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     if (hasOwn && effectivePeak && ['declining', 'cliff'].includes(careerStage.stage)
         && ownPpr < effectivePeak * 0.85) {
       const isCliff     = careerStage.stage === 'cliff';
+      // Cliff players: cap the reference peak to recent seasonHistory peak.
+      // A 31-year-old's 2020 peak (25 PPG) is irrelevant — bounceback should
+      // only reach toward what they've shown recently, not their career high.
+      const _recentPeak = seasonHistory.length > 0
+        ? Math.round(Math.max(...seasonHistory.map(s => s.ppg)) * typGames)
+        : null;
+      const effectivePeakForCeil = (isCliff && _recentPeak)
+        ? Math.min(effectivePeak, _recentPeak)
+        : effectivePeak;
       const ceilAgeAdj  = 1 - (1 - effectiveAgeFactor) * 0.25;
       // Stable declining WRs get a more generous bounceback scale — their recent peak
       // (e.g. 15.8 PPG two years ago) is a realistic bull-case anchor, not just history.
@@ -9736,8 +9745,8 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       const scaleFrac   = isCliff ? (stableCliffRb ? 0.78 : 0.70) : stableDecWr ? 0.87 : stableDecRb ? 0.78 : 0.72;
       const peakCapFrac = isCliff ? (stableCliffRb ? 0.85 : 0.78) : stableDecWr ? 0.90 : stableDecRb ? 0.85 : 0.80;
       const bouncebackCeil = Math.min(
-        Math.round(effectivePeak * ceilAgeAdj * scaleFrac),
-        Math.round(effectivePeak * peakCapFrac)
+        Math.round(effectivePeakForCeil * ceilAgeAdj * scaleFrac),
+        Math.round(effectivePeakForCeil * peakCapFrac)
       );
       if (bouncebackCeil > ceilPpr) {
         const lift = bouncebackCeil - ceilPpr;
