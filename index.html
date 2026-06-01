@@ -9700,8 +9700,8 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     const _tsSp      = sleeperPlayers[pid] ?? {};
     const _tsTeam    = _tsSp.team ?? null;
     const _tsCur     = teamDB?.[_tsTeam] ?? null;
-    const _tsSwitched = bos?.switchedTeams ?? false;
-    const _tsOldTeam  = _tsSwitched ? (statTeamDB?.[String(pid)] ?? null) : null;
+    const _tsOldTeam  = statTeamDB?.[String(pid)] ?? null;
+    const _tsSwitched = _tsOldTeam !== null && _tsOldTeam !== _tsTeam;
     const _tsOldCur   = _tsOldTeam ? (teamDB?.[_tsOldTeam] ?? null) : null;
     // Helper: get rank (1=best) for a given teamDB entry
     const _tsGetRank  = (teamEntry) => {
