@@ -12473,7 +12473,12 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   // we discount proportionally so the returner doesn't get an inflated "freed workload" boost.
   let departedWorkload = 0;
   const departedPlayers = []; // track for display: who left and how much workload they had
-  for (const [cPid2, cTeam2] of Object.entries(statTeamDB ?? {})) {
+  // nflverse uses different abbreviations than Sleeper for some franchises.
+  // Normalize statTeamDB values before comparing to sp.team (Sleeper abbrev).
+  const _toSleeperTeam = t => ({ JAC:'JAX', OAK:'LV', SD:'LAC', STL:'LA', ARZ:'ARI', BLT:'BAL', CLV:'CLE', HST:'HOU' }[t] ?? t);
+
+  for (const [cPid2, cTeam2Raw] of Object.entries(statTeamDB ?? {})) {
+    const cTeam2 = _toSleeperTeam(cTeam2Raw);
     if (cTeam2 !== team || cPid2 === String(pid)) continue;
     const cSp2 = sleeperPlayers[cPid2];
     if (!cSp2 || cSp2.position !== 'RB' || cSp2.team === team) continue;
