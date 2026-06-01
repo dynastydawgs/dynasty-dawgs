@@ -12084,9 +12084,13 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
                                  && myRound != null && myRound <= 4;
     const _lastSznGames       = myCareerSzns.length ? (myCareerSzns.at(-1).games ?? 0) : 0;
     const hasMeaningfulProd   = myLastSznPpg >= 5.0 && _lastSznGames >= 6;
+    const isInjuryFillIn      = myLastSznPpg >= 5.0 && _lastSznGames > 0 && _lastSznGames < 6;
     if (!isHighPedigreeRookie && !hasMeaningfulProd) {
-      // Cap at a value that normalizes to roughly ≤10% in a typical backfield pool.
-      const dc3Cap = (breaks.p30 ?? 15) * 0.45;
+      // Injury fill-in (high PPG, <6 games): tighter cap — normalizes to ~7–8% share.
+      // No meaningful history (low PPG or 0 games): standard cap — normalizes to ~10–12%.
+      const dc3Cap = isInjuryFillIn
+        ? (breaks.p30 ?? 15) * 0.15
+        : (breaks.p30 ?? 15) * 0.25;
       projOwnershipScore = Math.min(projOwnershipScore, dc3Cap);
     }
   }
