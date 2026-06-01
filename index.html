@@ -12072,12 +12072,14 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     const myRound = sp?.draft_round ?? sp?.college_draft_round
                   ?? _draftRoundCache[String(pid)] ?? null;
     const inferRound = myRound
-      ?? (fcVal >= 5000 ? 1 : fcVal >= 3000 ? 2 : fcVal >= 1500 ? 3 : fcVal >= 700 ? 4 : 5);
+      ?? (fcVal >= 5000 ? 1 : fcVal >= 3000 ? 2 : fcVal >= 1500 ? 3 : fcVal >= 700 ? 4 : fcVal >= 300 ? 5 : fcVal >= 150 ? 6 : 7);
     const rookieDc2Floor = inferRound <= 1 ? (breaks.p50 ?? 23) * 0.80
                          : inferRound <= 2 ? (breaks.p50 ?? 23) * 0.60
                          : inferRound <= 3 ? (breaks.p50 ?? 23) * 0.45
                          : inferRound <= 4 ? (breaks.p30 ?? 14) * 0.85
-                         :                  (breaks.p30 ?? 14) * 0.55;
+                         : inferRound <= 5 ? (breaks.p30 ?? 14) * 0.55
+                         : inferRound <= 6 ? (breaks.p30 ?? 14) * 0.38
+                         :                  (breaks.p30 ?? 14) * 0.25;
     if (!isNaN(projOwnershipScore)) {
       projOwnershipScore = Math.max(projOwnershipScore, rookieDc2Floor);
     }
@@ -12104,13 +12106,14 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     // Rookie DC3 floor — draft capital signals expected role even without usage data
     if (_isRookieDc3 && !isNaN(projOwnershipScore)) {
       const _r3Infer = myRound
-        ?? (fcVal >= 5000 ? 1 : fcVal >= 3000 ? 2 : fcVal >= 1500 ? 3 : fcVal >= 700 ? 4 : fcVal >= 300 ? 5 : 6);
+        ?? (fcVal >= 5000 ? 1 : fcVal >= 3000 ? 2 : fcVal >= 1500 ? 3 : fcVal >= 700 ? 4 : fcVal >= 300 ? 5 : fcVal >= 150 ? 6 : 7);
       const dc3RookieFloor = _r3Infer <= 1 ? (breaks.p50 ?? 25) * 0.38   // ~11%
                            : _r3Infer <= 2 ? (breaks.p50 ?? 25) * 0.28   // ~8%
                            : _r3Infer <= 3 ? (breaks.p50 ?? 25) * 0.20   // ~6%
                            : _r3Infer <= 4 ? (breaks.p30 ?? 15) * 0.55   // ~5%
                            : _r3Infer <= 5 ? (breaks.p30 ?? 15) * 0.32   // ~3%
-                           :                (breaks.p30 ?? 15) * 0.18;   // ~2%
+                           : _r3Infer <= 6 ? (breaks.p30 ?? 15) * 0.22   // ~2%
+                           :                (breaks.p30 ?? 15) * 0.15;   // ~1% (R7/UDFA)
       projOwnershipScore = Math.max(projOwnershipScore, dc3RookieFloor);
     }
   }
