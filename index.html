@@ -9658,19 +9658,19 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     // benefiting the featured back. Top-third offenses are stable. Middle is neutral.
     // Each tier has different bear/base/bull scenario multipliers applied directly to
     // floor/median/ceiling so the three projection cards reflect the team context.
+    const _tsSp    = sleeperPlayers[pid] ?? {};
+    const _tsTeam  = _tsSp.team ?? null;
+    const _tsCur   = teamDB?.[_tsTeam] ?? null;
+    const _tsRank  = (() => {
+      if (!_tsCur?.offRating) return null;
+      const _sorted = Object.values(teamDB ?? {})
+        .filter(v => v?.offRating != null)
+        .map(v => v.offRating)
+        .sort((a, b) => b - a);
+      const _idx = _sorted.indexOf(_tsCur.offRating);
+      return _idx >= 0 ? _idx + 1 : null;
+    })();
     {
-      const _tsSp    = sleeperPlayers[pid] ?? {};
-      const _tsTeam  = _tsSp.team ?? null;
-      const _tsCur   = teamDB?.[_tsTeam] ?? null;
-      const _tsRank  = (() => {
-        if (!_tsCur?.offRating) return null;
-        const _sorted = Object.values(teamDB ?? {})
-          .filter(v => v?.offRating != null)
-          .map(v => v.offRating)
-          .sort((a, b) => b - a);
-        const _idx = _sorted.indexOf(_tsCur.offRating);
-        return _idx >= 0 ? _idx + 1 : null;
-      })();
       if (_tsRank !== null && (sleeperPlayers[pid]?.position ?? pos) === 'RB') {
         // Tier: top=1-11, mid=12-21, bot=22-32
         const _tsTier = _tsRank <= 11 ? 'top' : _tsRank <= 21 ? 'mid' : 'bot';
