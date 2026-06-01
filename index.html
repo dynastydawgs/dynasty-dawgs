@@ -11675,6 +11675,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
 
   const team  = sp.team ?? null;
   if (!team) return null;
+  const fcVal = fc.value ?? 0;
 
   const dcRbs = depthDB?.[team]?.RB ?? [];
   // Need at least self on depth chart; without depthDB we can't evaluate competition
