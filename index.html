@@ -5742,13 +5742,21 @@ async function loadPlayerProfile(pid) {
             return _cdStr + _projGradeStr;
           })();
 
-      // Top competitors (sorted by threat, max 4)
-      const _rivals = [...(_bos.competitors ?? [])]
-        .sort((a, b) => b.threatScore - a.threatScore)
-        .slice(0, 4);
+      // Build depth-chart-ordered combined list (focal player + rivals, sorted by dcRank)
+      const _allEntries = [
+        { name: (sp?.first_name ?? '') + ' ' + (sp?.last_name ?? name), dcRank: _bos.dcRank,
+          projShare: _bos.myProjShare, isMe: true, isRookie: false, isNew: false },
+        ...(_bos.competitors ?? []),
+      ].sort((a, b) => (a.dcRank ?? 99) - (b.dcRank ?? 99)).slice(0, 5);
 
-      const _rivalRows = _rivals.length
-        ? _rivals.map(c => {
+      const _rivalRows = _allEntries.length
+        ? _allEntries.map(c => {
+            if (c.isMe) {
+              return _bos.myProjShare > 0 ? `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);margin:0 -4px;padding-left:4px;padding-right:4px;">
+                <span style="flex:1;font-size:11px;color:var(--text);font-weight:500;">${c.name}<span style="font-family:var(--mono);font-size:7px;padding:1px 4px;border-radius:2px;background:rgba(255,255,255,0.1);color:var(--text-dim);margin-left:4px;">YOU</span></span>
+                <span style="font-family:var(--mono);font-size:9px;color:${_bos.color};font-weight:600;width:52px;text-align:right;">${_bos.myProjShare.toFixed(0)}%</span>
+              </div>` : '';
+            }
             const _tag  = c.isRookie ? 'ROOKIE' : c.isNew ? 'NEW' : '';
             const _tagH = _tag ? `<span style="font-family:var(--mono);font-size:7px;padding:1px 4px;border-radius:2px;background:rgba(255,255,255,0.07);color:var(--text-dim);margin-left:4px;">${_tag}</span>` : '';
             const _csStr = (c.projShare ?? 0) > 0 ? `${c.projShare.toFixed(0)}%` : '—';
@@ -5804,10 +5812,6 @@ async function loadPlayerProfile(pid) {
             <span style="flex:1;">BACKFIELD SHARES</span>
             <span style="width:52px;text-align:right;">PROJ VOL</span>
           </div>
-          ${_bos.myProjShare > 0 ? `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);margin:0 -4px;padding-left:4px;padding-right:4px;">
-            <span style="flex:1;font-size:11px;color:var(--text);font-weight:500;">${sp?.first_name ?? ''} ${sp?.last_name ?? name}<span style="font-family:var(--mono);font-size:7px;padding:1px 4px;border-radius:2px;background:rgba(255,255,255,0.1);color:var(--text-dim);margin-left:4px;">YOU</span></span>
-            <span style="font-family:var(--mono);font-size:9px;color:${_bos.color};font-weight:600;width:52px;text-align:right;">${_bos.myProjShare.toFixed(0)}%</span>
-          </div>` : ''}
           ${_rivalRows}
         </div>`;
     })();
@@ -12089,7 +12093,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     const isHighPedigreeRookie = (sp?.years_exp ?? 99) === 0
                                  && myRound != null && myRound <= 4;
     const _lastSznGames       = myCareerSzns.length ? (myCareerSzns.at(-1).games ?? 0) : 0;
-    const hasMeaningfulProd   = myLastSznPpg >= 5.0 && _lastSznGames >= 6;
+    const hasMeaningfulProd   = myLastSznPpg >= 7.0 && _lastSznGames >= 6;
     const isInjuryFillIn      = myLastSznPpg >= 5.0 && _lastSznGames > 0 && _lastSznGames < 6;
     if (!isHighPedigreeRookie && !hasMeaningfulProd) {
       // Injury fill-in (high PPG, <6 games): tighter cap — normalizes to ~7–8% share.
