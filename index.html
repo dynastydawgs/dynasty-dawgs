@@ -5785,6 +5785,27 @@ async function loadPlayerProfile(pid) {
               <div style="font-family:var(--mono);font-size:7.5px;color:var(--text-dim);margin-top:2px;opacity:0.7;">vs last season opportunity</div>
             </div>
           </div>
+          ${(() => {
+            // Competition turnover breakdown: show departed vs new arrivals when there was change
+            const _dep = (_bos.departedPlayers ?? []);
+            const _new = (_bos.competitors ?? []).filter(c => c.isNew && c.effWorkload >= 5);
+            if (!_dep.length && !_new.length) return '';
+            const _fmtRow = (name, wl, ppg, eff, tag, col) => {
+              const _effStr = eff != null ? ` · eff ${Math.round(eff)}/100` : '';
+              const _ppgStr = ppg > 0 ? ` · ${ppg.toFixed(1)} PPG` : '';
+              return `<div style="display:flex;align-items:baseline;gap:6px;padding:2px 0;">
+                <span style="font-family:var(--mono);font-size:7.5px;padding:1px 3px;border-radius:2px;background:${col}22;color:${col};flex-shrink:0;">${tag}</span>
+                <span style="font-size:10px;color:var(--text-muted);flex:1;">${name}</span>
+                <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);">${wl.toFixed(0)} wl${_ppgStr}${_effStr}</span>
+              </div>`;
+            };
+            const _depRows = _dep.map(d => _fmtRow(d.name, d.effWorkload, d.lastPpg, d.effScore, 'OUT', 'var(--red)')).join('');
+            const _newRows = _new.map(n => _fmtRow(n.name, n.effWorkload, 0, n.effScore, 'IN', 'var(--green)')).join('');
+            return `<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:7px;margin-bottom:6px;">
+              <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:4px;">COMPETITION TURNOVER</div>
+              ${_depRows}${_newRows}
+            </div>`;
+          })()}
           ${_projVolOppGrade != null ? `<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:4px;">
             <span style="flex:1;font-size:11px;color:var(--text-muted);font-style:italic;">Proj Vol &amp; Opp score</span>
             <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_projGradeCol};">${_projVolOppGrade}<span style="font-size:8px;color:var(--text-dim);">/100</span></span>
@@ -11842,6 +11863,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   // performing near peak the full workload counts; if they were clearly on the cliff,
   // we discount proportionally so the returner doesn't get an inflated "freed workload" boost.
   let departedWorkload = 0;
+  const departedPlayers = []; // track for display: who left and how much workload they had
   for (const [cPid2, cTeam2] of Object.entries(statTeamDB ?? {})) {
     if (cTeam2 !== team || cPid2 === String(pid)) continue;
     const cSp2 = sleeperPlayers[cPid2];
@@ -11866,7 +11888,18 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
       const qualityFactor = cStage2 === 'prime' ? 1.0
                           : cStage2 === 'declining' ? Math.max(0.6, retentionRatio)
                           : Math.max(0.4, retentionRatio); // cliff
-      departedWorkload += rawWl * qualityFactor;
+      const adjWl = rawWl * qualityFactor;
+      departedWorkload += adjWl;
+      if (rawWl >= 5) { // only track backs with meaningful workload
+        const dEffScore = _bosEfficiency(cSp2.full_name ?? cSp2.name ?? '', cAdv2);
+        departedPlayers.push({
+          name: cSp2.full_name ?? cSp2.name ?? '?',
+          effWorkload: Math.round(adjWl * 10) / 10,
+          lastPpg: Math.round(cLastPpg2 * 10) / 10,
+          effScore: dEffScore,
+          stage: cStage2,
+        });
+      }
     }
   }
 
@@ -12002,7 +12035,9 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     // transfer from their historical workload to this back over the course of the season.
     const heirTransfer = heirAdj > 0 && primaryThreats.length > 0
       ? (primaryThreats[0].carryShare ?? 0) * 0.30 : 0;
-    const projCeiling = breaks.p90 ?? 90;
+    // Ceiling: never cap below the player's own historical ownership.
+    // A workhorse who was already above p90 shouldn't project lower just because p90 is below them.
+    const projCeiling = Math.max(breaks.p90 ?? 90, ownershipScore);
     // DC rank floor: an established returner shouldn't project below a minimum
     // even when many new players arrive. Prevents deep roster adds from inflating
     // R5/UDFA rookies above the proven incumbent via normalization collapse.
@@ -12141,6 +12176,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     runRate, rushAttPg, dcRank: myDcRank,
     projMultiplier,
     departedWorkload: Math.round(departedWorkload * 10) / 10,
+    departedPlayers,
   };
 }
 
