@@ -3171,7 +3171,7 @@
 .tr-sc-pt-val { font-family:var(--display);font-size:17px;line-height:1; }
 
 </style>
-<script src="https://cdn.jsdelivr.net/npm/apexcharts@latest/dist/apexcharts.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-basic-2.32.0.min.js"></script>
 </head>
 <body>
 <nav class="topnav">
@@ -11423,20 +11423,9 @@ async function trendsLoadPlayer(pid) {
       { label:'EXP',        score: sp.years_exp != null ? Math.min(99, Math.round(Math.min(sp.years_exp,10)/10*100)) : null },
     ];
 
-    const mkSegBar = (score, ac) => {
-      const segs = 10, filled = score === null ? 0 : Math.round(score / 100 * segs);
-      const col  = score === null ? 'rgba(255,255,255,0.07)'
-                 : score >= 75 ? ac : score >= 45 ? '#f5c842' : '#f56030';
-      return `<div class="tr-seg-track">${Array.from({length:segs},(_,i)=>`<div class="tr-seg-block ${i<filled?'on':'off'}" style="color:${col};background:${i<filled?col:'rgba(255,255,255,0.07)'}"></div>`).join('')}</div>`;
-    };
-
     const statsPanel = `<div class="tr-card" style="animation-delay:0.15s;">
       <div class="tr-card-hdr">STAT_PROFILE</div>
-      ${grades.map((g,i) => `<div class="tr-stat-row tr-delay-${i+1}">
-        <div class="tr-stat-label">${g.label}</div>
-        ${mkSegBar(g.score, accent)}
-        <div class="tr-stat-num" style="color:${g.score>=75?accent:g.score>=45?'#f5c842':'#f56030'}">${g.score??'—'}</div>
-      </div>`).join('')}
+      <div id="trends-chart-stats" style="min-height:${grades.length * 44 + 20}px;"></div>
     </div>`;
 
     content.innerHTML = `
@@ -11468,7 +11457,7 @@ async function trendsLoadPlayer(pid) {
         <div class="tr-sc-wrap">${buildScenarioStrip(cache, accent)}</div>
       </div>` : ''}`;
 
-    requestAnimationFrame(() => renderTrendsCharts(pid, accent, qualSzns));
+    requestAnimationFrame(() => renderTrendsCharts(pid, accent, qualSzns, grades));
   } catch(e) {
     console.error('[Trends]', e);
     content.innerHTML = `<div class="tr-empty" style="color:var(--red);">// ERROR: ${e.message}</div>`;
@@ -11516,71 +11505,116 @@ function buildTrendsCharts(pid) {
   `;
 }
 
-function renderTrendsCharts(pid, accent = '#38bdf8', qualSeasons = null) {
+function renderTrendsCharts(pid, accent = '#38bdf8', qualSeasons = null, grades = []) {
+  if (typeof Plotly === 'undefined') { console.warn('[Trends] Plotly not loaded'); return; }
   const cache = projectionCache[pid];
   if (!qualSeasons) {
-    const allSeasons = (careerDB[pid] ?? []).sort((a, b) => a.season - b.season);
-    qualSeasons = allSeasons.filter(s => (s.games ?? 0) >= 4).slice(-7);
-  } else {
-    qualSeasons = qualSeasons.slice(-7);
+    qualSeasons = (careerDB[pid] ?? []).sort((a,b) => a.season - b.season).filter(s => (s.games ?? 0) >= 4);
+  }
+  qualSeasons = [...qualSeasons].slice(-8);
+
+  const FONT   = "'Courier New', Courier, monospace";
+  const DIMTXT = 'rgba(255,255,255,0.38)';
+  const cfg    = { displayModeBar: false, responsive: true };
+
+  // ── 1. Career Arc (Plotly scatter/area) ────────────────────────────────────
+  const careerEl = document.getElementById('trends-chart-career');
+  if (careerEl && qualSeasons.length >= 2) {
+    const ppgs  = qualSeasons.map(s => +(s.ppg ?? s.ppr / s.games).toFixed(2));
+    const games = qualSeasons.map(s => s.games ?? 0);
+    const years = qualSeasons.map(s => `'${String(s.season).slice(2)}`);
+    const avg   = +(ppgs.reduce((a,b) => a+b, 0) / ppgs.length).toFixed(2);
+    const peakIdx = ppgs.indexOf(Math.max(...ppgs));
+
+    // Marker sizes encode availability; peak gets ring treatment
+    const mSize  = games.map((g, i) => i === peakIdx ? 15 : g >= 15 ? 10 : g >= 11 ? 8 : 6);
+    const mColor = ppgs.map((_, i)  => i === peakIdx ? '#fff' : accent);
+    const mBord  = ppgs.map((_, i)  => i === peakIdx ? accent : 'rgba(0,0,0,0)');
+    const mBordW = ppgs.map((_, i)  => i === peakIdx ? 3 : 0);
+
+    const histTrace = {
+      x: years, y: ppgs,
+      text: ppgs.map(v => v.toFixed(1)),
+      textposition: 'top center',
+      textfont: { size: 11, color: accent, family: FONT },
+      mode: 'lines+markers+text',
+      type: 'scatter',
+      name: 'PPG',
+      line: { color: accent, width: 2.5, shape: 'spline', smoothing: 0.8 },
+      marker: { size: mSize, color: mColor, line: { color: mBord, width: mBordW } },
+      fill: 'tozeroy',
+      fillcolor: accent + '15',
+      customdata: qualSeasons.map((s,i) => `${years[i]}: <b>${ppgs[i].toFixed(1)} PPG</b><br>${games[i]} games`),
+      hovertemplate: '%{customdata}<extra></extra>',
+    };
+
+    const traces = [histTrace];
+
+    if (cache?.basePpg) {
+      const projPpg = +cache.basePpg.toFixed(2);
+      traces.push({
+        x: [years.at(-1), "'26"], y: [ppgs.at(-1), projPpg],
+        text: ['', projPpg.toFixed(1)],
+        textposition: 'top center',
+        textfont: { size: 11, color: 'rgba(255,255,255,0.4)', family: FONT },
+        mode: 'lines+markers+text', type: 'scatter', name: '2026 proj',
+        line: { color: 'rgba(255,255,255,0.25)', width: 2, dash: 'dash', shape: 'spline' },
+        marker: { size: [0, 9], color: ['rgba(0,0,0,0)', 'rgba(255,255,255,0.35)'],
+          line: { color: ['rgba(0,0,0,0)', 'rgba(255,255,255,0.5)'], width: [0, 1.5] } },
+        hovertemplate: `'26 proj: <b>${projPpg.toFixed(1)} PPG</b><extra></extra>`,
+      });
+    }
+
+    Plotly.newPlot(careerEl, traces, {
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+      font: { family: FONT, color: DIMTXT },
+      xaxis: { showgrid: false, zeroline: false, showline: false, fixedrange: true,
+        tickfont: { size: 12, color: DIMTXT, family: FONT } },
+      yaxis: { showgrid: true, gridcolor: 'rgba(255,255,255,0.05)', gridwidth: 1,
+        zeroline: false, showline: false, visible: false, fixedrange: true },
+      margin: { t: 32, b: 36, l: 8, r: 72 },
+      showlegend: false, hovermode: 'closest',
+      shapes: [{ type:'line', xref:'paper', yref:'y', x0:0, x1:1, y0:avg, y1:avg,
+        line: { color:'rgba(255,255,255,0.1)', width:1, dash:'dot' } }],
+      annotations: [{ xref:'paper', yref:'y', x:1.02, y:avg,
+        text:`avg ${avg.toFixed(1)}`, showarrow:false, xanchor:'left',
+        font: { size:9, color:'rgba(255,255,255,0.28)', family:FONT } }],
+    }, cfg);
   }
 
-  const base = {
-    chart:   { background: 'transparent', toolbar: { show: false }, fontFamily: 'var(--mono)', foreColor: 'rgba(255,255,255,0.35)' },
-    theme:   { mode: 'dark' },
-    grid:    { borderColor: 'rgba(255,255,255,0.04)', strokeDashArray: 4, padding: { left: 10, right: 24, top: 20, bottom: 0 } },
-    tooltip: { theme: 'dark', style: { fontFamily: 'var(--mono)', fontSize: '11px' } },
-    legend:  { show: false },
-  };
+  // ── 2. Stat Profile (Plotly horizontal bars — RBSDM style) ─────────────────
+  const statsEl = document.getElementById('trends-chart-stats');
+  if (statsEl && grades.length > 0) {
+    const valid  = grades.filter(g => g.score != null);
+    const labels = valid.map(g => g.label);
+    const scores = valid.map(g => g.score);
+    const colors = scores.map(s => s >= 75 ? accent : s >= 45 ? '#f5c842' : '#f56030');
+    const H      = valid.length * 44 + 20;
 
-  // ── Career Arc: smooth area chart, dot size = games played availability ─────
-  if (qualSeasons.length >= 2 && document.getElementById('trends-chart-career')) {
-    const ppgs  = qualSeasons.map(s => +(s.ppg ?? s.ppr / s.games).toFixed(1));
-    const games = qualSeasons.map(s => s.games ?? 0);
-    const cats  = qualSeasons.map(s => `'${String(s.season).slice(2)}`);
-    const avg   = +(ppgs.reduce((a, b) => a + b, 0) / ppgs.length).toFixed(1);
-    const peakIdx = ppgs.indexOf(Math.max(...ppgs));
-    const hasForecast = !!cache?.basePpg;
-    if (hasForecast) { ppgs.push(+cache.basePpg.toFixed(1)); cats.push("'26"); games.push(17); }
-    const markerSizes = games.map(g => g >= 15 ? 6 : g >= 11 ? 5 : 4);
-
-    new ApexCharts(document.getElementById('trends-chart-career'), {
-      ...base,
-      chart: { ...base.chart, type: 'area', height: 300,
-        animations: { enabled: true, easing: 'easeinout', speed: 1000,
-          animateGradually: { enabled: true, delay: 120 } } },
-      series: [{ name: 'PPG', data: ppgs }],
-      ...(hasForecast ? { forecastDataPoints: { count: 1, dashArray: 7, fillOpacity: 0.25 } } : {}),
-      stroke: { curve: 'smooth', width: 2.5, colors: [accent] },
-      fill: { type: 'gradient', gradient: { shadeIntensity: 1, type: 'vertical',
-        colorStops: [
-          { offset: 0,   color: accent, opacity: 0.45 },
-          { offset: 55,  color: accent, opacity: 0.08 },
-          { offset: 100, color: accent, opacity: 0.00 },
-        ]
-      }},
-      colors: [accent],
-      markers: {
-        size: markerSizes,
-        strokeWidth: 0,
-        hover: { sizeOffset: 3 },
-        discrete: [{ seriesIndex:0, dataPointIndex:peakIdx, size:10,
-          fillColor: accent, strokeWidth: 2.5, strokeColor: '#fff' }],
-      },
-      dataLabels: { enabled: true, offsetY: -10,
-        style: { fontSize: '11px', fontFamily: 'var(--mono)', fontWeight: '700', colors: [accent] },
-        background: { enabled: false },
-        formatter: v => v?.toFixed(1) ?? '' },
-      xaxis: { categories: cats, axisBorder: { show: false }, axisTicks: { show: false },
-        labels: { style: { fontSize: '11px', colors: 'rgba(255,255,255,0.4)', fontFamily: 'var(--mono)' } } },
-      yaxis: { show: false },
-      annotations: { yaxis: [{ y: avg, borderColor: 'rgba(255,255,255,0.1)', strokeDashArray: 5,
-        label: { text: `avg ${avg}`, position: 'right', offsetX: -8,
-          style: { color: 'rgba(255,255,255,0.3)', background: 'transparent',
-            fontSize: '9px', fontFamily: 'var(--mono)' } } }] },
-      tooltip: { theme: 'dark', style: { fontFamily: 'var(--mono)', fontSize: '11px' },
-        y: { formatter: v => `${v} PPG` } },
-    }).render();
+    Plotly.newPlot(statsEl, [{
+      type: 'bar', orientation: 'h',
+      x: scores, y: labels,
+      marker: { color: colors.map(c => c + 'cc'), line: { color: colors, width: 1.5 } },
+      text: scores.map(String),
+      textposition: 'outside',
+      textfont: { size: 13, color: 'rgba(255,255,255,0.7)', family: FONT },
+      hovertemplate: '<b>%{y}</b>: %{x} / 100<extra></extra>',
+      cliponaxis: false,
+    }], {
+      paper_bgcolor:'transparent', plot_bgcolor:'transparent',
+      font: { family:FONT, color:DIMTXT },
+      xaxis: { range:[0,118], showgrid:false, zeroline:false, visible:false, fixedrange:true },
+      yaxis: { showgrid:false, zeroline:false, autorange:'reversed', fixedrange:true,
+        tickfont: { size:10, color:'rgba(255,255,255,0.45)', family:FONT } },
+      margin: { t:8, b:8, l:88, r:44 },
+      bargap: 0.38,
+      height: H,
+      shapes: scores.map((_,i) => ({
+        type:'rect', xref:'x', yref:'y',
+        x0:0, x1:100, y0:i-0.45, y1:i+0.45,
+        fillcolor:'rgba(255,255,255,0.03)', line:{ width:0 },
+      })),
+    }, cfg);
   }
 }
 
