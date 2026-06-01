@@ -12620,7 +12620,16 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
                       : myBestSznPpg >= 10 ? breaks.p75 * 0.72  // proven vet
                       : myBestSznPpg >= 7  ? breaks.p75 * 0.55  // decent vet
                       :                      (breaks.p30 + breaks.p50) * 0.5;
-    const baseRole   = myDcRank === 1 ? breaks.p75
+    // DC1 peak recency boost — mirrors DC2 elite vet logic.
+    // If peak was within last 3 seasons and not cliff-age, scale the DC1 base
+    // proportionally to retention ratio (65%→100% = 0%→25% boost on base).
+    // At 100% retention (still at peak) they get the full +25% on p75.
+    const _dc1PeakRecent = _myStage !== 'cliff' && _seasonsSincePeak <= 3;
+    const _dc1RecencyMult = (_dc1PeakRecent && myRetentionRatio >= 0.65)
+      ? 1.0 + ((Math.min(1, myRetentionRatio) - 0.65) / 0.35) * 0.25  // 1.0 → 1.25
+      : 1.0;
+
+    const baseRole   = myDcRank === 1 ? breaks.p75 * _dc1RecencyMult
                      : myDcRank === 2 ? dc2RoleBase
                      : breaks.p30 * 0.4;
     // Apply quality multiplier. Cap at p75*1.20 for DC2 (workhorse ceiling reserved
