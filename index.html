@@ -9936,7 +9936,8 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           <div class="pp-factor-val" style="color:var(--text-dim);">—</div>
           <div class="pp-factor-sub">no team depth chart found</div>
         </div>`;
-      // PROJ IMPACT: PPG delta vs last season opportunity (not career base).
+      // PROJ IMPACT: same formula as overview BOS card for consistency.
+      // Switchers: grade delta (normalized); Returners: raw ownership delta.
       const _bosLastSznPpg = (() => {
         const szns = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4);
         if (!szns.length) return null;
@@ -9945,42 +9946,35 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       })();
       const _bosHistOwn = bos.historicalOwnershipScore ?? 0;
       const _bosProjGrade = (() => {
-        // Replicate grade lookup for projections tab (same logic as overview _projVolOppGrade)
         const proj = bos.projOwnershipScore;
         if (proj == null) return null;
-        if (bos.switchedTeams) {
-          const b = bos.breaks ?? {};
-          if (!b.p30) return null;
-          if (proj >= (b.p90 ?? 999)) return 92;
-          if (proj >= (b.p75 ?? 999)) return Math.round(75 + (proj - b.p75) / ((b.p90 ?? b.p75+1) - b.p75) * 17);
-          if (proj >= (b.p50 ?? 999)) return Math.round(50 + (proj - b.p50) / (b.p75 - b.p50) * 25);
-          if (proj >= (b.p30 ?? 999)) return Math.round(30 + (proj - b.p30) / (b.p50 - b.p30) * 20);
-          return Math.round(Math.max(5, proj / b.p30 * 30));
-        }
-        return null; // returners handled via volOppDelta below
+        const b = bos.breaks ?? {};
+        if (!b.p30) return null;
+        if (proj >= (b.p90 ?? 999)) return 92;
+        if (proj >= (b.p75 ?? 999)) return Math.round(75 + (proj - b.p75) / ((b.p90 ?? b.p75+1) - b.p75) * 17);
+        if (proj >= (b.p50 ?? 999)) return Math.round(50 + (proj - b.p50) / (b.p75 - b.p50) * 25);
+        if (proj >= (b.p30 ?? 999)) return Math.round(30 + (proj - b.p30) / (b.p50 - b.p30) * 20);
+        return Math.round(Math.max(5, proj / b.p30 * 30));
+      })();
+      const _bosHistGrade = (() => {
+        const hist = _bosHistOwn;
+        if (hist <= 0) return null;
+        const b = bos.breaks ?? {};
+        if (!b.p30) return null;
+        if (hist >= (b.p90 ?? 999)) return 92;
+        if (hist >= (b.p75 ?? 999)) return Math.round(75 + (hist - b.p75) / ((b.p90 ?? b.p75+1) - b.p75) * 17);
+        if (hist >= (b.p50 ?? 999)) return Math.round(50 + (hist - b.p50) / (b.p75 - b.p50) * 25);
+        if (hist >= (b.p30 ?? 999)) return Math.round(30 + (hist - b.p30) / (b.p50 - b.p30) * 20);
+        return Math.round(Math.max(5, hist / b.p30 * 30));
       })();
       const _bosVolDeltaPpg = (() => {
         if (_bosLastSznPpg == null) return null;
         if (bos.switchedTeams) {
-          // Use grade delta — raw ownership isn't comparable across teams
-          const histGrade = (() => {
-            const szns = (careerDB[pid] ?? []).filter(s => (s.games ?? 0) >= 4);
-            return null; // fall back to raw if no grade available
-          })();
-          // Approximate historical grade from livePprPts/last season if available
-          // Use volOppDelta scaled by proj/hist ratio approach via bosProjGrade
-          if (_bosProjGrade == null || _bosHistOwn <= 0) return null;
-          // Estimate historical grade from historical ownership vs breaks
-          const _bosB = bos.breaks ?? {};
-          const hist = _bosHistOwn;
-          const histGradeEst = hist >= (_bosB.p90 ?? 999) ? 92
-            : hist >= (_bosB.p75 ?? 999) ? Math.round(75 + (hist - _bosB.p75) / ((_bosB.p90 ?? _bosB.p75+1) - _bosB.p75) * 17)
-            : hist >= (_bosB.p50 ?? 999) ? Math.round(50 + (hist - _bosB.p50) / (_bosB.p75 - _bosB.p50) * 25)
-            : hist >= (_bosB.p30 ?? 999) ? Math.round(30 + (hist - _bosB.p30) / (_bosB.p50 - _bosB.p30) * 20)
-            : Math.round(Math.max(5, hist / (_bosB.p30 ?? 1) * 30));
-          const gradeDelta = _bosProjGrade - histGradeEst;
+          // Grade delta: normalized across teams
+          const hg = _bosHistGrade, pg = _bosProjGrade;
+          if (hg == null || pg == null || hg <= 0) return null;
           return +(Math.max(-_bosLastSznPpg, Math.min(_bosLastSznPpg,
-            _bosLastSznPpg * (gradeDelta / Math.max(1, histGradeEst))
+            _bosLastSznPpg * ((pg - hg) / hg)
           )).toFixed(1));
         }
         if (_bosHistOwn <= 0) return null;
@@ -12525,7 +12519,15 @@ function computeBaseProjection(pid, pos, age, yearsExp, draftRound, draftPick) {
     }
 
     // ── Backfield Opportunity Score adjustment (uses bosMult computed above) ──
-    if (bosMult !== 1) medianPpr = Math.round(medianPpr * bosMult);
+    // Apply to all three scenarios: bear/base/bull all shift with competition signal.
+    // Bear gets a dampened version (competition risk already captured in floor scenario).
+    if (bosMult !== 1) {
+      const bearMult   = 1 + (bosMult - 1) * 0.5;  // half signal on bear
+      const bullMult   = 1 + (bosMult - 1) * 0.75; // 3/4 signal on bull
+      floorPpr  = Math.round(floorPpr  * bearMult);
+      medianPpr = Math.round(medianPpr * bosMult);
+      ceilPpr   = Math.round(ceilPpr   * bullMult);
+    }
   } else {
     const tierBoost = draftTierBoost(tier, posNorm);
     medianPpr = Math.round(p50 * tierBoost);
