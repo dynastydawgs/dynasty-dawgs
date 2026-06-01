@@ -10015,7 +10015,12 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           </div>`;
     } else if (seasonHistory.length >= 2) {
       // Established players: YoY multi-season momentum
-      const displayDelta = avgDeltaPpg !== null ? avgDeltaPpg : (seasonHistory[seasonHistory.length - 1].ppg - seasonHistory[0].ppg);
+      // Always derive displayDelta from the seasons actually shown (seasonHistory),
+      // so the PPG/yr number matches the "X → Y PPG" subtitle. avgDeltaPpg may be
+      // computed from a wider momentumWindow and would otherwise show a mismatch.
+      const displayDelta = seasonHistory.length >= 2
+        ? (seasonHistory.at(-1).ppg - seasonHistory[0].ppg) / (seasonHistory.length - 1)
+        : (avgDeltaPpg ?? 0);
       const momCol    = displayDelta >= 0.5 ? 'var(--green)' : displayDelta <= -0.5 ? 'var(--red)' : 'var(--text-muted)';
       const momArrow  = displayDelta >= 0.5 ? '↑' : displayDelta <= -0.5 ? '↓' : '→';
       const deltaSign = displayDelta >= 0 ? '+' : '';
@@ -12043,6 +12048,13 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     // Returner: start from last-season ownership, then model workload flows.
     // DC1 absorbs most of departed carries; DC2 picks up a smaller share.
     const absorptionRate  = myDcRank === 1 ? 0.60 : myDcRank === 2 ? 0.25 : 0.08;
+
+    // Age-based retention discount: cliff/declining backs can't sustain last-season
+    // workload. Discount their base ownership before adding/subtracting flow changes.
+    const _retAge   = sp.birth_date
+      ? (Date.now() - new Date(sp.birth_date)) / (365.25 * 24 * 3600 * 1000) : 27;
+    const _retStage = _retAge >= 29 ? 'cliff' : _retAge >= 27 ? 'declining' : 'prime';
+    const _retMult  = _retStage === 'cliff' ? 0.65 : _retStage === 'declining' ? 0.85 : 1.0;
     // Lose share to new arrivals: those ranked ABOVE are a direct threat to my role,
     // those at the same level or below dilute the pool less.
     const newThreatsAbove = competitors.filter(c => c.dcRank < myDcRank && c.isNew);
@@ -12065,7 +12077,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     const dcRankFloor = myDcRank === 1 ? (breaks.p30 ?? 15) * 0.80
                       : myDcRank === 2 ? (breaks.p30 ?? 15) * 0.40 : 0;
     projOwnershipScore = Math.min(projCeiling, Math.max(dcRankFloor,
-      ownershipScore + (departedWorkload * absorptionRate) - workloadLoss + heirTransfer));
+      ownershipScore * _retMult + (departedWorkload * absorptionRate * _retMult) - workloadLoss + heirTransfer));
   }
 
   // ── Efficiency → Vol & Opp scaling ──────────────────────────────────────
