@@ -12062,7 +12062,8 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
                   ?? _draftRoundCache[String(pid)] ?? null;
     const isHighPedigreeRookie = (sp?.years_exp ?? 99) === 0
                                  && myRound != null && myRound <= 4;
-    const hasMeaningfulProd   = myLastSznPpg >= 5.0;
+    const _lastSznGames       = myCareerSzns.length ? (myCareerSzns.at(-1).games ?? 0) : 0;
+    const hasMeaningfulProd   = myLastSznPpg >= 5.0 && _lastSznGames >= 6;
     if (!isHighPedigreeRookie && !hasMeaningfulProd) {
       // Cap at a value that normalizes to roughly ≤10% in a typical backfield pool.
       const dc3Cap = (breaks.p30 ?? 15) * 0.45;
