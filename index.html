@@ -11341,7 +11341,7 @@ function trendsSearch(q) {
     .sort((a, b) => (b[1].value ?? 0) - (a[1].value ?? 0))
     .slice(0, 10);
   if (!matches.length) { res.style.display = 'none'; return; }
-  res.style.display = '';
+  res.style.display = 'block';
   res.innerHTML = matches.map(([pid, fc]) => {
     const sp  = sleeperPlayers[pid];
     const pos = fc.position ?? sp?.position ?? '?';
