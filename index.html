@@ -11591,7 +11591,7 @@ function _bosGetBreaks() {
   return _bosBreaks;
 }
 
-function _rbBackfieldOpportunity(pid) {
+function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   const sp = sleeperPlayers[pid];
   const fc = fcPlayerMap[pid];
   if (!sp || !fc || fc.position !== 'RB') return null;
@@ -12032,6 +12032,25 @@ function _rbBackfieldOpportunity(pid) {
     label = 'ROTATIONAL';  color = '#94a3b8';
   }
 
+  // ── Prefetch-only early return ────────────────────────────────────────────
+  // Used by the two-pass normalization: callers ask for just projOwnershipScore
+  // for a rival without triggering recursive prefetches or normalization work.
+  if (_prefetchOnly) {
+    return { projOwnershipScore: isNaN(projOwnershipScore) ? null : Math.round(projOwnershipScore * 10) / 10 };
+  }
+
+  // ── Pass 2: gather rivals' independently projected scores ─────────────────
+  // Each rival's projOwnershipScore is computed via a prefetch-only call so the
+  // normalization pool reflects real projected workload on both sides, not raw
+  // historical effWorkload. Falls back to effWorkload when prefetch returns null.
+  const rivalProjScores = {};
+  for (const c of competitors) {
+    if (c.pid) {
+      const lite = _rbBackfieldOpportunity(c.pid, true);
+      rivalProjScores[c.pid] = lite?.projOwnershipScore ?? c.effWorkload;
+    }
+  }
+
   // ── Normalize projected shares so top RBs sum to ~90-100% ───────────────
   // Check if any RB4+ on this depth chart has meaningful historical production.
   // If yes, reserve 10% for depth; if no competent RB4, top 3 own 100%.
@@ -12042,13 +12061,18 @@ function _rbBackfieldOpportunity(pid) {
   });
   const targetPct  = hasCompetentRb4 ? 90 : 100;
   const myRaw      = isNaN(projOwnershipScore) ? 0 : (projOwnershipScore || 0);
-  const rivalsRaw  = competitors.reduce((s, c) => s + (c.effWorkload || 0), 0);
+  // Use rivals' actual projected scores (pass 1) instead of raw effWorkload
+  const rivalsRaw  = competitors.reduce((s, c) => {
+    const rProj = c.pid != null ? (rivalProjScores[c.pid] ?? c.effWorkload) : c.effWorkload;
+    return s + (rProj || 0);
+  }, 0);
   const rawPool    = myRaw + rivalsRaw;
   const normScale  = rawPool > 0 ? targetPct / rawPool : 1;
   const myProjShare = Math.round(myRaw * normScale * 10) / 10;
-  const normalizedCompetitors = competitors.map(c => ({
-    ...c, projShare: Math.round((c.effWorkload || 0) * normScale * 10) / 10,
-  }));
+  const normalizedCompetitors = competitors.map(c => {
+    const rProj = c.pid != null ? (rivalProjScores[c.pid] ?? c.effWorkload) : c.effWorkload;
+    return { ...c, projShare: Math.round((rProj || 0) * normScale * 10) / 10 };
+  });
 
   return {
     label, color, switchedTeams, breaks,
