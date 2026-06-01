@@ -5831,15 +5831,16 @@ async function loadPlayerProfile(pid) {
       if (_effScore2 == null) return '';
       const score  = Math.round(_effScore2);
       const effAdj = _bos?.effAdj ?? (
-        score >= 75 ? 0.02 : score >= 60 ? 0.01 : score <= 25 ? -0.02 : score <= 40 ? -0.01 : 0
+        score >= 75 ? 0.03 : score >= 60 ? 0.02 : score <= 25 ? -0.03 : score <= 40 ? -0.02 : 0
       );
       const label  = score >= 80 ? 'Efficiency Leader' : score >= 65 ? 'Above Average'
                    : score >= 45 ? 'Average' : score >= 30 ? 'Below Average' : 'Inefficient';
       const col    = effAdj > 0 ? 'var(--green)' : effAdj < 0 ? 'var(--red)' : 'var(--text-muted)';
       const bdrCol = effAdj > 0 ? 'var(--green)' : effAdj < 0 ? 'var(--red)' : 'var(--border)';
+      const _effVolPct = score >= 75 ? 7 : score >= 60 ? 4 : score <= 25 ? -9 : score <= 40 ? -5 : 0;
       const adjStr = effAdj === 0 ? 'Neutral — no projection adjustment'
-                   : effAdj > 0  ? `+${Math.round(effAdj * 100)}% to base projection · +${Math.round(effAdj * 100 / 2)}% to Vol &amp; Opp projection`
-                   : `${Math.round(effAdj * 100)}% to base projection · ${Math.round(effAdj * 100 / 2)}% to Vol &amp; Opp projection`;
+                   : effAdj > 0  ? `+${Math.round(effAdj * 100)}% to base projection · +${_effVolPct}% to Vol &amp; Opp projection`
+                   : `${Math.round(effAdj * 100)}% to base projection · ${_effVolPct}% to Vol &amp; Opp projection`;
       const keyStats = [
         _ryoeS2   != null && ryoePerAtt  != null ? `RYOE ${ryoePerAtt > 0 ? '+' : ''}${(+ryoePerAtt).toFixed(2)}/att` : null,
         _succS    != null && successPct   != null ? `Succ ${(+successPct * 100).toFixed(0)}%` : null,
@@ -12095,8 +12096,8 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   // inefficient backs lose carries at the margin. Scale projOwnershipScore by a
   // small factor so the forward-looking projection reflects this tendency.
   const effVolMult = myEffScore === null ? 1.0
-                   : myEffScore >= 75 ? 1.04 : myEffScore >= 60 ? 1.02
-                   : myEffScore <= 25 ? 0.94 : myEffScore <= 40 ? 0.97 : 1.0;
+                   : myEffScore >= 75 ? 1.07 : myEffScore >= 60 ? 1.04
+                   : myEffScore <= 25 ? 0.91 : myEffScore <= 40 ? 0.95 : 1.0;
   projOwnershipScore = isNaN(projOwnershipScore)
     ? projOwnershipScore
     : Math.min((breaks.p90 ?? 90), projOwnershipScore * effVolMult);
@@ -12136,8 +12137,8 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   // 7. Efficiency: efficient backs earn more carries going forward; inefficient backs lose them.
   //    Separate from opptyAdj so the efficiency signal is independently visible.
   const effAdj  = myEffScore === null ? 0
-                : myEffScore >= 75 ? 0.02 : myEffScore >= 60 ? 0.01
-                : myEffScore <= 25 ? -0.02 : myEffScore <= 40 ? -0.01 : 0;
+                : myEffScore >= 75 ? 0.03 : myEffScore >= 60 ? 0.02
+                : myEffScore <= 25 ? -0.03 : myEffScore <= 40 ? -0.02 : 0;
 
   const projMultiplier = Math.round(
     Math.max(0.93, Math.min(1.07, 1 + ownAdj + thrAdj + dltAdj + runAdj + heirAdj + opptyAdj + effAdj)) * 1000) / 1000;
