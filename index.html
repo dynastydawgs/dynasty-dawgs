@@ -4892,7 +4892,8 @@ async function loadPlayerProfile(pid) {
   //             players outside the RYOE dataset (WRs, TEs, QBs, low-carry RBs).
   // Priority 3: nflTeam           — current Sleeper team (no switch detected).
   const _ryoeTeam    = ryoeDB?.[sp?.name]?.team ?? null;
-  const _statDbTeam  = statTeamDB?.[String(pid)] ?? null;
+  const _statDbTeamRaw = statTeamDB?.[String(pid)] ?? null;
+  const _statDbTeam  = _statDbTeamRaw ? _toSleeperAbbr(_statDbTeamRaw) : null;
   const statTeamRaw  = _ryoeTeam ?? _statDbTeam;
   const statTeam     = statTeamRaw ?? nflTeam;
   const teamChanged  = statTeamRaw !== null && statTeam !== nflTeam;
@@ -8057,6 +8058,15 @@ let statTeamDB  = {};   // sleeperPlayerId → NFL team abbr they played for in 
 // ── Backfield Opportunity Score — name-matching caches ───────────────────
 // Normalize across depthDB names, advstatsDB keys, and Sleeper full_name/name.
 // Strips periods, apostrophes, hyphens, suffixes; lowercases.
+// Normalise nflverse / ESPN team abbreviations to Sleeper's conventions.
+// nflverse: JAC, OAK, SD, STL, ARZ, BLT, CLV, HST, SL
+// ESPN:     JAC, LVR, WSH
+// Sleeper:  JAX, LV,  LAC, LA,  ARI, BAL, CLE, HOU
+const _toSleeperAbbr = t => ({
+  JAC:'JAX', OAK:'LV',  LVR:'LV',  SD:'LAC', STL:'LA',
+  ARZ:'ARI', BLT:'BAL', CLV:'CLE', HST:'HOU', WSH:'WAS',
+}[t] ?? t);
+
 const _bosNorm  = n => (n ?? '').replace(/['.]/g,'').replace(/-/g,' ')
   .replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi,'').replace(/\s+/g,' ').trim().toLowerCase();
 let _bosAdvMap      = null; // normName → original advstatsDB key
@@ -9890,7 +9900,8 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     const _tsSp      = sleeperPlayers[pid] ?? {};
     const _tsTeam    = _tsSp.team ?? null;
     const _tsCur     = teamDB?.[_tsTeam] ?? null;
-    const _tsOldTeam  = statTeamDB?.[String(pid)] ?? null;
+    const _tsOldTeamRaw = statTeamDB?.[String(pid)] ?? null;
+    const _tsOldTeam  = _tsOldTeamRaw ? _toSleeperAbbr(_tsOldTeamRaw) : null;
     const _tsSwitched = _tsOldTeam !== null && _tsOldTeam !== _tsTeam;
     const _tsOldCur   = _tsOldTeam ? (teamDB?.[_tsOldTeam] ?? null) : null;
     // Helper: get rank (1=best) for a given teamDB entry
@@ -12229,7 +12240,8 @@ function _bosGetBreaks() {
   for (const [pid, sp] of Object.entries(sleeperPlayers ?? {})) {
     if (sp.position !== 'RB' || !sp.team) continue;
     if (!depthDB?.[sp.team]?.RB?.length) continue; // only backs on teams with DC data
-    const switched = statTeamDB?.[String(pid)] != null && statTeamDB[String(pid)] !== sp.team;
+    const _stRaw  = statTeamDB?.[String(pid)] ?? null;
+    const switched = _stRaw != null && _toSleeperAbbr(_stRaw) !== sp.team;
     if (switched) continue; // exclude team-switchers — old carry share is irrelevant
     const adv = _bosGetAdv(sp.full_name ?? sp.name ?? '');
     if (!adv) continue;
@@ -12293,8 +12305,9 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
 
   // Did this player switch teams this offseason?
   // statTeamDB[pid] = team they played for last season; sp.team = current team.
-  const switchedTeams = statTeamDB?.[String(pid)] != null
-                        && statTeamDB[String(pid)] !== team;
+  const _myStatTeamRaw = statTeamDB?.[String(pid)] ?? null;
+  const switchedTeams  = _myStatTeamRaw != null
+                        && _toSleeperAbbr(_myStatTeamRaw) !== team;
 
   // ── My last-season workload ownership ──────────────────────────────────
   // If the player switched teams, their old carry share/target share is from a
@@ -12367,8 +12380,9 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     // statTeamDB only tracks players who switched teams — a player absent from it
     // who is currently on this team almost certainly played here last season too.
     // Only false when statTeamDB explicitly shows a DIFFERENT team (confirmed switcher).
-    const cStatEntry  = cPid ? (statTeamDB?.[cPid] ?? null) : null;
-    const cWasHereLast = cStatEntry === team
+    const cStatEntryRaw = cPid ? (statTeamDB?.[cPid] ?? null) : null;
+    const cStatEntry    = cStatEntryRaw ? _toSleeperAbbr(cStatEntryRaw) : null;
+    const cWasHereLast  = cStatEntry === team
       || (cStatEntry === null && cSp?.team === team);
     const _cRoundRaw = cSp?.draft_round ?? cSp?.college_draft_round
                      ?? (cPid ? _draftRoundCache[String(cPid)] : null) ?? null;
@@ -12473,12 +12487,8 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   // we discount proportionally so the returner doesn't get an inflated "freed workload" boost.
   let departedWorkload = 0;
   const departedPlayers = []; // track for display: who left and how much workload they had
-  // nflverse uses different abbreviations than Sleeper for some franchises.
-  // Normalize statTeamDB values before comparing to sp.team (Sleeper abbrev).
-  const _toSleeperTeam = t => ({ JAC:'JAX', OAK:'LV', SD:'LAC', STL:'LA', ARZ:'ARI', BLT:'BAL', CLV:'CLE', HST:'HOU' }[t] ?? t);
-
   for (const [cPid2, cTeam2Raw] of Object.entries(statTeamDB ?? {})) {
-    const cTeam2 = _toSleeperTeam(cTeam2Raw);
+    const cTeam2 = _toSleeperAbbr(cTeam2Raw);
     if (cTeam2 !== team || cPid2 === String(pid)) continue;
     const cSp2 = sleeperPlayers[cPid2];
     if (!cSp2 || cSp2.position !== 'RB' || cSp2.team === team) continue;
