@@ -9986,10 +9986,10 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         ${surgeBoxHtml}
         ${bosBox}
         ${(() => {
-          if (!_curOffRank || pos !== 'RB') return '';
+          if (!_tsRank || pos !== 'RB') return '';
           const NFL_AVG_RUSH = 26.0;
           const TOP_RUSH     = 29.5;
-          const _tsTier      = _curOffRank <= 11 ? 'top' : _curOffRank <= 21 ? 'mid' : 'bot';
+          const _tsTier      = _tsRank <= 11 ? 'top' : _tsRank <= 21 ? 'mid' : 'bot';
           const _baseM       = _tsTier === 'bot' ? 1.04 : 1.00;
           const _bearM       = 0.96;
           const _bullM       = _tsTier === 'bot' ? 1.09 : _tsTier === 'mid' ? 1.05 : 1.03;
@@ -10009,7 +10009,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           return `<div class="pp-factor">
             <div class="pp-factor-lbl">Team Situation</div>
             <div class="pp-factor-val" style="color:${baseCol};">${baseStr} ${baseArrow}</div>
-            <div class="pp-factor-sub">${_tierLbl} · #${_curOffRank}/32</div>
+            <div class="pp-factor-sub">${_tierLbl} · #${_tsRank}/32</div>
             <div class="pp-factor-sub" style="opacity:0.7;">${_baseStr}</div>
             <div class="pp-factor-sub" style="opacity:0.55;font-size:8.5px;">${_bullStr} · ${_bearStr}</div>
           </div>`;
