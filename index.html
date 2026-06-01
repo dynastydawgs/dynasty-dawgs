@@ -5697,14 +5697,12 @@ async function loadPlayerProfile(pid) {
           ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.`
           : `No last-season workload data.`;
 
-      // Projected Vol & Opp grade string — shown for both switchers and returners.
-      const _projGradeStr = _projVolOppGrade != null
-        ? (() => {
-            const _from = _usageScore != null ? `${Math.round(_usageScore)} → ` : '';
-            const _projGradeDeltaR = Math.round(_projGradeDelta);
-            return ` Projected Vol &amp; Opp: <span style="color:${_projGradeCol};font-weight:600;">${_from}${_projVolOppGrade}</span>${_usageScore != null && _projGradeDeltaR !== 0 ? ` (${_projGradeDeltaR >= 0 ? '+' : ''}${_projGradeDeltaR} pts)` : ''}.`;
-          })()
+      // Write-up string: show projected share % (matches depth chart) + grade chip.
+      // Grade is already in the "Proj Vol & Opp score" chip below — keep it brief here.
+      const _projShareStr = _bos.myProjShare > 0
+        ? ` Projecting <span style="color:${_projGradeCol};font-weight:600;">${_bos.myProjShare.toFixed(0)}%</span> of backfield volume.`
         : '';
+      const _projGradeStr = _projShareStr;
       // PROJ IMPACT: PPG delta vs last season opportunity.
       // _projVolOppGrade must be computed above before this block.
       const _bosLastPpg = (() => {
