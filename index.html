@@ -5660,7 +5660,7 @@ async function loadPlayerProfile(pid) {
       if (!_bos) return '';
 
       const _multPct  = Math.round((_bos.projMultiplier - 1) * 100);
-      const _multStr  = _multPct === 0 ? 'Neutral (0%)' : `${_multPct > 0 ? '+' : ''}${_multPct}% to projection`;
+      const _multStr  = _multPct === 0 ? '±0% vs base' : `${_multPct > 0 ? '+' : ''}${_multPct}% vs base`;
       const _multCol  = _multPct > 0 ? 'var(--green)' : _multPct < 0 ? 'var(--red)' : 'var(--text-dim)';
 
       const _ownPctStr = (() => {
@@ -5761,16 +5761,21 @@ async function loadPlayerProfile(pid) {
             <div style="text-align:right;flex-shrink:0;">
               <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:3px;">PROJ IMPACT</div>
               <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${_multCol};">${_multStr}</div>
+              <div style="font-family:var(--mono);font-size:7.5px;color:var(--text-dim);margin-top:2px;opacity:0.7;">vs career base projection</div>
             </div>
           </div>
           ${_projVolOppGrade != null ? `<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:4px;">
-            <span style="flex:1;font-size:11px;color:var(--text-muted);font-style:italic;">Proj Vol &amp; Opp grade</span>
+            <span style="flex:1;font-size:11px;color:var(--text-muted);font-style:italic;">Proj Vol &amp; Opp score</span>
             <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_projGradeCol};">${_projVolOppGrade}<span style="font-size:8px;color:var(--text-dim);">/100</span></span>
           </div>` : ''}
           <div style="font-family:var(--mono);font-size:8px;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:4px;display:flex;gap:6px;">
-            <span style="flex:1;">DEPTH CHART RIVALS</span>
+            <span style="flex:1;">BACKFIELD SHARES</span>
             <span style="width:52px;text-align:right;">PROJ VOL</span>
           </div>
+          ${_bos.myProjShare > 0 ? `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);margin:0 -4px;padding-left:4px;padding-right:4px;">
+            <span style="flex:1;font-size:11px;color:var(--text);font-weight:500;">${sp?.first_name ?? ''} ${sp?.last_name ?? name}<span style="font-family:var(--mono);font-size:7px;padding:1px 4px;border-radius:2px;background:rgba(255,255,255,0.1);color:var(--text-dim);margin-left:4px;">YOU</span></span>
+            <span style="font-family:var(--mono);font-size:9px;color:${_bos.color};font-weight:600;width:52px;text-align:right;">${_bos.myProjShare.toFixed(0)}%</span>
+          </div>` : ''}
           ${_rivalRows}
         </div>`;
     })();
