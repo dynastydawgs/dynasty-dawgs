@@ -9001,13 +9001,14 @@ function _loadOptionalDataFiles() {
   _optionalFilesPromise = (async () => {
     try {
       const NC = { cache: 'no-cache' };
-      const [benchRes, teamRes, depthRes, ryoeRes, statTeamRes, advstatsRes] = await Promise.all([
+      const [benchRes, teamRes, depthRes, ryoeRes, statTeamRes, advstatsRes, histRes2] = await Promise.all([
         fetch(`${DATA_BASE_URL}/benchmarks.json`,  NC).catch(() => null),
         fetch(`${DATA_BASE_URL}/teamdb.json`,      NC).catch(() => null),
         fetch(`${DATA_BASE_URL}/depthdb.json`,     NC).catch(() => null),
         fetch(`${DATA_BASE_URL}/ryoedb.json`,      NC).catch(() => null),
         fetch(`${DATA_BASE_URL}/statteamdb.json`,  NC).catch(() => null),
         fetch(`${DATA_BASE_URL}/advstatsdb.json`,  NC).catch(() => null),
+        fetch(`${DATA_BASE_URL}/historicaldb.json`,NC).catch(() => null),
       ]);
       if (benchRes?.ok) {
         try {
@@ -9060,8 +9061,9 @@ function _loadOptionalDataFiles() {
       if (teamRes?.ok)     try { teamDB     = await teamRes.json();     } catch(e) {}
       if (depthRes?.ok)    try { depthDB    = await depthRes.json();    } catch(e) {}
       if (ryoeRes?.ok)     try { ryoeDB     = await ryoeRes.json();     } catch(e) {}
-      if (statTeamRes?.ok) try { statTeamDB = await statTeamRes.json(); } catch(e) {}
-      if (advstatsRes?.ok) try { advstatsDB = await advstatsRes.json(); } catch(e) {}
+      if (statTeamRes?.ok) try { statTeamDB  = await statTeamRes.json(); } catch(e) {}
+      if (advstatsRes?.ok) try { advstatsDB  = await advstatsRes.json(); } catch(e) {}
+      if (histRes2?.ok)    try { historicalDB = await histRes2.json();   } catch(e) {}
     } catch(e) { /* optional — silent failure is fine */ }
   })();
   return _optionalFilesPromise;

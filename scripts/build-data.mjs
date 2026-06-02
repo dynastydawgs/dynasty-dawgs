@@ -1433,10 +1433,12 @@ async function main() {
     if (!Object.keys(gsisPlayerMeta).length) throw new Error('gsisPlayerMeta empty — players.csv not parsed');
 
     // ── 6a. Aggregate nflverse weekly player_stats for pre-Sleeper years ──────
-    // Sleeper data starts at 2015; nflverse covers back to 2009.
+    // Sleeper data starts at 2015; nflverse per-year files cover back to 1999.
     // We fetch the gzipped per-year files and aggregate weekly rows → season totals.
+    // Years that don't exist (404) are skipped gracefully via try-catch.
     const nflverseSeasonStats = {};  // gsis_id → { [year]: { ppr, games } }
-    const PRE_SLEEPER_YRS = [2009, 2010, 2011, 2012, 2013, 2014];
+    const PRE_SLEEPER_YRS = [];
+    for (let yr = 1999; yr <= 2014; yr++) PRE_SLEEPER_YRS.push(yr);
     for (const yr of PRE_SLEEPER_YRS) {
       try {
         const rows = await fetchGzipCSV(
@@ -1541,7 +1543,7 @@ async function main() {
   const ryoeJson      = JSON.stringify(ryoeDB);
   const statTeamJson  = JSON.stringify(statTeamDB);
   const advstatsJson  = JSON.stringify(advstatsDB);
-  const historicalJson = JSON.stringify({ meta: { built: new Date().toISOString().slice(0,10), firstSeason: 2009, players: histCount }, players: historicalDB });
+  const historicalJson = JSON.stringify({ meta: { built: new Date().toISOString().slice(0,10), firstSeason: PRE_SLEEPER_YRS[0], players: histCount }, players: historicalDB });
 
   writeFileSync(join(DATA_DIR, 'compdb.json'),      compJson);
   writeFileSync(join(DATA_DIR, 'careerdb.json'),    careerJson);
