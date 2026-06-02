@@ -3235,6 +3235,16 @@
 .ct-stat-who { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.48); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 @keyframes ctFadeIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Time scale toggle buttons */
+.ct-scale-btn {
+  flex:1; padding:6px 0; font-family:var(--mono); font-size:8.5px; letter-spacing:0.12em;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  color:rgba(255,255,255,0.35); border-radius:4px; cursor:pointer; transition:all 0.15s;
+}
+.ct-scale-btn:hover  { background:rgba(56,189,248,0.08); color:rgba(255,255,255,0.6); }
+.ct-scale-btn.active { background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.35); color:#38bdf8; }
 
 /* Unified player card — wraps career arc + stat profile + scenario as one panel */
 .tr-unified {
@@ -3915,6 +3925,20 @@
 
           <hr class="ct-divider">
 
+          <!-- Time scale toggle -->
+          <div>
+            <div class="ct-section-lbl" style="margin-bottom:8px;">TIME SCALE</div>
+            <div style="display:flex;gap:6px;">
+              <button class="ct-scale-btn active" id="ct-scale-seasons" onclick="compsSetScale('seasons')">SEASONS</button>
+              <button class="ct-scale-btn"        id="ct-scale-games"   onclick="compsSetScale('games')">GAMES</button>
+            </div>
+            <div id="ct-games-note" style="display:none;margin-top:6px;font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.22);line-height:1.5;">
+              Weekly pts per game.<br>Pre-2015 seasons shown<br>as season avg markers.
+            </div>
+          </div>
+
+          <hr class="ct-divider">
+
           <!-- Position-average toggle -->
           <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="compsToggleAvg()" id="comps-avg-toggle">
             <div id="comps-avg-dot" style="width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);flex-shrink:0;transition:all 0.2s;"></div>
@@ -3926,8 +3950,8 @@
         <div class="ct-chart-panel">
           <div class="ct-chart-header">
             <div>
-              <div class="ct-chart-title">CAREER PPR PPG PROGRESSION</div>
-              <div class="ct-chart-sub">dot size = games played · spline = career arc</div>
+              <div id="ct-chart-title" class="ct-chart-title">CAREER PPR PPG PROGRESSION</div>
+              <div id="ct-chart-sub"   class="ct-chart-sub">dot size = games played · spline = career arc</div>
             </div>
           </div>
           <div id="comps-chart">
@@ -11482,7 +11506,7 @@ function switchMainView(view, btn) {
 // § 19  CAREER COMPS — multi-player trajectory chart (DARKO-style)
 // ─────────────────────────────────────────────────────────────────────────────
 const COMPS_COLORS = ['#38bdf8', '#f43f5e', '#4ade80', '#fbbf24', '#a78bfa'];
-let compsState = { players: [], showAvg: false };
+let compsState = { players: [], showAvg: false, timeScale: 'seasons' };
 
 // ── Name normaliser (mirrors _bosNorm) ───────────────────────────────────────
 const _compsNorm = n => (n ?? '').toLowerCase()
@@ -11642,6 +11666,26 @@ function compsToggleAvg() {
   compsRenderChart();
 }
 
+function compsSetScale(scale) {
+  compsState.timeScale = scale;
+  // Update button states
+  document.getElementById('ct-scale-seasons')?.classList.toggle('active', scale === 'seasons');
+  document.getElementById('ct-scale-games')?.classList.toggle('active', scale === 'games');
+  // Show hint for games mode
+  const note = document.getElementById('ct-games-note');
+  if (note) note.style.display = scale === 'games' ? '' : 'none';
+  // Update chart header
+  const title = document.getElementById('ct-chart-title');
+  const sub   = document.getElementById('ct-chart-sub');
+  if (title) title.textContent = scale === 'games'
+    ? 'CAREER PPR POINTS PER GAME'
+    : 'CAREER PPR PPG PROGRESSION';
+  if (sub) sub.textContent = scale === 'games'
+    ? 'individual game pts · spline = rolling trend · ◆ = season avg (pre-2015)'
+    : 'dot size = games played · spline = career arc';
+  compsRenderChart();
+}
+
 // ── Career arc helper ─────────────────────────────────────────────────────────
 // Returns [{yr, season, ppg, games}] sorted by season.
 // yr = career year relative to player's NFL entry (1-indexed).
@@ -11746,6 +11790,146 @@ function compsRenderSidebar() {
 }
 
 function compsRenderChart() {
+  if (compsState.timeScale === 'games') {
+    _compsRenderGamesAsync();
+  } else {
+    _compsRenderSeasons();
+  }
+}
+
+// ── Weekly arc (GAMES mode) ───────────────────────────────────────────────────
+// Fetches per-game scores for each careerDB season, returns
+// [{ gameNum, ppg, season, week, isAvg }] sorted by gameNum.
+async function _compsGetWeeklyArc(player) {
+  if (!player.pid) return [];
+  const szns = (careerDB[player.pid] ?? [])
+    .filter(s => (s.games ?? 0) >= 4)
+    .sort((a, b) => a.season - b.season);
+  if (!szns.length) return [];
+
+  const result = [];
+  let careerGame = 0;
+
+  for (const szn of szns) {
+    const rows = await fetchWeeklyPPR(player.pid, szn.season).catch(() => null);
+    if (!rows?.length) {
+      // No per-game data — place season avg marker at midpoint
+      const mid = careerGame + Math.round((szn.games ?? 8) / 2);
+      result.push({ gameNum: mid, ppg: szn.ppg, season: szn.season, week: null, isAvg: true });
+      careerGame += (szn.games ?? 17);
+      continue;
+    }
+    const scoring = rows
+      .filter(r => +(r.pts_ppr ?? 0) > 0)
+      .sort((a, b) => +(a.week ?? 0) - +(b.week ?? 0));
+    for (const r of scoring) {
+      careerGame++;
+      result.push({
+        gameNum: careerGame,
+        ppg: Math.round(+(r.pts_ppr ?? 0) * 10) / 10,
+        season: szn.season,
+        week: r.week ?? null,
+        isAvg: false,
+      });
+    }
+  }
+  return result;
+}
+
+async function _compsRenderGamesAsync() {
+  const el = document.getElementById('comps-chart');
+  if (!el || typeof Plotly === 'undefined') return;
+  if (!compsState.players.length) {
+    el.innerHTML = `<div class="ct-chart-empty">// ADD PLAYERS TO COMPARE TRAJECTORIES</div>`;
+    return;
+  }
+
+  // Show loading spinner while fetching weekly data
+  el.innerHTML = `<div class="ct-chart-empty" style="color:rgba(56,189,248,0.45);">
+    <span style="display:inline-block;animation:spin 0.8s linear infinite;margin-right:8px;">◌</span>
+    LOADING GAME DATA…
+  </div>`;
+
+  const arcs = await Promise.all(compsState.players.map(p => _compsGetWeeklyArc(p)));
+  const traces = [];
+
+  for (let i = 0; i < compsState.players.length; i++) {
+    const p   = compsState.players[i];
+    const arc = arcs[i];
+    if (!arc.length) continue;
+
+    const regular = arc.filter(g => !g.isAvg);
+    const avgOnly = arc.filter(g => g.isAvg);
+
+    if (regular.length) {
+      // Scatter dots (individual games)
+      traces.push({
+        type: 'scatter', mode: 'markers', name: p.name,
+        x: regular.map(g => g.gameNum),
+        y: regular.map(g => g.ppg),
+        text: regular.map(g => `<b>${p.name}</b><br>Wk ${g.week}, ${g.season}<br>${g.ppg.toFixed(1)} pts`),
+        hoverinfo: 'text',
+        marker: { color: p.color, size: 5, opacity: 0.38, line: { width: 0 } },
+        showlegend: false,
+      });
+      // Smooth spline trend
+      traces.push({
+        type: 'scatter', mode: 'lines', name: p.name,
+        x: regular.map(g => g.gameNum),
+        y: regular.map(g => g.ppg),
+        hoverinfo: 'skip',
+        line: { color: p.color, width: 2.5, shape: 'spline', smoothing: 1.3 },
+        showlegend: true,
+      });
+    }
+
+    // Season-avg diamond markers for pre-2015 or missing weeks
+    if (avgOnly.length) {
+      traces.push({
+        type: 'scatter', mode: 'markers', name: `${p.name} (szn avg)`,
+        x: avgOnly.map(g => g.gameNum),
+        y: avgOnly.map(g => g.ppg),
+        text: avgOnly.map(g => `<b>${p.name}</b><br>${g.season} season avg<br>${g.ppg.toFixed(1)} PPG`),
+        hoverinfo: 'text',
+        marker: { color: p.color, size: 10, symbol: 'diamond', opacity: 0.80, line: { width: 1, color: 'rgba(255,255,255,0.4)' } },
+        showlegend: false,
+      });
+    }
+  }
+
+  if (!traces.length) {
+    el.innerHTML = `<div class="ct-chart-empty">// NO GAME DATA AVAILABLE FOR SELECTED PLAYERS</div>`;
+    return;
+  }
+
+  const layout = {
+    paper_bgcolor: 'transparent', plot_bgcolor: 'rgba(255,255,255,0.015)',
+    font: { family: "'DM Mono', monospace", color: 'rgba(255,255,255,0.55)', size: 10 },
+    xaxis: {
+      title: { text: 'CAREER GAME #', font: { size: 8.5, color: 'rgba(255,255,255,0.28)' }, standoff: 10 },
+      gridcolor: 'rgba(56,189,248,0.06)', zeroline: false,
+      tickfont: { size: 9 }, tickcolor: 'rgba(255,255,255,0.08)', linecolor: 'rgba(255,255,255,0.06)',
+    },
+    yaxis: {
+      title: { text: 'PPR POINTS', font: { size: 8.5, color: 'rgba(255,255,255,0.28)' }, standoff: 8 },
+      gridcolor: 'rgba(56,189,248,0.06)', zeroline: false,
+      tickfont: { size: 9 }, tickcolor: 'rgba(255,255,255,0.08)', linecolor: 'rgba(255,255,255,0.06)',
+      rangemode: 'tozero',
+    },
+    legend: {
+      x: 0.01, y: 0.99, bgcolor: 'rgba(6,10,18,0.75)',
+      bordercolor: 'rgba(255,255,255,0.08)', borderwidth: 1,
+      font: { size: 9, family: "'DM Mono', monospace", color: 'rgba(255,255,255,0.65)' },
+    },
+    margin: { l: 52, r: 20, t: 12, b: 52 },
+    hovermode: 'closest',
+    hoverlabel: { bgcolor: '#0d1827', bordercolor: 'rgba(56,189,248,0.3)', font: { family: "'DM Mono', monospace", size: 10 } },
+  };
+
+  Plotly.newPlot('comps-chart', traces, layout, { displayModeBar: false, responsive: true });
+}
+
+function _compsRenderSeasons() {
   const el = document.getElementById('comps-chart');
   if (!el || typeof Plotly === 'undefined') return;
 
