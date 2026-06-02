@@ -611,6 +611,9 @@ async function main() {
   progress(99, 'Building advanced RB stats (Success% + MTF/att)…');
   const advstatsDB = {};
   let advstatsCount = 0;
+  // Declared outside try so Step 6 (historicaldb) can read it
+  const gsisPlayerMeta = {};   // gsis_id → { name, pos, dr, dp, dy, entry, ht, wt, dob, sid }
+  let   _gsisToSleeperId = {}; // gsis_id → sleeper_id (hoisted copy for historicaldb)
   try {
     // Shared name-normalisation: strip apostrophes/periods, collapse whitespace,
     // drop name suffixes (Jr./Sr./II/III/IV/V).  Used as dict key for merging.
@@ -627,8 +630,7 @@ async function main() {
     const normToDisplay   = {};  // normKey  → canonical display_name (for final key)
     const gsisToPos       = {};  // gsis_id  → position (to filter QBs)
     const pfrToGsis       = {};  // pfr_id   → gsis_id (for snap_counts bridge)
-    const gsisToSleeperId = {};  // gsis_id  → sleeper_id (for Sleeper wt/ht lookup)
-    const gsisPlayerMeta  = {};  // gsis_id  → { name, pos, dr, dp, dy, entry, ht, wt, dob, sid }
+    const gsisToSleeperId = {};  // gsis_id  → sleeper_id (for Sleeper wt/ht lookup, local to advstats)
     try {
       const res = await fetch(
         'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv'
@@ -645,7 +647,7 @@ async function main() {
           const v = parseCSVLine(line);
           const g = v[gI]?.trim(), d = v[dI]?.trim(), p = v[pI]?.trim();
           const sid = sidI >= 0 ? v[sidI]?.trim() : null;
-          if (g && sid) gsisToSleeperId[g] = sid;
+          if (g && sid) { gsisToSleeperId[g] = sid; _gsisToSleeperId[g] = sid; }
           if (!g || !d) continue;
           const nk = normKey(d);
           gsisToNormName[g] = nk;
@@ -1482,7 +1484,7 @@ async function main() {
 
       // Source 1: Sleeper-derived careerDB (2015+)
       // Bridge: gsis → sleeper_id → careerDB entry
-      const sid = meta.sid || gsisToSleeperId[gsis] || null;
+      const sid = meta.sid || _gsisToSleeperId[gsis] || null;
       if (sid && careerDB[sid]) {
         for (const s of careerDB[sid]) {
           const cy = s.season - entryYear;
