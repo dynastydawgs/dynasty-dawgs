@@ -11582,7 +11582,7 @@ function compsAddPlayer(key) {
     // years_exp = completed NFL seasons as of end of most recent season (2025).
     // entryYear = 2025 - years_exp  (e.g. years_exp=11 → entered 2014)
     const yExp = parseInt(sp.years_exp ?? 0) || 0;
-    const entryYearFromYExp = (new Date().getFullYear() - 1) - yExp;
+    const entryYearFromYExp = new Date().getFullYear() - yExp;
     const entryYear = (gsis ? _compsEntryYear(gsis) : null) ?? entryYearFromYExp;
     entry = {
       key, pid, gsis,
