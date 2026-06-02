@@ -9004,6 +9004,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     // headless prewarm skips the fetch to avoid 150+ extra API calls.
     let surgeData = null;
     let surgeAdj  = 0;
+    let surgeVacancyNote = null; // set when vacancy-surge discount fires
     if (!headless && pid) {
       const surgeYear  = statSeason ?? String(new Date().getFullYear());
       const weeklyRows = await fetchWeeklyPPR(pid, surgeYear).catch(() => null);
@@ -9484,6 +9485,38 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
             && (surgeData.firstGames + surgeData.secondGames) >= _minGames) {
           surgeAdj = Math.max(-_cap, Math.min(_cap, Math.round(surgeData.trajectory * _sw * _pw * 2.5)));
           if (surgeAdj !== 0) medianPpr = Math.round(medianPpr + surgeAdj);
+        }
+
+        // ── Vacancy-surge discount (RB only) ──────────────────────────────────
+        // If a player appeared in far fewer first-half games than second-half, they
+        // likely inherited a role mid-season due to injury (e.g. Dobbins → Harvey)
+        // rather than organically developing into one. That surge is NOT a development
+        // signal — it's a vacancy signal — and shouldn't project forward at full weight.
+        // The degree of discount scales with how extreme the game ratio is:
+        //   2-3× more 2H games → take 55% of surge
+        //   3-4× more 2H games → take 35% of surge
+        //   4×+  more 2H games → take 20% of surge (almost all vacancy-driven)
+        // Additional gate: only fires for positive surges — a negative surge in a vacancy
+        // scenario (player got hurt and production dropped) shouldn't be extra penalized.
+        // Also check DC rank: DC1 returners with full first-half usage are genuine surges.
+        if (surgeAdj > 0 && pos === 'RB' && surgeData
+            && surgeData.firstGames >= 1 && surgeData.trajectory > 2.0) {
+          const _gr = surgeData.secondGames / surgeData.firstGames;
+          if (_gr >= 2.0) {
+            // Cross-check with depth chart rank — DC1 with good first-half usage
+            // is a real surge; only discount clear backup-to-starter vacancies.
+            const _spVac  = sleeperPlayers[pid];
+            const _dcVacRbs = _spVac?.team ? (depthDB?.[_spVac.team]?.RB ?? []) : [];
+            const _myVacRank  = _dcVacRbs.find(e => _bosNorm(e.name) === _bosNorm(_spVac?.full_name ?? _spVac?.name ?? ''))?.rank ?? 1;
+            // Only discount if DC2+ OR if the game ratio is very extreme (4×+, unambiguous vacancy)
+            if (_myVacRank >= 2 || _gr >= 4) {
+              const _vacDisc  = _gr >= 4 ? 0.20 : _gr >= 3 ? 0.35 : 0.55;
+              const _origAdj  = surgeAdj;
+              surgeAdj        = Math.round(surgeAdj * _vacDisc);
+              medianPpr       = Math.round(medianPpr - (_origAdj - surgeAdj));
+              surgeVacancyNote = `injury vacancy — ${Math.round((1 - _vacDisc) * 100)}% discounted`;
+            }
+          }
         }
       }
 
@@ -10127,7 +10160,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
 
     // Momentum box
     // Shared surge box renderer — used for both rookies (signal only) and sophomores (+ adj)
-    function _surgeBox(sd, adj) {
+    function _surgeBox(sd, adj, vacancyNote = null) {
       if (!sd) return null;
       const traj = sd.trajectory;
       const col   = traj >= 3 ? 'var(--green)' : traj >= 1 ? 'var(--accent)' : traj >= -1 ? 'var(--text-muted)' : 'var(--red)';
@@ -10136,10 +10169,13 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       const adjLine = adj !== 0
         ? `<br><span style="color:${adj > 0 ? 'var(--green)' : 'var(--red)'}">${adj > 0 ? '+' : ''}${adj} pts applied to projection</span>`
         : '';
+      const vacLine = vacancyNote
+        ? `<br><span style="color:var(--text-muted);font-size:8.5px;opacity:0.75;">⚠ ${vacancyNote}</span>`
+        : '';
       return `<div class="pp-factor">
         <div class="pp-factor-lbl">Season Surge</div>
         <div class="pp-factor-val" style="color:${col};">${sign}${traj.toFixed(1)} PPG ${arrow}</div>
-        <div class="pp-factor-sub">Wks 1–8: ${sd.firstPPG.toFixed(1)} PPG → Wks 9+: ${sd.secondPPG.toFixed(1)} PPG${adjLine}</div>
+        <div class="pp-factor-sub">Wks 1–8: ${sd.firstPPG.toFixed(1)} PPG → Wks 9+: ${sd.secondPPG.toFixed(1)} PPG${adjLine}${vacLine}</div>
       </div>`;
     }
 
@@ -10147,7 +10183,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     let momBox;
     if (careerStage.stage === 'sophomore') {
       // Sophomores have only one prior season — surge IS the momentum signal
-      momBox = _surgeBox(surgeData, surgeAdj);
+      momBox = _surgeBox(surgeData, surgeAdj, surgeVacancyNote);
       if (!momBox) {
         const curPpg    = hasOwn ? (ownPpr / typGames).toFixed(1) : '—';
         const rookiePpg = seasonHistory.length >= 1 ? seasonHistory[0].ppg.toFixed(1) : null;
@@ -10203,7 +10239,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     // Rookies/sophs use surge as their primary momentum slot above; established
     // players get it as a 4th factor box next to the YoY momentum box.
     const surgeBoxHtml = (['ascending','prime','declining','cliff'].includes(careerStage.stage) && surgeData)
-      ? (_surgeBox(surgeData, surgeAdj) ?? '')
+      ? (_surgeBox(surgeData, surgeAdj, surgeVacancyNote) ?? '')
       : '';
 
     // Cache results so league projections can pull exact profile numbers.
