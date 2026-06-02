@@ -5825,10 +5825,13 @@ async function loadPlayerProfile(pid) {
       const _projGradeDelta  = _projVolOppGrade != null ? _projVolOppGrade - (_usageScore ?? 0) : 0;
       const _projGradeCol    = _projGradeDelta >= 4 ? 'var(--green)' : _projGradeDelta <= -4 ? 'var(--red)' : 'var(--text-muted)';
 
+      const _ownGamesNote = (!_bos.switchedTeams && (_bos.gamesPlayedLastSzn ?? 17) < 15)
+        ? ` <span style="opacity:0.6;font-size:8.5px;">(per-game rate · ${_bos.gamesPlayedLastSzn}g played)</span>`
+        : '';
       const _ownStr = _bos.switchedTeams
         ? `New team — DC${_bos.dcRank} role.${_usageScore != null ? ` Vol &amp; Opp last season: <strong>${Math.round(_usageScore)}</strong>/100.` : ''}`
         : _bos.ownershipScore > 0
-          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.`
+          ? `Controlled ${_bos.ownershipScore.toFixed(0)}% of backfield volume last season${_ownPctStr}.${_ownGamesNote}`
           : `No last-season workload data.`;
 
       // Write-up string: show projected share % (matches depth chart) + grade chip.
@@ -12342,14 +12345,34 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   // different backfield and has no bearing on their new role — zero it out so
   // we don't falsely boost a workhorse signing as if he already owns this backfield.
   const myAdv      = _bosGetAdv(sp.full_name ?? sp.name ?? '');
-  const carryShare  = switchedTeams ? 0 : (myAdv?.carryShare       ?? 0);
-  const bfTgtShare  = switchedTeams ? 0 : (myAdv?.bfTgtShare       ?? 0);
-  const rzCarryShare= switchedTeams ? 0 : (myAdv?.rzCarryShare     ?? 0);
-  const thirdDown   = switchedTeams ? 0 : (myAdv?.thirdDownSnapPct ?? 0);
+
+  // ── Games-played correction ──────────────────────────────────────────────
+  // All share metrics are season-total ratios: player_carries / team_carries
+  // across ALL 17 weeks. A DC1 who played 10 games has their carries divided
+  // by a 17-week team denominator — their raw carry share looks 41% lower than
+  // their actual per-game dominance when healthy.
+  // Correction: carryShare × (17 / games_played). Capped at 1.7× (≥10 games)
+  // to prevent over-inflation on tiny samples. Switchers are zeroed anyway.
+  const _myCareerSznsRaw  = careerDB[pid] ?? [];
+  const _myLastSznRaw     = _myCareerSznsRaw.filter(s => (s.games ?? 0) >= 1).at(-1);
+  const _myGamesPlayed    = _myLastSznRaw?.games ?? 17;
+  const _gamesCorr        = (!switchedTeams && _myGamesPlayed < 16)
+    ? Math.min(1.7, 17 / Math.max(_myGamesPlayed, 10))
+    : 1.0;
+
+  const carryShare   = switchedTeams ? 0 : Math.min(95, (myAdv?.carryShare       ?? 0) * _gamesCorr);
+  const bfTgtShare   = switchedTeams ? 0 : Math.min(95, (myAdv?.bfTgtShare       ?? 0) * _gamesCorr);
+  const rzCarryShare = switchedTeams ? 0 : Math.min(95, (myAdv?.rzCarryShare     ?? 0) * _gamesCorr);
+  const thirdDown    = switchedTeams ? 0 : Math.min(95, (myAdv?.thirdDownSnapPct ?? 0) * _gamesCorr);
   const ownershipScore = _bosOwn(carryShare, bfTgtShare, rzCarryShare, thirdDown);
-  // Historical ownership: always from raw myAdv regardless of team switch.
+  // Historical ownership: apply same games correction for consistency.
   const historicalOwnershipScore = myAdv
-    ? _bosOwn(myAdv.carryShare, myAdv.bfTgtShare, myAdv.rzCarryShare, myAdv.thirdDownSnapPct)
+    ? _bosOwn(
+        Math.min(95, (myAdv.carryShare       ?? 0) * _gamesCorr),
+        Math.min(95, (myAdv.bfTgtShare       ?? 0) * _gamesCorr),
+        Math.min(95, (myAdv.rzCarryShare     ?? 0) * _gamesCorr),
+        Math.min(95, (myAdv.thirdDownSnapPct ?? 0) * _gamesCorr)
+      )
     : 0;
 
   // ── Team run-rate context ───────────────────────────────────────────────
@@ -12365,9 +12388,18 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     if (_bosNorm(e.name) === myNorm) return false;
     const pAdv = _bosGetAdv(e.name);
     if (!pAdv) return false;
-    if (_bosOwn(pAdv.carryShare, pAdv.bfTgtShare, pAdv.rzCarryShare, pAdv.thirdDownSnapPct) < 30) return false;
-    const ePid   = _bosGetPid(e.name, team);
-    const eSzns  = (careerDB[ePid ?? ''] ?? []).filter(s => (s.games ?? 0) >= 4);
+    // Apply games-played correction so an injured workhorse DC1 doesn't
+    // fall below the 30-point threshold just because they missed games.
+    const ePid     = _bosGetPid(e.name, team);
+    const eSzns    = (careerDB[ePid ?? ''] ?? []).filter(s => (s.games ?? 0) >= 1);
+    const eGames   = eSzns.length ? (eSzns.at(-1).games ?? 17) : 17;
+    const eCorr    = eGames < 16 ? Math.min(1.7, 17 / Math.max(eGames, 10)) : 1.0;
+    if (_bosOwn(
+      Math.min(95, pAdv.carryShare * eCorr),
+      Math.min(95, pAdv.bfTgtShare * eCorr),
+      Math.min(95, pAdv.rzCarryShare * eCorr),
+      Math.min(95, pAdv.thirdDownSnapPct * eCorr)
+    ) < 30) return false;
     const eLastPpg = eSzns.length ? eSzns.at(-1).ppr / eSzns.at(-1).games : 0;
     return eLastPpg >= 10;
   });
@@ -12384,11 +12416,18 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     const cFc  = cPid ? (fcPlayerMap[cPid]    ?? null) : null;
     const cAdv = _bosGetAdv(dcEntry.name);
 
+    // Games-played correction for competitors: same logic as focal player.
+    // A DC1 who missed 7 games shows a diluted carry share — correct to
+    // per-game rate so they remain a realistic threat when projecting forward.
+    const cSznsRaw   = cPid ? (careerDB[cPid] ?? []).filter(s => (s.games ?? 0) >= 1) : [];
+    const cGames     = cSznsRaw.length ? (cSznsRaw.at(-1).games ?? 17) : 17;
+    const cGamesCorr = cGames < 16 ? Math.min(1.7, 17 / Math.max(cGames, 10)) : 1.0;
+
     // Guard against NaN values from advstatsDB — ?? 0 handles null/undefined but not NaN
-    const cCarry   = +((cAdv?.carryShare       ?? 0) || 0);
-    const cTgt     = +((cAdv?.bfTgtShare       ?? 0) || 0);
-    const cRzCarry = +((cAdv?.rzCarryShare     ?? 0) || 0);
-    const cThird   = +((cAdv?.thirdDownSnapPct ?? 0) || 0);
+    const cCarry   = Math.min(95, (+((cAdv?.carryShare       ?? 0) || 0)) * cGamesCorr);
+    const cTgt     = Math.min(95, (+((cAdv?.bfTgtShare       ?? 0) || 0)) * cGamesCorr);
+    const cRzCarry = Math.min(95, (+((cAdv?.rzCarryShare     ?? 0) || 0)) * cGamesCorr);
+    const cThird   = Math.min(95, (+((cAdv?.thirdDownSnapPct ?? 0) || 0)) * cGamesCorr);
     const cWorkload = _bosOwn(cCarry, cTgt, cRzCarry, cThird);
 
     const cYrs = cSp?.years_exp ?? null;
@@ -12982,6 +13021,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   return {
     label, color, switchedTeams, breaks,
     myEffScore, effAdj, heirAdj, opptyAdj, backfieldWeak,
+    gamesPlayedLastSzn: _myGamesPlayed,
     ownershipScore:         Math.round(ownershipScore         * 10) / 10,
     historicalOwnershipScore: Math.round(historicalOwnershipScore * 10) / 10,
     projOwnershipScore:     isNaN(projOwnershipScore) ? null : Math.round(projOwnershipScore * 10) / 10,
