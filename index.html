@@ -11578,11 +11578,17 @@ function compsAddPlayer(key) {
     if (!sp) return;
     // Try to link to historicaldb for pre-2015 data via name match
     const gsis = _compsFindGsisByName(sp.full_name ?? sp.name ?? '');
+    // Derive entry year: historicaldb first (most accurate) → years_exp fallback.
+    // years_exp = completed NFL seasons as of end of most recent season (2025).
+    // entryYear = 2025 - years_exp  (e.g. years_exp=11 → entered 2014)
+    const yExp = parseInt(sp.years_exp ?? 0) || 0;
+    const entryYearFromYExp = (new Date().getFullYear() - 1) - yExp;
+    const entryYear = (gsis ? _compsEntryYear(gsis) : null) ?? entryYearFromYExp;
     entry = {
       key, pid, gsis,
       name:      sp.full_name ?? sp.name ?? pid,
       pos:       sp.position ?? 'RB',
-      entryYear: gsis ? _compsEntryYear(gsis) : null,
+      entryYear,
     };
   } else if (key.startsWith('h:')) {
     const gsis = key.slice(2);
