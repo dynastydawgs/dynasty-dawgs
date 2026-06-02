@@ -628,6 +628,7 @@ async function main() {
     const gsisToPos       = {};  // gsis_id  → position (to filter QBs)
     const pfrToGsis       = {};  // pfr_id   → gsis_id (for snap_counts bridge)
     const gsisToSleeperId = {};  // gsis_id  → sleeper_id (for Sleeper wt/ht lookup)
+    const gsisPlayerMeta  = {};  // gsis_id  → { name, pos, dr, dp, dy, entry, ht, wt, dob, sid }
     try {
       const res = await fetch(
         'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv'
@@ -636,6 +637,10 @@ async function main() {
         const lines = (await res.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
         const [gI, dI, pI, pfrI, sidI] = ['gsis_id', 'display_name', 'position', 'pfr_id', 'sleeper_id'].map(h => hdrs.indexOf(h));
+        // Extra columns for historicaldb
+        const [drI, dpI, dyI, eyI, htI, wtI, dobI] =
+          ['draft_round','draft_number','draft_year','entry_year','height','weight','birth_date']
+          .map(h => hdrs.indexOf(h));
         for (const line of lines.slice(1)) {
           const v = parseCSVLine(line);
           const g = v[gI]?.trim(), d = v[dI]?.trim(), p = v[pI]?.trim();
@@ -648,6 +653,21 @@ async function main() {
           if (!normToDisplay[nk]) normToDisplay[nk] = d; // first-seen wins
           const pfr = pfrI >= 0 ? v[pfrI]?.trim() : null;
           if (pfr) pfrToGsis[pfr] = g;
+          // Capture draft + physical metadata for historicaldb
+          if (['RB','WR','TE','QB'].includes(p)) {
+            gsisPlayerMeta[g] = {
+              name:  d,
+              pos:   p,
+              dr:    drI >= 0 ? (parseInt(v[drI]) || null) : null,
+              dp:    dpI >= 0 ? (parseInt(v[dpI]) || null) : null,  // overall pick
+              dy:    dyI >= 0 ? (parseInt(v[dyI]) || null) : null,
+              entry: eyI >= 0 ? (parseInt(v[eyI]) || null) : null,
+              ht:    htI >= 0 ? (parseInt(v[htI]) || null) : null,
+              wt:    wtI >= 0 ? (parseInt(v[wtI]) || null) : null,
+              dob:   dobI >= 0 ? (v[dobI]?.trim() || null) : null,
+              sid:   sid || null,
+            };
+          }
         }
         console.log(`\n  GSIS→name bridge: ${Object.keys(gsisToNormName).length} entries, PFR→GSIS: ${Object.keys(pfrToGsis).length} entries`);
       }
@@ -1392,7 +1412,124 @@ async function main() {
   progress(99, `Adv Stats DB: ${advstatsCount} players`);
   console.log();
 
-  // ── Step 6: Write output files ────────────────────────────────────────────
+  // ── Step 6: Build historicaldb.json ──────────────────────────────────────
+  // Career arc + draft/physical data for all significant skill-position players.
+  // Keyed by gsis_id (universal NFL player ID from nflverse/players.csv).
+  //
+  // Sources:
+  //   • gsisPlayerMeta   — draft/physical data captured from players.csv above
+  //   • careerDB         — 2015+ career stats (from Sleeper), linked via gsisToSleeperId
+  //   • nflverse per-year player_stats (2009–2014) — fills the pre-Sleeper era gap
+  //
+  // Season array format: [season_year, career_year, games, ppg]
+  // Compact to keep file small (~300-500 KB for ~600 players).
+  progress(99, 'Building historical player database…');
+  const historicalDB = {};
+  let histCount = 0;
+
+  try {
+    if (!Object.keys(gsisPlayerMeta).length) throw new Error('gsisPlayerMeta empty — players.csv not parsed');
+
+    // ── 6a. Aggregate nflverse weekly player_stats for pre-Sleeper years ──────
+    // Sleeper data starts at 2015; nflverse covers back to 2009.
+    // We fetch the gzipped per-year files and aggregate weekly rows → season totals.
+    const nflverseSeasonStats = {};  // gsis_id → { [year]: { ppr, games } }
+    const PRE_SLEEPER_YRS = [2009, 2010, 2011, 2012, 2013, 2014];
+    for (const yr of PRE_SLEEPER_YRS) {
+      try {
+        const rows = await fetchGzipCSV(
+          `https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${yr}.csv.gz`
+        );
+        let rowsAdded = 0;
+        for (const row of rows) {
+          if ((row.season_type ?? '').trim() !== 'REG') continue;
+          const gsis = (row.player_id ?? '').trim();
+          if (!gsis || !gsisPlayerMeta[gsis]) continue;
+          // PPR: prefer pre-computed field; reconstruct from raw if missing/zero
+          let pts = parseFloat(row.fantasy_points_ppr ?? 0) || 0;
+          if (pts === 0) {
+            const rec    = parseFloat(row.receptions             ?? 0) || 0;
+            const recYd  = parseFloat(row.receiving_yards        ?? 0) || 0;
+            const recTd  = parseFloat(row.receiving_tds          ?? 0) || 0;
+            const recFum = parseFloat(row.receiving_fumbles_lost ?? 0) || 0;
+            const ruYd   = parseFloat(row.rushing_yards          ?? 0) || 0;
+            const ruTd   = parseFloat(row.rushing_tds            ?? 0) || 0;
+            const ruFum  = parseFloat(row.rushing_fumbles_lost   ?? 0) || 0;
+            pts = rec*0.5 + recYd*0.1 + recTd*6 - recFum*2 + ruYd*0.1 + ruTd*6 - ruFum*2;
+          }
+          if (pts <= 0) continue;  // skip true DNP weeks (no PPR points)
+          if (!nflverseSeasonStats[gsis])      nflverseSeasonStats[gsis] = {};
+          if (!nflverseSeasonStats[gsis][yr])  nflverseSeasonStats[gsis][yr] = { ppr: 0, games: 0 };
+          nflverseSeasonStats[gsis][yr].ppr   += pts;
+          nflverseSeasonStats[gsis][yr].games += 1;
+          rowsAdded++;
+        }
+        console.log(`  Hist ${yr}: ${rowsAdded.toLocaleString()} scoring weeks`);
+      } catch(e) {
+        console.warn(`  ⚠️  player_stats_${yr}.csv.gz failed: ${e.message}`);
+      }
+    }
+
+    // ── 6b. Assemble per-player career arcs ──────────────────────────────────
+    for (const [gsis, meta] of Object.entries(gsisPlayerMeta)) {
+      if (!meta.name || !meta.pos) continue;
+
+      // Need entry_year to compute career_year offset
+      const entryYear = meta.entry || meta.dy || null;
+      if (!entryYear) continue;
+
+      const seasons = [];
+
+      // Source 1: Sleeper-derived careerDB (2015+)
+      // Bridge: gsis → sleeper_id → careerDB entry
+      const sid = meta.sid || gsisToSleeperId[gsis] || null;
+      if (sid && careerDB[sid]) {
+        for (const s of careerDB[sid]) {
+          const cy = s.season - entryYear;
+          if (cy < 0 || cy > 15) continue;
+          if ((s.games ?? 0) < 4 || (s.ppr / (s.games || 1)) < 2) continue;
+          seasons.push([s.season, cy, Math.round(s.games), Math.round(s.ppr / s.games * 10) / 10]);
+        }
+      }
+
+      // Source 2: nflverse pre-2015 stats (fills the gap for older players)
+      const nfSzns = nflverseSeasonStats[gsis];
+      if (nfSzns) {
+        for (const [yrStr, { ppr, games }] of Object.entries(nfSzns)) {
+          const yr = parseInt(yrStr);
+          const cy = yr - entryYear;
+          if (cy < 0 || cy > 15) continue;
+          if (games < 4 || ppr / games < 2) continue;
+          if (seasons.some(s => s[0] === yr)) continue;  // don't duplicate
+          seasons.push([yr, cy, games, Math.round(ppr / games * 10) / 10]);
+        }
+      }
+
+      seasons.sort((a, b) => a[0] - b[0]);
+      if (seasons.length < 2) continue;  // need at least 2 qualifying seasons
+
+      // Build compact entry — omit null/undefined fields to keep file small
+      const entry = { name: meta.name, pos: meta.pos, seasons };
+      if (sid)      entry.sid = sid;
+      if (meta.dr)  entry.dr  = meta.dr;
+      if (meta.dp)  entry.dp  = meta.dp;
+      if (meta.dy)  entry.dy  = meta.dy;
+      if (meta.ht)  entry.ht  = meta.ht;
+      if (meta.wt)  entry.wt  = meta.wt;
+      if (meta.dob) entry.dob = meta.dob;
+
+      historicalDB[gsis] = entry;
+      histCount++;
+    }
+
+    console.log(`  Historical DB: ${histCount} players across ${2009}–${currentYear - 1}`);
+  } catch(e) {
+    console.warn('\n  ⚠️  historicaldb build failed:', e.message, '— historicaldb.json will be empty');
+  }
+  progress(99, `Historical DB: ${histCount} players`);
+  console.log();
+
+  // ── Step 7: Write output files ────────────────────────────────────────────
   progress(99, 'Writing data files…');
   const compJson      = JSON.stringify(compDB);
   const careerJson    = JSON.stringify(careerDB);
@@ -1402,6 +1539,7 @@ async function main() {
   const ryoeJson      = JSON.stringify(ryoeDB);
   const statTeamJson  = JSON.stringify(statTeamDB);
   const advstatsJson  = JSON.stringify(advstatsDB);
+  const historicalJson = JSON.stringify({ meta: { built: new Date().toISOString().slice(0,10), firstSeason: 2009, players: histCount }, players: historicalDB });
 
   writeFileSync(join(DATA_DIR, 'compdb.json'),      compJson);
   writeFileSync(join(DATA_DIR, 'careerdb.json'),    careerJson);
@@ -1411,18 +1549,20 @@ async function main() {
   writeFileSync(join(DATA_DIR, 'ryoedb.json'),      ryoeJson);
   writeFileSync(join(DATA_DIR, 'statteamdb.json'),  statTeamJson);
   writeFileSync(join(DATA_DIR, 'advstatsdb.json'),  advstatsJson);
+  writeFileSync(join(DATA_DIR, 'historicaldb.json'), historicalJson);
   progress(100, 'Done!');
   console.log('\n');
 
   const kb = str => (str.length / 1024).toFixed(0) + ' KB';
-  console.log('  ✅  data/compdb.json     ', kb(compJson));
-  console.log('  ✅  data/careerdb.json   ', kb(careerJson));
-  console.log('  ✅  data/benchmarks.json ', kb(benchJson));
-  console.log('  ✅  data/teamdb.json     ', kb(teamJson));
-  console.log('  ✅  data/depthdb.json    ', kb(depthJson));
-  console.log('  ✅  data/ryoedb.json     ', kb(ryoeJson));
-  console.log('  ✅  data/statteamdb.json ', kb(statTeamJson));
-  console.log('  ✅  data/advstatsdb.json ', kb(advstatsJson));
+  console.log('  ✅  data/compdb.json      ', kb(compJson));
+  console.log('  ✅  data/careerdb.json    ', kb(careerJson));
+  console.log('  ✅  data/benchmarks.json  ', kb(benchJson));
+  console.log('  ✅  data/teamdb.json      ', kb(teamJson));
+  console.log('  ✅  data/depthdb.json     ', kb(depthJson));
+  console.log('  ✅  data/ryoedb.json      ', kb(ryoeJson));
+  console.log('  ✅  data/statteamdb.json  ', kb(statTeamJson));
+  console.log('  ✅  data/advstatsdb.json  ', kb(advstatsJson));
+  console.log('  ✅  data/historicaldb.json', kb(historicalJson));
   console.log('\n  Next: git add data/ && git commit && git push\n');
 }
 
