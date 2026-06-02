@@ -3158,6 +3158,84 @@
 .tr-delay-5 { animation-delay:0.25s; }
 .tr-delay-6 { animation-delay:0.30s; }
 
+/* ── CAREER COMPS TAB ──────────────────────────────────────────────────────── */
+.ct-view {
+  min-height: 100vh;
+  background: #060a12;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+.ct-shell { max-width: 1280px; margin: 0 auto; padding: 28px 32px 60px; }
+.ct-header { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
+.ct-wordmark { font-family:var(--mono); font-size:9px; letter-spacing:0.22em; color:rgba(56,189,248,0.45); }
+.ct-layout { display:grid; grid-template-columns:260px 1fr; gap:22px; }
+@media (max-width:900px) { .ct-layout { grid-template-columns:1fr; } }
+
+/* Sidebar */
+.ct-sidebar { display:flex; flex-direction:column; gap:16px; }
+.ct-section-lbl { font-family:var(--mono); font-size:8px; letter-spacing:0.2em; color:rgba(255,255,255,0.22); margin-bottom:2px; }
+.ct-search-wrap { position:relative; }
+.ct-search-input {
+  width:100%; background:rgba(56,189,248,0.04); border:1px solid rgba(56,189,248,0.16);
+  border-radius:6px; padding:10px 14px; font-family:var(--mono); font-size:11px;
+  color:#fff; outline:none; transition:border-color 0.2s, box-shadow 0.2s;
+}
+.ct-search-input:focus { border-color:rgba(56,189,248,0.42); box-shadow:0 0 18px rgba(56,189,248,0.10); }
+.ct-search-drop {
+  display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:99;
+  background:#0c1422; border:1px solid rgba(56,189,248,0.18); border-radius:6px;
+  max-height:230px; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.65);
+}
+.ct-drop-row {
+  padding:8px 12px; cursor:pointer; font-family:var(--mono); font-size:11px;
+  color:var(--text); display:flex; gap:10px; align-items:center;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.ct-drop-row:hover { background:rgba(56,189,248,0.07); }
+.ct-drop-row:last-child { border-bottom:none; }
+
+/* Player chips */
+.ct-players { display:flex; flex-direction:column; gap:7px; }
+.ct-player-chip {
+  display:flex; align-items:center; gap:8px; padding:9px 10px;
+  border-radius:6px; background:rgba(255,255,255,0.035); border-left:3px solid;
+  font-family:var(--mono); font-size:10px; color:var(--text);
+  animation: ctFadeIn 0.2s ease both;
+}
+.ct-chip-swatch { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.ct-chip-name { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ct-chip-meta { font-size:8.5px; color:rgba(255,255,255,0.38); white-space:nowrap; }
+.ct-chip-x { cursor:pointer; opacity:0.4; font-size:15px; line-height:1; padding:0 2px; transition:opacity 0.15s; }
+.ct-chip-x:hover { opacity:1; }
+.ct-empty-hint { font-family:var(--mono); font-size:9px; color:rgba(255,255,255,0.18); line-height:1.7; }
+.ct-max-hint { font-family:var(--mono); font-size:8.5px; color:rgba(56,189,248,0.35); }
+
+/* Sidebar divider */
+.ct-divider { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:4px 0; }
+
+/* Chart panel */
+.ct-chart-panel {
+  background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.07);
+  border-radius:12px; overflow:hidden; display:flex; flex-direction:column;
+}
+.ct-chart-header { padding:18px 20px 6px; display:flex; align-items:flex-start; justify-content:space-between; }
+.ct-chart-title { font-family:var(--display); font-size:17px; letter-spacing:0.04em; color:rgba(255,255,255,0.85); }
+.ct-chart-sub { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.22); letter-spacing:0.12em; margin-top:4px; }
+#comps-chart { width:100%; height:450px; }
+.ct-chart-empty { display:flex; align-items:center; justify-content:center; height:450px; font-family:var(--mono); font-size:11px; color:rgba(255,255,255,0.13); letter-spacing:0.16em; }
+
+/* Stats row */
+.ct-stats-row { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid rgba(255,255,255,0.06); }
+.ct-stat-card { padding:14px 18px; border-right:1px solid rgba(255,255,255,0.06); }
+.ct-stat-card:last-child { border-right:none; }
+.ct-stat-val { font-family:var(--display); font-size:20px; color:var(--text); line-height:1; }
+.ct-stat-lbl { font-family:var(--mono); font-size:7.5px; letter-spacing:0.15em; color:rgba(255,255,255,0.28); margin-top:4px; }
+.ct-stat-who { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.48); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+@keyframes ctFadeIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
+
 /* Unified player card — wraps career arc + stat profile + scenario as one panel */
 .tr-unified {
   background: rgba(255,255,255,0.02);
@@ -3200,6 +3278,7 @@
       <button class="topnav-tab" onclick="switchMainView('prototype3', this)">Prototype 3</button>
       <button class="topnav-tab" onclick="switchMainView('masterstats', this)">Master Stats</button>
       <button class="topnav-tab" onclick="switchMainView('trends', this)">Trends</button>
+      <button class="topnav-tab" onclick="switchMainView('comps', this)">Comps</button>
     </div>
   </div>
 </nav>
@@ -3803,6 +3882,63 @@
       </div>
     </div>
   </div><!-- /mainview-trends -->
+
+  <!-- ── COMPS ── -->
+  <div class="main-view ct-view" id="mainview-comps" style="display:none;">
+    <div class="ct-shell">
+      <div class="ct-header">
+        <div class="ct-wordmark">DYNASTY DAWGS // CAREER TRAJECTORIES</div>
+      </div>
+      <div class="ct-layout">
+
+        <!-- Left sidebar: player selector -->
+        <div class="ct-sidebar">
+          <div>
+            <div class="ct-section-lbl">SELECT PLAYERS (MAX 5)</div>
+            <div class="ct-search-wrap" style="margin-top:8px;">
+              <input id="comps-search" type="text" placeholder="Search player…"
+                autocomplete="off" class="ct-search-input"
+                oninput="compsSearch(this.value)"
+                onfocus="if(this.value.trim())compsSearch(this.value)"/>
+              <div id="comps-search-results" class="ct-search-drop"></div>
+            </div>
+          </div>
+
+          <hr class="ct-divider">
+
+          <div>
+            <div class="ct-section-lbl" style="margin-bottom:8px;">SELECTED PLAYERS</div>
+            <div id="comps-players" class="ct-players">
+              <div class="ct-empty-hint">Add up to 5 players<br>to compare trajectories.</div>
+            </div>
+          </div>
+
+          <hr class="ct-divider">
+
+          <!-- Position-average toggle -->
+          <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="compsToggleAvg()" id="comps-avg-toggle">
+            <div id="comps-avg-dot" style="width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);flex-shrink:0;transition:all 0.2s;"></div>
+            <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:0.1em;">SHOW POSITION AVG</div>
+          </div>
+        </div>
+
+        <!-- Right: chart panel -->
+        <div class="ct-chart-panel">
+          <div class="ct-chart-header">
+            <div>
+              <div class="ct-chart-title">CAREER PPR PPG PROGRESSION</div>
+              <div class="ct-chart-sub">dot size = games played · spline = career arc</div>
+            </div>
+          </div>
+          <div id="comps-chart">
+            <div class="ct-chart-empty">// ADD PLAYERS TO COMPARE TRAJECTORIES</div>
+          </div>
+          <div id="comps-stats-row" class="ct-stats-row"></div>
+        </div>
+
+      </div>
+    </div>
+  </div><!-- /mainview-comps -->
 
   <footer class="footer">
     <span class="footer-brand">DYNASTYDAWGS</span>
@@ -11319,7 +11455,7 @@ function togglePgb(el) {
 function switchMainView(view, btn) {
   document.querySelectorAll('.topnav-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  const views = ['league', 'profiles', 'model', 'prototype', 'prototype2', 'prototype3', 'masterstats', 'trends'];
+  const views = ['league', 'profiles', 'model', 'prototype', 'prototype2', 'prototype3', 'masterstats', 'trends', 'comps'];
   views.forEach(v => {
     const el = document.getElementById(`mainview-${v}`);
     if (el) el.style.display = v === view ? '' : 'none';
@@ -11330,11 +11466,307 @@ function switchMainView(view, btn) {
   if (view === 'model') { renderModelBuilding(); }
   if (view === 'masterstats') { initMasterStats(); }
   if (view === 'trends') { setTimeout(() => document.getElementById('trends-search')?.focus(), 50); }
+  if (view === 'comps')  { setTimeout(() => document.getElementById('comps-search')?.focus(), 50); compsRenderChart(); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// § 19  MASTER STATS TABLE — sortable RB advanced stats, Databallr-style
+// § 19  CAREER COMPS — multi-player trajectory chart (DARKO-style)
+// ─────────────────────────────────────────────────────────────────────────────
+const COMPS_COLORS = ['#38bdf8', '#f43f5e', '#4ade80', '#fbbf24', '#a78bfa'];
+let compsState = { players: [], showAvg: false };
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function compsSearch(query) {
+  const res = document.getElementById('comps-search-results');
+  if (!res) return;
+  const q = (query ?? '').trim().toLowerCase();
+  if (!q) { res.style.display = 'none'; return; }
+
+  const matches = [];
+  for (const [pid, sp] of Object.entries(sleeperPlayers ?? {})) {
+    if (!['RB','WR','TE','QB'].includes(sp.position)) continue;
+    const szns = careerDB[pid];
+    if (!szns?.length) continue;
+    if (compsState.players.some(p => p.pid === pid)) continue;
+    const name = (sp.full_name ?? sp.name ?? '').toLowerCase();
+    if (!name.includes(q)) continue;
+    matches.push({
+      pid, name: sp.full_name ?? sp.name ?? pid,
+      pos: sp.position, team: sp.team ?? '—',
+      lastPpg: szns.at(-1)?.ppg ?? 0,
+      seasons: szns.length,
+    });
+    if (matches.length >= 20) break;
+  }
+  matches.sort((a, b) => b.lastPpg - a.lastPpg);
+
+  if (!matches.length) { res.style.display = 'none'; return; }
+  res.style.display = 'block';
+  res.innerHTML = matches.slice(0, 10).map(m =>
+    `<div class="ct-drop-row" onclick="compsAddPlayer('${m.pid}')">
+       <img src="https://sleepercdn.com/content/nfl/players/thumb/${m.pid}.jpg"
+            style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;"
+            onerror="this.style.opacity=0.15">
+       <div style="flex:1;min-width:0;">
+         <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.name}</div>
+         <div style="font-size:9px;color:rgba(255,255,255,0.38);">${m.pos} · ${m.team} · ${m.lastPpg.toFixed(1)} PPG · ${m.seasons}yr</div>
+       </div>
+     </div>`
+  ).join('');
+}
+
+// ── Add / remove ──────────────────────────────────────────────────────────────
+function compsAddPlayer(pid) {
+  if (compsState.players.length >= 5) return;
+  if (compsState.players.some(p => p.pid === pid)) return;
+  const sp = sleeperPlayers?.[pid];
+  if (!sp) return;
+  const idx = compsState.players.length;
+  compsState.players.push({
+    pid,
+    name: sp.full_name ?? sp.name ?? pid,
+    pos:  sp.position ?? 'RB',
+    color: COMPS_COLORS[idx],
+  });
+  const inp = document.getElementById('comps-search');
+  if (inp) inp.value = '';
+  const drop = document.getElementById('comps-search-results');
+  if (drop) drop.style.display = 'none';
+  compsRender();
+}
+
+function compsRemovePlayer(pid) {
+  compsState.players = compsState.players.filter(p => p.pid !== pid);
+  compsState.players.forEach((p, i) => { p.color = COMPS_COLORS[i]; });
+  compsRender();
+}
+
+function compsToggleAvg() {
+  compsState.showAvg = !compsState.showAvg;
+  const dot = document.getElementById('comps-avg-dot');
+  if (dot) dot.style.background = compsState.showAvg ? 'rgba(255,255,255,0.55)' : 'transparent';
+  compsRenderChart();
+}
+
+// ── Career arc helper ─────────────────────────────────────────────────────────
+function compsGetArc(pid) {
+  const szns = (careerDB[pid] ?? [])
+    .filter(s => (s.games ?? 0) >= 4)
+    .sort((a, b) => a.season - b.season);
+  return szns.map((s, i) => ({
+    yr:     i + 1,      // 1-indexed for display (Yr 1, Yr 2…)
+    season: s.season,
+    ppg:    s.ppg,
+    games:  s.games ?? 0,
+  }));
+}
+
+// ── Position average arc ──────────────────────────────────────────────────────
+// Median PPG at each career year for the given position (from careerDB).
+function compsPositionAvgArc(pos) {
+  const byYr = {};  // yr (1-indexed) → [ppg values]
+  for (const [pid, szns] of Object.entries(careerDB ?? {})) {
+    const sp = sleeperPlayers?.[pid];
+    if (!sp || sp.position !== pos) continue;
+    const qual = szns.filter(s => (s.games ?? 0) >= 4).sort((a, b) => a.season - b.season);
+    qual.forEach((s, i) => {
+      const yr = i + 1;
+      if (!byYr[yr]) byYr[yr] = [];
+      byYr[yr].push(s.ppg);
+    });
+  }
+  const years = Object.keys(byYr).map(Number).sort((a, b) => a - b).filter(y => y <= 12);
+  return years.map(yr => {
+    const vals = byYr[yr].sort((a, b) => a - b);
+    const mid  = Math.floor(vals.length / 2);
+    return {
+      yr,
+      ppg: vals.length % 2 === 1 ? vals[mid] : (vals[mid-1] + vals[mid]) / 2,
+    };
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function compsRender() {
+  compsRenderSidebar();
+  compsRenderChart();
+  compsRenderStats();
+}
+
+function compsRenderSidebar() {
+  const el = document.getElementById('comps-players');
+  if (!el) return;
+  if (!compsState.players.length) {
+    el.innerHTML = `<div class="ct-empty-hint">Add up to 5 players<br>to compare trajectories.</div>`;
+    return;
+  }
+  el.innerHTML = compsState.players.map(p => {
+    const arc  = compsGetArc(p.pid);
+    const peak = arc.length ? Math.max(...arc.map(a => a.ppg)).toFixed(1) : '—';
+    const szns = arc.length;
+    return `<div class="ct-player-chip" style="border-left-color:${p.color};">
+      <div class="ct-chip-swatch" style="background:${p.color};box-shadow:0 0 6px ${p.color}80;"></div>
+      <div class="ct-chip-name">${p.name}</div>
+      <div class="ct-chip-meta">${p.pos} · pk ${peak} · ${szns}yr</div>
+      <div class="ct-chip-x" onclick="compsRemovePlayer('${p.pid}')" title="Remove">×</div>
+    </div>`;
+  }).join('');
+
+  // Max hint
+  if (compsState.players.length >= 5) {
+    el.innerHTML += `<div class="ct-max-hint" style="margin-top:6px;">MAX 5 PLAYERS REACHED</div>`;
+  }
+}
+
+function compsRenderChart() {
+  const el = document.getElementById('comps-chart');
+  if (!el || typeof Plotly === 'undefined') return;
+
+  if (!compsState.players.length) {
+    el.innerHTML = `<div class="ct-chart-empty">// ADD PLAYERS TO COMPARE TRAJECTORIES</div>`;
+    return;
+  }
+
+  const traces = [];
+
+  // ── Position average reference line ──────────────────────────────────────
+  if (compsState.showAvg && compsState.players.length) {
+    // Use position of the first player as the reference
+    const refPos = compsState.players[0].pos;
+    const avg    = compsPositionAvgArc(refPos);
+    if (avg.length >= 2) {
+      traces.push({
+        type: 'scatter', mode: 'lines', name: `Avg ${refPos}`,
+        x: avg.map(a => a.yr),
+        y: avg.map(a => +a.ppg.toFixed(2)),
+        line: { color: 'rgba(255,255,255,0.20)', width: 1.5, dash: 'dot', shape: 'spline', smoothing: 1.0 },
+        hoverinfo: 'skip',
+        showlegend: true,
+      });
+    }
+  }
+
+  // ── Per-player traces ──────────────────────────────────────────────────────
+  for (const p of compsState.players) {
+    const arc = compsGetArc(p.pid);
+    if (!arc.length) continue;
+
+    const xs     = arc.map(a => a.yr);
+    const ys     = arc.map(a => a.ppg);
+    const sizes  = arc.map(a => Math.max(5, Math.min(14, a.games * 0.6)));
+    const htexts = arc.map(a =>
+      `<b>${p.name}</b><br>Season ${a.yr} (${a.season})<br>${a.ppg.toFixed(1)} PPG · ${a.games}g`
+    );
+
+    // Scatter dots (semi-transparent, sized by games)
+    traces.push({
+      type: 'scatter', mode: 'markers', name: p.name,
+      x: xs, y: ys, text: htexts, hoverinfo: 'text',
+      marker: { color: p.color, size: sizes, opacity: 0.50, line: { width: 0 } },
+      showlegend: false,
+    });
+
+    // Smooth spline line
+    traces.push({
+      type: 'scatter', mode: 'lines', name: p.name,
+      x: xs, y: ys, text: htexts, hoverinfo: 'text',
+      line: { color: p.color, width: 2.5, shape: 'spline', smoothing: 1.2 },
+      showlegend: true,
+    });
+  }
+
+  const layout = {
+    paper_bgcolor: 'transparent',
+    plot_bgcolor:  'rgba(255,255,255,0.015)',
+    font: { family: "'DM Mono', monospace", color: 'rgba(255,255,255,0.55)', size: 10 },
+    xaxis: {
+      title: { text: 'CAREER SEASON', font: { size: 8.5, color: 'rgba(255,255,255,0.28)' }, standoff: 10 },
+      gridcolor: 'rgba(56,189,248,0.06)', zeroline: false,
+      tickfont: { size: 9 }, tickmode: 'linear', dtick: 1,
+      tickprefix: 'Yr ', tickcolor: 'rgba(255,255,255,0.08)',
+      linecolor: 'rgba(255,255,255,0.06)',
+    },
+    yaxis: {
+      title: { text: 'PPR PPG', font: { size: 8.5, color: 'rgba(255,255,255,0.28)' }, standoff: 8 },
+      gridcolor: 'rgba(56,189,248,0.06)', zeroline: false,
+      tickfont: { size: 9 }, tickcolor: 'rgba(255,255,255,0.08)',
+      linecolor: 'rgba(255,255,255,0.06)',
+    },
+    legend: {
+      x: 0.01, y: 0.99, bgcolor: 'rgba(6,10,18,0.75)',
+      bordercolor: 'rgba(255,255,255,0.08)', borderwidth: 1,
+      font: { size: 9, family: "'DM Mono', monospace", color: 'rgba(255,255,255,0.65)' },
+      orientation: 'v', traceorder: 'normal',
+    },
+    margin: { l: 52, r: 20, t: 12, b: 52 },
+    hovermode: 'closest',
+    hoverlabel: {
+      bgcolor: '#0d1827', bordercolor: 'rgba(56,189,248,0.3)',
+      font: { family: "'DM Mono', monospace", size: 10 },
+    },
+  };
+
+  Plotly.newPlot('comps-chart', traces, layout, { displayModeBar: false, responsive: true });
+}
+
+function compsRenderStats() {
+  const el = document.getElementById('comps-stats-row');
+  if (!el) return;
+  if (!compsState.players.length) { el.innerHTML = ''; return; }
+
+  let peakPpg = 0, peakName = '—';
+  let longestSzns = 0, longestName = '—';
+  let mostConsistentName = '—', lowestStdDev = Infinity;
+  let totalSeasons = 0;
+
+  for (const p of compsState.players) {
+    const arc = compsGetArc(p.pid);
+    if (!arc.length) continue;
+    totalSeasons += arc.length;
+    const peak = Math.max(...arc.map(a => a.ppg));
+    if (peak > peakPpg) { peakPpg = peak; peakName = p.name; }
+    if (arc.length > longestSzns) { longestSzns = arc.length; longestName = p.name; }
+    if (arc.length >= 3) {
+      const ppgs = arc.map(a => a.ppg);
+      const mean = ppgs.reduce((s, v) => s + v, 0) / ppgs.length;
+      const std  = Math.sqrt(ppgs.reduce((s, v) => s + (v - mean) ** 2, 0) / ppgs.length);
+      if (std < lowestStdDev) { lowestStdDev = std; mostConsistentName = p.name; }
+    }
+  }
+
+  const ppgRange = (() => {
+    const allPpg = compsState.players.flatMap(p => compsGetArc(p.pid).map(a => a.ppg));
+    if (!allPpg.length) return '—';
+    return `${Math.min(...allPpg).toFixed(1)}–${Math.max(...allPpg).toFixed(1)}`;
+  })();
+
+  el.innerHTML = `
+    <div class="ct-stat-card">
+      <div class="ct-stat-val">${totalSeasons}</div>
+      <div class="ct-stat-lbl">SEASONS TRACKED</div>
+      <div class="ct-stat-who">across ${compsState.players.length} player${compsState.players.length > 1 ? 's' : ''}</div>
+    </div>
+    <div class="ct-stat-card">
+      <div class="ct-stat-val">${peakPpg.toFixed(1)}</div>
+      <div class="ct-stat-lbl">PEAK PPG</div>
+      <div class="ct-stat-who">${peakName}</div>
+    </div>
+    <div class="ct-stat-card">
+      <div class="ct-stat-val">${ppgRange}</div>
+      <div class="ct-stat-lbl">PPG RANGE</div>
+      <div class="ct-stat-who">all selected seasons</div>
+    </div>
+    <div class="ct-stat-card">
+      <div class="ct-stat-val">${lowestStdDev < Infinity ? lowestStdDev.toFixed(2) : '—'}</div>
+      <div class="ct-stat-lbl">MOST CONSISTENT</div>
+      <div class="ct-stat-who">${mostConsistentName}</div>
+    </div>
+  `;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 20  MASTER STATS TABLE — sortable RB advanced stats, Databallr-style
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Column definitions: id, label, group, field (null=custom), fmt, higherBetter (null=no color), groupStart
