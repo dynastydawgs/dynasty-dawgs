@@ -11836,7 +11836,10 @@ async function _compsGetWeeklyArc(player) {
   return result;
 }
 
+let _compsGameRenderGen = 0; // increments each call; stale calls self-abort
+
 async function _compsRenderGamesAsync() {
+  const gen = ++_compsGameRenderGen;
   const el = document.getElementById('comps-chart');
   if (!el || typeof Plotly === 'undefined') return;
   if (!compsState.players.length) {
@@ -11844,13 +11847,19 @@ async function _compsRenderGamesAsync() {
     return;
   }
 
-  // Show loading spinner while fetching weekly data
-  el.innerHTML = `<div class="ct-chart-empty" style="color:rgba(56,189,248,0.45);">
-    <span style="display:inline-block;animation:spin 0.8s linear infinite;margin-right:8px;">◌</span>
-    LOADING GAME DATA…
-  </div>`;
+  // Only show loading placeholder when there's no chart already rendered
+  // (prevents the spinner from appearing over an existing chart during re-fetch)
+  if (!el.querySelector('.plot-container')) {
+    el.innerHTML = `<div class="ct-chart-empty" style="color:rgba(56,189,248,0.45);">
+      <span style="display:inline-block;animation:spin 0.8s linear infinite;margin-right:8px;">◌</span>
+      LOADING GAME DATA…
+    </div>`;
+  }
 
   const arcs = await Promise.all(compsState.players.map(p => _compsGetWeeklyArc(p)));
+
+  // A newer call started while we were fetching — discard this result
+  if (gen !== _compsGameRenderGen) return;
   const traces = [];
 
   for (let i = 0; i < compsState.players.length; i++) {
