@@ -3945,6 +3945,10 @@
               <button class="ct-scale-btn" id="ct-smooth-3"   onclick="compsSetSmoothing(3)">3-GAME</button>
               <button class="ct-scale-btn active" id="ct-smooth-8" onclick="compsSetSmoothing(8)">8-GAME</button>
             </div>
+            <div style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-top:12px;" onclick="compsToggleDots()">
+              <div id="comps-dots-dot" style="width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.55);flex-shrink:0;transition:all 0.2s;"></div>
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:0.1em;">SHOW DATA POINTS</div>
+            </div>
           </div>
 
           <hr class="ct-divider">
@@ -11516,7 +11520,7 @@ function switchMainView(view, btn) {
 // § 19  CAREER COMPS — multi-player trajectory chart (DARKO-style)
 // ─────────────────────────────────────────────────────────────────────────────
 const COMPS_COLORS = ['#38bdf8', '#f43f5e', '#4ade80', '#fbbf24', '#a78bfa'];
-let compsState = { players: [], showAvg: false, timeScale: 'seasons', smoothing: 8 };
+let compsState = { players: [], showAvg: false, timeScale: 'seasons', smoothing: 8, showDots: true };
 
 // ── Name normaliser (mirrors _bosNorm) ───────────────────────────────────────
 const _compsNorm = n => (n ?? '').toLowerCase()
@@ -11675,6 +11679,13 @@ function compsSetSmoothing(window) {
     const btn = document.getElementById(`ct-smooth-${w === 1 ? 'raw' : w}`);
     if (btn) btn.classList.toggle('active', w === window);
   });
+  compsRenderChart();
+}
+
+function compsToggleDots() {
+  compsState.showDots = !compsState.showDots;
+  const dot = document.getElementById('comps-dots-dot');
+  if (dot) dot.style.background = compsState.showDots ? 'rgba(255,255,255,0.55)' : 'transparent';
   compsRenderChart();
 }
 
@@ -11908,15 +11919,17 @@ async function _compsRenderGamesAsync() {
       const ys  = regular.map(g => g.ppg);
       const win = compsState.smoothing ?? 8;
 
-      // Raw scatter dots — always individual game scores
-      traces.push({
-        type: 'scatter', mode: 'markers', name: p.name,
-        x: xs, y: ys,
-        text: regular.map(g => `<b>${p.name}</b><br>Wk ${g.week}, ${g.season}<br>${g.ppg.toFixed(1)} pts`),
-        hoverinfo: 'text',
-        marker: { color: p.color, size: win === 1 ? 6 : 5, opacity: win === 1 ? 0.55 : 0.30, line: { width: 0 } },
-        showlegend: false,
-      });
+      // Raw scatter dots (optional)
+      if (compsState.showDots) {
+        traces.push({
+          type: 'scatter', mode: 'markers', name: p.name,
+          x: xs, y: ys,
+          text: regular.map(g => `<b>${p.name}</b><br>Wk ${g.week}, ${g.season}<br>${g.ppg.toFixed(1)} pts`),
+          hoverinfo: 'text',
+          marker: { color: p.color, size: win === 1 ? 6 : 5, opacity: win === 1 ? 0.55 : 0.30, line: { width: 0 } },
+          showlegend: false,
+        });
+      }
 
       // Trend line: rolling average when win > 1, raw spline when win === 1
       const lineY = win > 1 ? _rollingAvg(ys, win) : ys;
