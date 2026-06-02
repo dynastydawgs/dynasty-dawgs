@@ -1433,44 +1433,93 @@ async function main() {
     if (!Object.keys(gsisPlayerMeta).length) throw new Error('gsisPlayerMeta empty — players.csv not parsed');
 
     // ── 6a. Aggregate nflverse weekly player_stats for pre-Sleeper years ──────
-    // Sleeper data starts at 2015; nflverse per-year files cover back to 1999.
-    // We fetch the gzipped per-year files and aggregate weekly rows → season totals.
-    // Years that don't exist (404) are skipped gracefully via try-catch.
+    // Per-year .csv.gz files only exist from ~2009 onward so they 404 silently
+    // for anything earlier. Use the combined player_stats.csv instead — one fetch,
+    // all seasons from 1999 to present. We filter to season < 2015 at parse time
+    // so 2015+ rows (covered by Sleeper careerDB) are skipped immediately.
+    // Fallback: if the combined file fails, try per-year .csv.gz for 2009-2014.
     const nflverseSeasonStats = {};  // gsis_id → { [year]: { ppr, games } }
-    const PRE_SLEEPER_YRS = [];
-    for (let yr = 1999; yr <= 2014; yr++) PRE_SLEEPER_YRS.push(yr);
-    for (const yr of PRE_SLEEPER_YRS) {
-      try {
-        const rows = await fetchGzipCSV(
-          `https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${yr}.csv.gz`
-        );
-        let rowsAdded = 0;
-        for (const row of rows) {
-          if ((row.season_type ?? '').trim() !== 'REG') continue;
-          const gsis = (row.player_id ?? '').trim();
-          if (!gsis || !gsisPlayerMeta[gsis]) continue;
-          // PPR: prefer pre-computed field; reconstruct from raw if missing/zero
-          let pts = parseFloat(row.fantasy_points_ppr ?? 0) || 0;
-          if (pts === 0) {
-            const rec    = parseFloat(row.receptions             ?? 0) || 0;
-            const recYd  = parseFloat(row.receiving_yards        ?? 0) || 0;
-            const recTd  = parseFloat(row.receiving_tds          ?? 0) || 0;
-            const recFum = parseFloat(row.receiving_fumbles_lost ?? 0) || 0;
-            const ruYd   = parseFloat(row.rushing_yards          ?? 0) || 0;
-            const ruTd   = parseFloat(row.rushing_tds            ?? 0) || 0;
-            const ruFum  = parseFloat(row.rushing_fumbles_lost   ?? 0) || 0;
-            pts = rec*0.5 + recYd*0.1 + recTd*6 - recFum*2 + ruYd*0.1 + ruTd*6 - ruFum*2;
-          }
-          if (pts <= 0) continue;  // skip true DNP weeks (no PPR points)
-          if (!nflverseSeasonStats[gsis])      nflverseSeasonStats[gsis] = {};
-          if (!nflverseSeasonStats[gsis][yr])  nflverseSeasonStats[gsis][yr] = { ppr: 0, games: 0 };
-          nflverseSeasonStats[gsis][yr].ppr   += pts;
-          nflverseSeasonStats[gsis][yr].games += 1;
-          rowsAdded++;
+    let _histWeeks = 0;
+    let _usedCombined = false;
+
+    try {
+      progress(99, 'Fetching combined player_stats.csv (1999-2014)…');
+      const res = await fetch(
+        'https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats.csv'
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const lines = (await res.text()).split('\n').filter(l => l.trim());
+      const hdrs = parseCSVLine(lines[0]);
+      const gi   = h => hdrs.indexOf(h);
+      const [stI,yrI,pidI,pprI,recI,ryI,rtdI,rfI,ruI,rutdI,rufI] = [
+        'season_type','season','player_id','fantasy_points_ppr',
+        'receptions','receiving_yards','receiving_tds','receiving_fumbles_lost',
+        'rushing_yards','rushing_tds','rushing_fumbles_lost',
+      ].map(gi);
+
+      for (const line of lines.slice(1)) {
+        const v = parseCSVLine(line);
+        if ((v[stI] ?? '').trim() !== 'REG') continue;
+        const season = parseInt(v[yrI]);
+        if (isNaN(season) || season >= 2015) continue;   // Sleeper covers 2015+
+        const gsis = (v[pidI] ?? '').trim();
+        if (!gsis || !gsisPlayerMeta[gsis]) continue;
+
+        let pts = parseFloat(v[pprI] ?? 0) || 0;
+        if (pts === 0) {
+          const rec    = parseFloat(v[recI]  || 0);
+          const recYd  = parseFloat(v[ryI]   || 0);
+          const recTd  = parseFloat(v[rtdI]  || 0);
+          const recFum = parseFloat(v[rfI]   || 0);
+          const ruYd   = parseFloat(v[ruI]   || 0);
+          const ruTd   = parseFloat(v[rutdI] || 0);
+          const ruFum  = parseFloat(v[rufI]  || 0);
+          pts = rec*0.5 + recYd*0.1 + recTd*6 - recFum*2 + ruYd*0.1 + ruTd*6 - ruFum*2;
         }
-        console.log(`  Hist ${yr}: ${rowsAdded.toLocaleString()} scoring weeks`);
-      } catch(e) {
-        console.warn(`  ⚠️  player_stats_${yr}.csv.gz failed: ${e.message}`);
+        if (pts <= 0) continue;
+
+        if (!nflverseSeasonStats[gsis])          nflverseSeasonStats[gsis] = {};
+        if (!nflverseSeasonStats[gsis][season])  nflverseSeasonStats[gsis][season] = { ppr: 0, games: 0 };
+        nflverseSeasonStats[gsis][season].ppr   += pts;
+        nflverseSeasonStats[gsis][season].games += 1;
+        _histWeeks++;
+      }
+      console.log(`\n  Historical (combined CSV): ${_histWeeks.toLocaleString()} scoring weeks from 1999-2014`);
+      _usedCombined = true;
+    } catch(e) {
+      console.warn(`\n  ⚠️  Combined player_stats.csv failed (${e.message}) — falling back to per-year .csv.gz for 2009-2014`);
+    }
+
+    // Fallback: per-year .csv.gz (2009-2014 only, pre-2009 silently 404)
+    if (!_usedCombined) {
+      for (let yr = 2009; yr <= 2014; yr++) {
+        try {
+          const rows = await fetchGzipCSV(
+            `https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_${yr}.csv.gz`
+          );
+          let n = 0;
+          for (const row of rows) {
+            if ((row.season_type ?? '').trim() !== 'REG') continue;
+            const gsis = (row.player_id ?? '').trim();
+            if (!gsis || !gsisPlayerMeta[gsis]) continue;
+            let pts = parseFloat(row.fantasy_points_ppr ?? 0) || 0;
+            if (pts === 0) {
+              pts = (parseFloat(row.receptions||0))*0.5 + (parseFloat(row.receiving_yards||0))*0.1
+                  + (parseFloat(row.receiving_tds||0))*6 - (parseFloat(row.receiving_fumbles_lost||0))*2
+                  + (parseFloat(row.rushing_yards||0))*0.1 + (parseFloat(row.rushing_tds||0))*6
+                  - (parseFloat(row.rushing_fumbles_lost||0))*2;
+            }
+            if (pts <= 0) continue;
+            if (!nflverseSeasonStats[gsis])      nflverseSeasonStats[gsis] = {};
+            if (!nflverseSeasonStats[gsis][yr])  nflverseSeasonStats[gsis][yr] = { ppr: 0, games: 0 };
+            nflverseSeasonStats[gsis][yr].ppr   += pts;
+            nflverseSeasonStats[gsis][yr].games += 1;
+            n++;
+          }
+          console.log(`  Hist ${yr}: ${n.toLocaleString()} scoring weeks`);
+        } catch(e) {
+          console.warn(`  ⚠️  player_stats_${yr}.csv.gz failed: ${e.message}`);
+        }
       }
     }
 
@@ -1543,7 +1592,7 @@ async function main() {
   const ryoeJson      = JSON.stringify(ryoeDB);
   const statTeamJson  = JSON.stringify(statTeamDB);
   const advstatsJson  = JSON.stringify(advstatsDB);
-  const historicalJson = JSON.stringify({ meta: { built: new Date().toISOString().slice(0,10), firstSeason: PRE_SLEEPER_YRS[0], players: histCount }, players: historicalDB });
+  const historicalJson = JSON.stringify({ meta: { built: new Date().toISOString().slice(0,10), firstSeason: 1999, players: histCount }, players: historicalDB });
 
   writeFileSync(join(DATA_DIR, 'compdb.json'),      compJson);
   writeFileSync(join(DATA_DIR, 'careerdb.json'),    careerJson);
