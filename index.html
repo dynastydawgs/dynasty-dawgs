@@ -9487,35 +9487,27 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           if (surgeAdj !== 0) medianPpr = Math.round(medianPpr + surgeAdj);
         }
 
-        // ── Vacancy-surge discount (RB only) ──────────────────────────────────
-        // If a player appeared in far fewer first-half games than second-half, they
-        // likely inherited a role mid-season due to injury (e.g. Dobbins → Harvey)
-        // rather than organically developing into one. That surge is NOT a development
-        // signal — it's a vacancy signal — and shouldn't project forward at full weight.
-        // The degree of discount scales with how extreme the game ratio is:
-        //   2-3× more 2H games → take 55% of surge
-        //   3-4× more 2H games → take 35% of surge
-        //   4×+  more 2H games → take 20% of surge (almost all vacancy-driven)
-        // Additional gate: only fires for positive surges — a negative surge in a vacancy
-        // scenario (player got hurt and production dropped) shouldn't be extra penalized.
-        // Also check DC rank: DC1 returners with full first-half usage are genuine surges.
-        if (surgeAdj > 0 && pos === 'RB' && surgeData
-            && surgeData.firstGames >= 1 && surgeData.trajectory > 2.0) {
-          const _gr = surgeData.secondGames / surgeData.firstGames;
-          if (_gr >= 2.0) {
-            // Cross-check with depth chart rank — DC1 with good first-half usage
-            // is a real surge; only discount clear backup-to-starter vacancies.
-            const _spVac  = sleeperPlayers[pid];
-            const _dcVacRbs = _spVac?.team ? (depthDB?.[_spVac.team]?.RB ?? []) : [];
-            const _myVacRank  = _dcVacRbs.find(e => _bosNorm(e.name) === _bosNorm(_spVac?.full_name ?? _spVac?.name ?? ''))?.rank ?? 1;
-            // Only discount if DC2+ OR if the game ratio is very extreme (4×+, unambiguous vacancy)
-            if (_myVacRank >= 2 || _gr >= 4) {
-              const _vacDisc  = _gr >= 4 ? 0.20 : _gr >= 3 ? 0.35 : 0.55;
-              const _origAdj  = surgeAdj;
-              surgeAdj        = Math.round(surgeAdj * _vacDisc);
-              medianPpr       = Math.round(medianPpr - (_origAdj - surgeAdj));
-              surgeVacancyNote = `injury vacancy — ${Math.round((1 - _vacDisc) * 100)}% discounted`;
-            }
+        // ── Efficiency-based surge discount (RB only) ────────────────────────
+        // A genuine development surge comes with improving efficiency — a back earning
+        // their snaps shows up in YPC, TD rate, and third-down usage. A vacancy surge
+        // (inherited role via injury) inflates PPG without improving efficiency: the
+        // player gets workhorse volume they weren't earning through skill.
+        // If efficiency is bad AND the surge is positive, discount accordingly:
+        //   < 25 eff (very bad) → keep 40% of surge
+        //   25–40 eff (bad)     → keep 60% of surge
+        // Only fires for positive surges — negative surges shouldn't be extra penalized.
+        if (surgeAdj > 0 && pos === 'RB') {
+          const _spForEff  = sleeperPlayers[pid];
+          const _advForEff = _bosGetAdv(_spForEff?.full_name ?? _spForEff?.name ?? '');
+          const _effForSurge = _advForEff
+            ? _bosEfficiency(_spForEff?.full_name ?? _spForEff?.name ?? '', _advForEff)
+            : null;
+          if (_effForSurge !== null && _effForSurge < 40) {
+            const _effDisc   = _effForSurge < 25 ? 0.40 : 0.60;
+            const _origAdj   = surgeAdj;
+            surgeAdj         = Math.round(surgeAdj * _effDisc);
+            medianPpr        = Math.round(medianPpr - (_origAdj - surgeAdj));
+            surgeVacancyNote = `poor efficiency (${Math.round(_effForSurge)}/100) · surge discounted`;
           }
         }
       }
