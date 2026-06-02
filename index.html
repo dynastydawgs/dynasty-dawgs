@@ -11856,32 +11856,37 @@ async function _compsGetWeeklyArc(player) {
   let careerGame = 0;
 
   for (const szn of arcSeasons) {
-    // Only attempt per-game fetch when we have a Sleeper pid AND
-    // the season is recent enough that Sleeper has weekly data (2015+).
-    let rows = null;
+    // Priority 1: Sleeper weekly API (2015+, requires Sleeper pid)
+    // Priority 2: historicaldb per-week data (pre-2015, stored at build time)
+    // Priority 3: season avg marker fallback
+    let weekPairs = null; // [[week, pts], ...]
+
     if (player.pid && szn.season >= 2015) {
-      rows = await fetchWeeklyPPR(player.pid, szn.season).catch(() => null);
+      const sleeperRows = await fetchWeeklyPPR(player.pid, szn.season).catch(() => null);
+      if (sleeperRows?.length) {
+        weekPairs = sleeperRows
+          .filter(r => +(r.pts_ppr ?? 0) > 0)
+          .sort((a, b) => +(a.week ?? 0) - +(b.week ?? 0))
+          .map(r => [+(r.week ?? 0), Math.round(+(r.pts_ppr ?? 0) * 10) / 10]);
+      }
     }
 
-    if (!rows?.length) {
+    // Check historicaldb for pre-2015 per-week data
+    if (!weekPairs && player.gsis && historicalDB?.players?.[player.gsis]?.w?.[szn.season]) {
+      weekPairs = historicalDB.players[player.gsis].w[szn.season];
+    }
+
+    if (!weekPairs?.length) {
       // No per-game data — place season avg marker at midpoint game number
       const gamesInSzn = szn.games ?? 17;
       const mid = careerGame + Math.round(gamesInSzn / 2);
       result.push({ gameNum: mid, ppg: szn.ppg, season: szn.season, week: null, isAvg: true });
       careerGame += gamesInSzn;
     } else {
-      const scoring = rows
-        .filter(r => +(r.pts_ppr ?? 0) > 0)
-        .sort((a, b) => +(a.week ?? 0) - +(b.week ?? 0));
-      for (const r of scoring) {
+      // weekPairs: [[week, pts], ...] — same format from both Sleeper and historicaldb
+      for (const [wk, pts] of weekPairs) {
         careerGame++;
-        result.push({
-          gameNum: careerGame,
-          ppg: Math.round(+(r.pts_ppr ?? 0) * 10) / 10,
-          season: szn.season,
-          week: r.week ?? null,
-          isAvg: false,
-        });
+        result.push({ gameNum: careerGame, ppg: pts, season: szn.season, week: wk, isAvg: false });
       }
     }
   }

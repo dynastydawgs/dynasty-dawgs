@@ -1451,11 +1451,14 @@ async function main() {
       const lines = (await res.text()).split('\n').filter(l => l.trim());
       const hdrs = parseCSVLine(lines[0]);
       const gi   = h => hdrs.indexOf(h);
-      const [stI,yrI,pidI,pprI,recI,ryI,rtdI,rfI,ruI,rutdI,rufI] = [
-        'season_type','season','player_id','fantasy_points_ppr',
+      const [stI,yrI,wkI,pidI,pprI,recI,ryI,rtdI,rfI,ruI,rutdI,rufI] = [
+        'season_type','season','week','player_id','fantasy_points_ppr',
         'receptions','receiving_yards','receiving_tds','receiving_fumbles_lost',
         'rushing_yards','rushing_tds','rushing_fumbles_lost',
       ].map(gi);
+
+      // nflverseWeeklyStats: gsis → { season → [[week, pts], ...] }
+      const nflverseWeeklyStats = {};
 
       for (const line of lines.slice(1)) {
         const v = parseCSVLine(line);
@@ -1478,11 +1481,26 @@ async function main() {
         }
         if (pts <= 0) continue;
 
+        const week = parseInt(v[wkI]);
+
+        // Season-level aggregation (existing)
         if (!nflverseSeasonStats[gsis])          nflverseSeasonStats[gsis] = {};
         if (!nflverseSeasonStats[gsis][season])  nflverseSeasonStats[gsis][season] = { ppr: 0, games: 0 };
         nflverseSeasonStats[gsis][season].ppr   += pts;
         nflverseSeasonStats[gsis][season].games += 1;
+
+        // Per-week storage — compact [week, pts] pairs for GAMES chart
+        if (!isNaN(week)) {
+          if (!nflverseWeeklyStats[gsis])           nflverseWeeklyStats[gsis] = {};
+          if (!nflverseWeeklyStats[gsis][season])   nflverseWeeklyStats[gsis][season] = [];
+          nflverseWeeklyStats[gsis][season].push([week, Math.round(pts * 10) / 10]);
+        }
         _histWeeks++;
+      }
+
+      // Sort each season's weeks in order
+      for (const g of Object.values(nflverseWeeklyStats)) {
+        for (const szn of Object.values(g)) szn.sort((a, b) => a[0] - b[0]);
       }
       console.log(`\n  Historical (combined CSV): ${_histWeeks.toLocaleString()} scoring weeks from 1999-2014`);
       _usedCombined = true;
@@ -1492,6 +1510,8 @@ async function main() {
 
     // Fallback: per-year .csv.gz (2009-2014 only, pre-2009 silently 404)
     if (!_usedCombined) {
+      // Declare weekly stats here for fallback path consistency
+      if (typeof nflverseWeeklyStats === 'undefined') var nflverseWeeklyStats = {};
       for (let yr = 2009; yr <= 2014; yr++) {
         try {
           const rows = await fetchGzipCSV(
@@ -1514,7 +1534,16 @@ async function main() {
             if (!nflverseSeasonStats[gsis][yr])  nflverseSeasonStats[gsis][yr] = { ppr: 0, games: 0 };
             nflverseSeasonStats[gsis][yr].ppr   += pts;
             nflverseSeasonStats[gsis][yr].games += 1;
+            const week = parseInt(row.week);
+            if (!isNaN(week)) {
+              if (!nflverseWeeklyStats[gsis])         nflverseWeeklyStats[gsis] = {};
+              if (!nflverseWeeklyStats[gsis][yr])     nflverseWeeklyStats[gsis][yr] = [];
+              nflverseWeeklyStats[gsis][yr].push([week, Math.round(pts * 10) / 10]);
+            }
             n++;
+          }
+          for (const g of Object.values(nflverseWeeklyStats)) {
+            for (const s of Object.values(g)) s.sort((a, b) => a[0] - b[0]);
           }
           console.log(`  Hist ${yr}: ${n.toLocaleString()} scoring weeks`);
         } catch(e) {
@@ -1570,6 +1599,11 @@ async function main() {
       if (meta.ht)  entry.ht  = meta.ht;
       if (meta.wt)  entry.wt  = meta.wt;
       if (meta.dob) entry.dob = meta.dob;
+
+      // Attach per-week scores when available (enables GAMES chart for legacy players).
+      // Format: { "2004": [[wk, pts], ...], "2005": [...] }
+      const weekData = nflverseWeeklyStats[gsis];
+      if (weekData && Object.keys(weekData).length) entry.w = weekData;
 
       historicalDB[gsis] = entry;
       histCount++;
