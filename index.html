@@ -12017,6 +12017,7 @@ function _compsRenderSeasons() {
     },
   };
 
+  el.innerHTML = ''; // clear loading spinner before Plotly renders
   Plotly.newPlot('comps-chart', traces, layout, { displayModeBar: false, responsive: true });
 }
 
