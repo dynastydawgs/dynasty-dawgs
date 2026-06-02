@@ -12606,10 +12606,15 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
   let projOwnershipScore;
   if (switchedTeams) {
     // How well is this player holding up relative to their career peak?
-    // A vet still firing near peak deserves a much higher projection than a generic
-    // DC1 baseline; one who has clearly slipped should stay at the generic level.
+    // Use best PPG of last 2 qualifying seasons rather than last season alone —
+    // a player who peaked at 15.8, went 12.5, then 8.4 shouldn't be evaluated on
+    // just the 8.4 when 12.5 is their recent true capability. Mirrors _dc1RecencyMult.
+    const _retLast2 = myCareerSzns.slice(-2);
+    const _retBest2Ppg = _retLast2.length
+      ? Math.max(..._retLast2.map(s => s.ppr / s.games))
+      : myLastSznPpg;
     const myRetentionRatio = myBestSznPpg > 0
-      ? Math.min(1, myLastSznPpg / myBestSznPpg) : 0;
+      ? Math.min(1, _retBest2Ppg / myBestSznPpg) : 0;
 
     // Quality multiplier applied to any role baseline.
     // Rewards proven veterans who are still near peak. Near-peak elite backs
@@ -12671,9 +12676,12 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
     // threatScore is inflated by talent/freshness multipliers — using it here would
     // compress a proven vet's projection more than their actual expected workload warrants.
     const primaryRawThreat = primaryThreats.reduce((s, c) => s + c.effWorkload, 0);
-    const contention = primaryRawThreat <= 15 ? 1.00
-                     : primaryRawThreat <= 30  ? 0.85
-                     : primaryRawThreat <= 50  ? 0.65 : 0.50;
+    // DC2 switchers: dc2RoleBase already encodes "this is a DC2, not DC1" — applying the
+    // same steep DC1 contention curve on top double-penalizes them. Use a softer scale:
+    // only a true workhorse DC1 (effWorkload 50+) should materially discount a DC2 switcher.
+    const contention = myDcRank === 2
+      ? (primaryRawThreat > 55 ? 0.80 : primaryRawThreat > 40 ? 0.90 : primaryRawThreat > 25 ? 0.95 : 1.00)
+      : (primaryRawThreat <= 15 ? 1.00 : primaryRawThreat <= 30 ? 0.85 : primaryRawThreat <= 50 ? 0.65 : 0.50);
     projOwnershipScore = roleBase * contention;
   } else {
     // Returner: start from last-season ownership, then model workload flows.
