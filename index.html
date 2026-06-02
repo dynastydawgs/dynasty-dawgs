@@ -8193,6 +8193,7 @@ const _dcNormName = n => (n ?? '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv|v)$/i, '')
 let ryoeDB      = {};   // playerName → { ryoeTotal, ryoePerAtt, expectedYards, pctOverExpected }
 let advstatsDB  = {};   // playerName → { successPct, mtfPerAtt, brkTkl, att }
 let statTeamDB  = {};   // sleeperPlayerId → NFL team abbr they played for in the most recent stat season
+let historicalDB = null; // { meta, players: { gsis_id → { name, pos, dr, dp, dy, ht, wt, dob, sid, seasons } } }
 
 // ── Backfield Opportunity Score — name-matching caches ───────────────────
 // Normalize across depthDB names, advstatsDB keys, and Sleeper full_name/name.
@@ -8872,7 +8873,7 @@ async function loadPrebuiltData(onProgress) {
     // no-cache: always revalidate with server — gets a fast 304 if unchanged,
     // new content if CI has rebuilt the data. Prevents stale data for repeat users.
     const NC = { cache: 'no-cache' };
-    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw, statTeamResRaw, advstatsResRaw] = await Promise.all([
+    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw, statTeamResRaw, advstatsResRaw, histResRaw] = await Promise.all([
       fetch(`${DATA_BASE_URL}/compdb.json`,      NC),
       fetch(`${DATA_BASE_URL}/careerdb.json`,    NC),
       fetch(`${DATA_BASE_URL}/benchmarks.json`,  NC),
@@ -8881,6 +8882,7 @@ async function loadPrebuiltData(onProgress) {
       fetch(`${DATA_BASE_URL}/ryoedb.json`,      NC).catch(() => null),
       fetch(`${DATA_BASE_URL}/statteamdb.json`,  NC).catch(() => null),
       fetch(`${DATA_BASE_URL}/advstatsdb.json`,  NC).catch(() => null),
+      fetch(`${DATA_BASE_URL}/historicaldb.json`,NC).catch(() => null),
     ]);
 
     if (!compRes.ok || !careerRes.ok || !benchRes.ok) {
@@ -8962,6 +8964,10 @@ async function loadPrebuiltData(onProgress) {
     // advstatsdb.json is optional — RB success% and MTF/att from PFR/nflverse
     if (advstatsResRaw?.ok) {
       try { advstatsDB = await advstatsResRaw.json(); } catch(e) {}
+    }
+    // historicaldb.json is optional — career arcs for retired/legacy players (2009+)
+    if (histResRaw?.ok) {
+      try { historicalDB = await histResRaw.json(); } catch(e) {}
     }
 
     // Mark optional files as already loaded so _loadOptionalDataFiles() is a no-op
@@ -11476,6 +11482,19 @@ function switchMainView(view, btn) {
 const COMPS_COLORS = ['#38bdf8', '#f43f5e', '#4ade80', '#fbbf24', '#a78bfa'];
 let compsState = { players: [], showAvg: false };
 
+// ── Name normaliser (mirrors _bosNorm) ───────────────────────────────────────
+const _compsNorm = n => (n ?? '').toLowerCase()
+  .replace(/['.,-]/g,'').replace(/\s+(jr|sr|ii|iii|iv|v)\b/gi,'').replace(/\s+/g,' ').trim();
+
+// Find a Sleeper pid whose name matches a historicaldb player name.
+function _compsFindSleeperPid(name) {
+  const nk = _compsNorm(name);
+  for (const [pid, sp] of Object.entries(sleeperPlayers ?? {})) {
+    if (_compsNorm(sp.full_name ?? sp.name ?? '') === nk) return pid;
+  }
+  return null;
+}
+
 // ── Search ────────────────────────────────────────────────────────────────────
 function compsSearch(query) {
   const res = document.getElementById('comps-search-results');
@@ -11483,57 +11502,123 @@ function compsSearch(query) {
   const q = (query ?? '').trim().toLowerCase();
   if (!q) { res.style.display = 'none'; return; }
 
+  const seen  = new Set(); // dedupe by normalized name
   const matches = [];
+
+  // 1. Sleeper players with careerDB data (active + recently retired)
   for (const [pid, sp] of Object.entries(sleeperPlayers ?? {})) {
     if (!['RB','WR','TE','QB'].includes(sp.position)) continue;
     const szns = careerDB[pid];
     if (!szns?.length) continue;
     if (compsState.players.some(p => p.pid === pid)) continue;
-    const name = (sp.full_name ?? sp.name ?? '').toLowerCase();
-    if (!name.includes(q)) continue;
+    const name = sp.full_name ?? sp.name ?? '';
+    if (!name.toLowerCase().includes(q)) continue;
+    seen.add(_compsNorm(name));
     matches.push({
-      pid, name: sp.full_name ?? sp.name ?? pid,
-      pos: sp.position, team: sp.team ?? '—',
+      key: `s:${pid}`, pid, gsis: null,
+      name, pos: sp.position, team: sp.team ?? '—',
       lastPpg: szns.at(-1)?.ppg ?? 0,
-      seasons: szns.length,
+      seasons: szns.length, legacy: false,
     });
-    if (matches.length >= 20) break;
+    if (matches.length >= 25) break;
   }
-  matches.sort((a, b) => b.lastPpg - a.lastPpg);
 
+  // 2. historicaldb players (retired legends with nflverse arc)
+  if (historicalDB?.players) {
+    for (const [gsis, hp] of Object.entries(historicalDB.players)) {
+      if (!['RB','WR','TE','QB'].includes(hp.pos)) continue;
+      if (!hp.name?.toLowerCase().includes(q)) continue;
+      if (seen.has(_compsNorm(hp.name))) continue; // already found via Sleeper
+      if (compsState.players.some(p => p.gsis === gsis)) continue;
+      const szns = hp.seasons ?? [];
+      const lastPpg = szns.length ? szns.at(-1)[3] : 0;
+      // Try linking to Sleeper pid for post-2015 careerDB data
+      const sid = hp.sid || _compsFindSleeperPid(hp.name) || null;
+      seen.add(_compsNorm(hp.name));
+      matches.push({
+        key: `h:${gsis}`, pid: sid, gsis,
+        name: hp.name, pos: hp.pos, team: '—',
+        lastPpg, seasons: szns.length, legacy: true,
+        // entry year = first_season - career_year (0-indexed)
+        entryYear: szns.length ? (szns[0][0] - szns[0][1]) : null,
+      });
+      if (matches.length >= 35) break;
+    }
+  }
+
+  matches.sort((a, b) => b.lastPpg - a.lastPpg);
   if (!matches.length) { res.style.display = 'none'; return; }
+
   res.style.display = 'block';
-  res.innerHTML = matches.slice(0, 10).map(m =>
-    `<div class="ct-drop-row" onclick="compsAddPlayer('${m.pid}')">
-       <img src="https://sleepercdn.com/content/nfl/players/thumb/${m.pid}.jpg"
-            style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;"
-            onerror="this.style.opacity=0.15">
-       <div style="flex:1;min-width:0;">
-         <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.name}</div>
-         <div style="font-size:9px;color:rgba(255,255,255,0.38);">${m.pos} · ${m.team} · ${m.lastPpg.toFixed(1)} PPG · ${m.seasons}yr</div>
-       </div>
-     </div>`
-  ).join('');
+  res.innerHTML = matches.slice(0, 10).map(m => {
+    const photo = m.pid
+      ? `<img src="https://sleepercdn.com/content/nfl/players/thumb/${m.pid}.jpg" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.opacity=0.15">`
+      : `<div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.07);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,0.3);">${m.pos}</div>`;
+    const tag = m.legacy ? `<span style="color:rgba(56,189,248,0.55);margin-left:4px;">legacy</span>` : '';
+    return `<div class="ct-drop-row" onclick="compsAddPlayer('${m.key}')">
+      ${photo}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.name}${tag}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.38);">${m.pos} · ${m.team} · ${m.lastPpg.toFixed(1)} PPG · ${m.seasons}yr</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── Add / remove ──────────────────────────────────────────────────────────────
-function compsAddPlayer(pid) {
+// key is either "s:PID" (Sleeper player) or "h:GSIS" (historicaldb player)
+function compsAddPlayer(key) {
   if (compsState.players.length >= 5) return;
-  if (compsState.players.some(p => p.pid === pid)) return;
-  const sp = sleeperPlayers?.[pid];
-  if (!sp) return;
-  const idx = compsState.players.length;
-  compsState.players.push({
-    pid,
-    name: sp.full_name ?? sp.name ?? pid,
-    pos:  sp.position ?? 'RB',
-    color: COMPS_COLORS[idx],
-  });
-  const inp = document.getElementById('comps-search');
-  if (inp) inp.value = '';
+  if (compsState.players.some(p => p.key === key)) return;
+
+  let entry = null;
+  if (key.startsWith('s:')) {
+    const pid = key.slice(2);
+    const sp  = sleeperPlayers?.[pid];
+    if (!sp) return;
+    // Try to link to historicaldb for pre-2015 data via name match
+    const gsis = _compsFindGsisByName(sp.full_name ?? sp.name ?? '');
+    entry = {
+      key, pid, gsis,
+      name:      sp.full_name ?? sp.name ?? pid,
+      pos:       sp.position ?? 'RB',
+      entryYear: gsis ? _compsEntryYear(gsis) : null,
+    };
+  } else if (key.startsWith('h:')) {
+    const gsis = key.slice(2);
+    const hp   = historicalDB?.players?.[gsis];
+    if (!hp) return;
+    const pid      = hp.sid || _compsFindSleeperPid(hp.name) || null;
+    const entryYear = (hp.seasons?.length) ? (hp.seasons[0][0] - hp.seasons[0][1]) : null;
+    entry = { key, pid, gsis, name: hp.name, pos: hp.pos, entryYear };
+  }
+  if (!entry) return;
+
+  entry.color = COMPS_COLORS[compsState.players.length];
+  compsState.players.push(entry);
+
+  const inp  = document.getElementById('comps-search');
   const drop = document.getElementById('comps-search-results');
+  if (inp)  inp.value = '';
   if (drop) drop.style.display = 'none';
   compsRender();
+}
+
+// Find a historicaldb gsis_id whose name matches a Sleeper player's name.
+function _compsFindGsisByName(name) {
+  if (!historicalDB?.players) return null;
+  const nk = _compsNorm(name);
+  for (const [gsis, hp] of Object.entries(historicalDB.players)) {
+    if (_compsNorm(hp.name) === nk) return gsis;
+  }
+  return null;
+}
+
+// Get entry year (first NFL season) from historicaldb entry.
+function _compsEntryYear(gsis) {
+  const hp = historicalDB?.players?.[gsis];
+  if (!hp?.seasons?.length) return null;
+  return hp.seasons[0][0] - hp.seasons[0][1]; // first_season - career_year_0indexed
 }
 
 function compsRemovePlayer(pid) {
@@ -11550,16 +11635,49 @@ function compsToggleAvg() {
 }
 
 // ── Career arc helper ─────────────────────────────────────────────────────────
-function compsGetArc(pid) {
-  const szns = (careerDB[pid] ?? [])
-    .filter(s => (s.games ?? 0) >= 4)
-    .sort((a, b) => a.season - b.season);
-  return szns.map((s, i) => ({
-    yr:     i + 1,      // 1-indexed for display (Yr 1, Yr 2…)
-    season: s.season,
-    ppg:    s.ppg,
-    games:  s.games ?? 0,
-  }));
+// Returns [{yr, season, ppg, games}] sorted by season.
+// yr = career year relative to player's NFL entry (1-indexed).
+// Sources: historicaldb (2009-2014) + careerDB (2015+), merged and deduped.
+function compsGetArc(player) {
+  const seasons = [];
+
+  // Source 1: historicaldb pre-2015 arc
+  if (player.gsis && historicalDB?.players?.[player.gsis]) {
+    const hp = historicalDB.players[player.gsis];
+    for (const s of (hp.seasons ?? [])) {
+      // Compact format: [year, careerYear_0indexed, games, ppg]
+      seasons.push({ season: s[0], yr: s[1] + 1, games: s[2], ppg: s[3] });
+    }
+  }
+
+  // Source 2: careerDB 2015+ arc (keyed by Sleeper pid)
+  if (player.pid && careerDB[player.pid]) {
+    const entryYear = player.entryYear ?? null;
+    for (const s of (careerDB[player.pid] ?? [])) {
+      if ((s.games ?? 0) < 4) continue;
+      if (seasons.some(h => h.season === s.season)) continue; // don't duplicate
+      const yr = entryYear ? (s.season - entryYear + 1) : null;
+      seasons.push({ season: s.season, yr, games: s.games ?? 0, ppg: s.ppg });
+    }
+  }
+
+  // Sort by season
+  seasons.sort((a, b) => a.season - b.season);
+  if (!seasons.length) return [];
+
+  // Fill in missing yr values (careerDB entries without a known entryYear)
+  // by extrapolating from the earliest entry that has yr set.
+  const firstWithYr = seasons.find(s => s.yr !== null);
+  if (firstWithYr) {
+    seasons.forEach(s => {
+      if (s.yr === null) s.yr = firstWithYr.yr + (s.season - firstWithYr.season);
+    });
+  } else {
+    // No entry year known at all — fall back to array index
+    seasons.forEach((s, i) => { s.yr = i + 1; });
+  }
+
+  return seasons.filter(s => s.yr > 0 && s.ppg > 0);
 }
 
 // ── Position average arc ──────────────────────────────────────────────────────
@@ -11602,7 +11720,7 @@ function compsRenderSidebar() {
     return;
   }
   el.innerHTML = compsState.players.map(p => {
-    const arc  = compsGetArc(p.pid);
+    const arc  = compsGetArc(p);
     const peak = arc.length ? Math.max(...arc.map(a => a.ppg)).toFixed(1) : '—';
     const szns = arc.length;
     return `<div class="ct-player-chip" style="border-left-color:${p.color};">
@@ -11649,7 +11767,7 @@ function compsRenderChart() {
 
   // ── Per-player traces ──────────────────────────────────────────────────────
   for (const p of compsState.players) {
-    const arc = compsGetArc(p.pid);
+    const arc = compsGetArc(p);
     if (!arc.length) continue;
 
     const xs     = arc.map(a => a.yr);
@@ -11721,7 +11839,7 @@ function compsRenderStats() {
   let totalSeasons = 0;
 
   for (const p of compsState.players) {
-    const arc = compsGetArc(p.pid);
+    const arc = compsGetArc(p);
     if (!arc.length) continue;
     totalSeasons += arc.length;
     const peak = Math.max(...arc.map(a => a.ppg));
@@ -11736,7 +11854,7 @@ function compsRenderStats() {
   }
 
   const ppgRange = (() => {
-    const allPpg = compsState.players.flatMap(p => compsGetArc(p.pid).map(a => a.ppg));
+    const allPpg = compsState.players.flatMap(p => compsGetArc(p).map(a => a.ppg));
     if (!allPpg.length) return '—';
     return `${Math.min(...allPpg).toFixed(1)}–${Math.max(...allPpg).toFixed(1)}`;
   })();
