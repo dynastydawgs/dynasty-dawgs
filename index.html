@@ -3237,6 +3237,18 @@
 @keyframes ctFadeIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Tier reference dropdown */
+.ct-tier-select {
+  width:100%; background:rgba(56,189,248,0.05); border:1px solid rgba(56,189,248,0.18);
+  border-radius:5px; padding:7px 10px; font-family:var(--mono); font-size:10px;
+  color:rgba(255,255,255,0.75); outline:none; cursor:pointer;
+  transition:border-color 0.2s; appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(56,189,248,0.5)'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 10px center;
+}
+.ct-tier-select:focus { border-color:rgba(56,189,248,0.45); }
+.ct-tier-select option, .ct-tier-select optgroup { background:#0c1422; color:rgba(255,255,255,0.8); }
+
 /* Time scale toggle buttons */
 .ct-scale-btn {
   flex:1; padding:6px 0; font-family:var(--mono); font-size:8.5px; letter-spacing:0.12em;
@@ -3953,10 +3965,34 @@
 
           <hr class="ct-divider">
 
-          <!-- Position-average toggle -->
-          <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="compsToggleAvg()" id="comps-avg-toggle">
-            <div id="comps-avg-dot" style="width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);flex-shrink:0;transition:all 0.2s;"></div>
-            <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:0.1em;">SHOW POSITION AVG</div>
+          <!-- Fantasy tier reference line -->
+          <div>
+            <div class="ct-section-lbl" style="margin-bottom:8px;">TIER REFERENCE</div>
+            <select id="comps-tier-select" class="ct-tier-select" onchange="compsSetTierRef(this.value)">
+              <option value="">— OFF —</option>
+              <optgroup label="QB">
+                <option value="QB1">QB1  (top 12)</option>
+                <option value="QB2">QB2  (13–24)</option>
+              </optgroup>
+              <optgroup label="RB">
+                <option value="RB1">RB1  (top 12)</option>
+                <option value="RB2">RB2  (13–24)</option>
+                <option value="RB3">RB3  (25–36)</option>
+              </optgroup>
+              <optgroup label="WR">
+                <option value="WR1">WR1  (top 12)</option>
+                <option value="WR2">WR2  (13–24)</option>
+                <option value="WR3">WR3  (25–36)</option>
+              </optgroup>
+              <optgroup label="TE">
+                <option value="TE1">TE1  (top 12)</option>
+                <option value="TE2">TE2  (13–24)</option>
+              </optgroup>
+              <optgroup label="FLEX">
+                <option value="FLEX">FLEX (top 36 non-QB)</option>
+              </optgroup>
+            </select>
+            <div id="ct-tier-val" style="display:none;margin-top:5px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.35);"></div>
           </div>
         </div>
 
@@ -11520,7 +11556,8 @@ function switchMainView(view, btn) {
 // § 19  CAREER COMPS — multi-player trajectory chart (DARKO-style)
 // ─────────────────────────────────────────────────────────────────────────────
 const COMPS_COLORS = ['#38bdf8', '#f43f5e', '#4ade80', '#fbbf24', '#a78bfa'];
-let compsState = { players: [], showAvg: false, timeScale: 'seasons', smoothing: 8, showDots: true };
+let compsState = { players: [], tierRef: '', timeScale: 'seasons', smoothing: 8, showDots: true };
+let _compsTierCache = {}; // tierKey → computed avg ppg
 
 // ── Name normaliser (mirrors _bosNorm) ───────────────────────────────────────
 const _compsNorm = n => (n ?? '').toLowerCase()
@@ -11701,10 +11738,59 @@ function _rollingAvg(vals, win) {
   });
 }
 
-function compsToggleAvg() {
-  compsState.showAvg = !compsState.showAvg;
-  const dot = document.getElementById('comps-avg-dot');
-  if (dot) dot.style.background = compsState.showAvg ? 'rgba(255,255,255,0.55)' : 'transparent';
+// ── Fantasy tier reference line ───────────────────────────────────────────────
+const _TIER_DEFS = {
+  QB1:  { pos:'QB',   lo:0,  hi:12, label:'QB1 avg'  },
+  QB2:  { pos:'QB',   lo:12, hi:24, label:'QB2 avg'  },
+  RB1:  { pos:'RB',   lo:0,  hi:12, label:'RB1 avg'  },
+  RB2:  { pos:'RB',   lo:12, hi:24, label:'RB2 avg'  },
+  RB3:  { pos:'RB',   lo:24, hi:36, label:'RB3 avg'  },
+  WR1:  { pos:'WR',   lo:0,  hi:12, label:'WR1 avg'  },
+  WR2:  { pos:'WR',   lo:12, hi:24, label:'WR2 avg'  },
+  WR3:  { pos:'WR',   lo:24, hi:36, label:'WR3 avg'  },
+  TE1:  { pos:'TE',   lo:0,  hi:12, label:'TE1 avg'  },
+  TE2:  { pos:'TE',   lo:12, hi:24, label:'TE2 avg'  },
+  FLEX: { pos:'FLEX', lo:36, hi:72, label:'FLEX avg'  },
+};
+
+function computeTierAvgPpg(tierKey) {
+  if (_compsTierCache[tierKey] !== undefined) return _compsTierCache[tierKey];
+  const def = _TIER_DEFS[tierKey];
+  if (!def) return (_compsTierCache[tierKey] = null);
+
+  const RECENT = new Set([2023, 2024, 2025]);
+  const MIN_GAMES = 8;
+  const positions = def.pos === 'FLEX' ? ['RB','WR','TE'] : [def.pos];
+  const ppgs = [];
+
+  for (const [pid, szns] of Object.entries(careerDB ?? {})) {
+    const sp = sleeperPlayers?.[pid];
+    if (!sp || !positions.includes(sp.position)) continue;
+    const recent = szns.filter(s => RECENT.has(s.season) && (s.games ?? 0) >= MIN_GAMES);
+    if (!recent.length) continue;
+    ppgs.push(recent.reduce((s, v) => s + v.ppg, 0) / recent.length);
+  }
+
+  ppgs.sort((a, b) => b - a);
+  const slice = ppgs.slice(def.lo, def.hi);
+  const avg = slice.length ? Math.round(slice.reduce((s, v) => s + v, 0) / slice.length * 10) / 10 : null;
+  _compsTierCache[tierKey] = avg;
+  return avg;
+}
+
+function compsSetTierRef(val) {
+  compsState.tierRef = val || '';
+  _compsTierCache = {}; // reset cache on change (in case careerDB refreshed)
+  const valEl = document.getElementById('ct-tier-val');
+  if (valEl) {
+    if (val) {
+      const avg = computeTierAvgPpg(val);
+      valEl.style.display = '';
+      valEl.textContent = avg !== null ? `≈ ${avg} PPG / game (3yr avg)` : 'insufficient data';
+    } else {
+      valEl.style.display = 'none';
+    }
+  }
   compsRenderChart();
 }
 
@@ -11778,6 +11864,25 @@ function compsGetArc(player) {
 
 // ── Position average arc ──────────────────────────────────────────────────────
 // Median PPG at each career year for the given position (from careerDB).
+// Pushes a flat dashed reference line trace for the selected fantasy tier.
+// Works for both SEASONS (x = career year) and GAMES (x = career game #) charts
+// since we use `xref: 'paper'` to span the full chart width regardless of scale.
+function _compsPushTierTrace(traces, tierKey) {
+  if (!tierKey) return;
+  const avg = computeTierAvgPpg(tierKey);
+  if (avg === null) return;
+  const def = _TIER_DEFS[tierKey];
+  traces.push({
+    type: 'scatter', mode: 'lines', name: `${def.label} (${avg} PPG)`,
+    // Use two x-endpoints that cover all real data ranges in both modes
+    x: [0, 9999],
+    y: [avg, avg],
+    line: { color: 'rgba(255,255,255,0.28)', width: 1.5, dash: 'dash' },
+    hovertemplate: `<b>${def.label}</b><br>${avg} PPG avg<extra></extra>`,
+    showlegend: true,
+  });
+}
+
 function compsPositionAvgArc(pos) {
   const byYr = {};  // yr (1-indexed) → [ppg values]
   for (const [pid, szns] of Object.entries(careerDB ?? {})) {
@@ -11919,6 +12024,9 @@ async function _compsRenderGamesAsync() {
   if (gen !== _compsGameRenderGen) return;
   const traces = [];
 
+  // Fantasy tier reference line (flat horizontal)
+  _compsPushTierTrace(traces, compsState.tierRef);
+
   for (let i = 0; i < compsState.players.length; i++) {
     const p   = compsState.players[i];
     const arc = arcs[i];
@@ -12016,22 +12124,8 @@ function _compsRenderSeasons() {
 
   const traces = [];
 
-  // ── Position average reference line ──────────────────────────────────────
-  if (compsState.showAvg && compsState.players.length) {
-    // Use position of the first player as the reference
-    const refPos = compsState.players[0].pos;
-    const avg    = compsPositionAvgArc(refPos);
-    if (avg.length >= 2) {
-      traces.push({
-        type: 'scatter', mode: 'lines', name: `Avg ${refPos}`,
-        x: avg.map(a => a.yr),
-        y: avg.map(a => +a.ppg.toFixed(2)),
-        line: { color: 'rgba(255,255,255,0.20)', width: 1.5, dash: 'dot', shape: 'spline', smoothing: 1.0 },
-        hoverinfo: 'skip',
-        showlegend: true,
-      });
-    }
-  }
+  // ── Fantasy tier reference line ──────────────────────────────────────────
+  _compsPushTierTrace(traces, compsState.tierRef);
 
   // ── Per-player traces ──────────────────────────────────────────────────────
   for (const p of compsState.players) {
