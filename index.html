@@ -11864,22 +11864,30 @@ function compsGetArc(player) {
 
 // ── Position average arc ──────────────────────────────────────────────────────
 // Median PPG at each career year for the given position (from careerDB).
-// Pushes a flat dashed reference line trace for the selected fantasy tier.
-// Works for both SEASONS (x = career year) and GAMES (x = career game #) charts
-// since we use `xref: 'paper'` to span the full chart width regardless of scale.
-function _compsPushTierTrace(traces, tierKey) {
+// Pushes a flat dashed reference line for the selected fantasy tier.
+// Uses a layout SHAPE (xref:'paper') so it never inflates the x-axis range,
+// plus a null-data dummy trace just to get a legend entry.
+function _compsPushTierTrace(traces, tierKey, layoutShapes) {
   if (!tierKey) return;
   const avg = computeTierAvgPpg(tierKey);
   if (avg === null) return;
   const def = _TIER_DEFS[tierKey];
-  traces.push({
-    type: 'scatter', mode: 'lines', name: `${def.label} (${avg} PPG)`,
-    // Use two x-endpoints that cover all real data ranges in both modes
-    x: [0, 9999],
-    y: [avg, avg],
+
+  // Layout shape: xref:'paper' spans full chart width without touching x autorange
+  layoutShapes.push({
+    type: 'line',
+    xref: 'paper', x0: 0, x1: 1,
+    yref: 'y',     y0: avg, y1: avg,
     line: { color: 'rgba(255,255,255,0.28)', width: 1.5, dash: 'dash' },
-    hovertemplate: `<b>${def.label}</b><br>${avg} PPG avg<extra></extra>`,
-    showlegend: true,
+  });
+
+  // Null-data trace purely for the legend entry (no axis impact)
+  traces.push({
+    type: 'scatter', mode: 'lines',
+    name: `${def.label} (${avg} PPG)`,
+    x: [null], y: [null],
+    line: { color: 'rgba(255,255,255,0.28)', width: 1.5, dash: 'dash' },
+    hoverinfo: 'skip', showlegend: true,
   });
 }
 
@@ -12023,9 +12031,10 @@ async function _compsRenderGamesAsync() {
   // A newer call started while we were fetching — discard this result
   if (gen !== _compsGameRenderGen) return;
   const traces = [];
+  const tierShapes = [];
 
-  // Fantasy tier reference line (flat horizontal)
-  _compsPushTierTrace(traces, compsState.tierRef);
+  // Fantasy tier reference line (flat horizontal, shape-based so it doesn't affect x-axis range)
+  _compsPushTierTrace(traces, compsState.tierRef, tierShapes);
 
   for (let i = 0; i < compsState.players.length; i++) {
     const p   = compsState.players[i];
@@ -12105,6 +12114,7 @@ async function _compsRenderGamesAsync() {
       bordercolor: 'rgba(255,255,255,0.08)', borderwidth: 1,
       font: { size: 9, family: "'DM Mono', monospace", color: 'rgba(255,255,255,0.65)' },
     },
+    shapes: tierShapes,
     margin: { l: 52, r: 20, t: 12, b: 52 },
     hovermode: 'closest',
     hoverlabel: { bgcolor: '#0d1827', bordercolor: 'rgba(56,189,248,0.3)', font: { family: "'DM Mono', monospace", size: 10 } },
@@ -12123,9 +12133,10 @@ function _compsRenderSeasons() {
   }
 
   const traces = [];
+  const tierShapes = [];
 
   // ── Fantasy tier reference line ──────────────────────────────────────────
-  _compsPushTierTrace(traces, compsState.tierRef);
+  _compsPushTierTrace(traces, compsState.tierRef, tierShapes);
 
   // ── Per-player traces ──────────────────────────────────────────────────────
   for (const p of compsState.players) {
@@ -12179,6 +12190,7 @@ function _compsRenderSeasons() {
       font: { size: 9, family: "'DM Mono', monospace", color: 'rgba(255,255,255,0.65)' },
       orientation: 'v', traceorder: 'normal',
     },
+    shapes: tierShapes,
     margin: { l: 52, r: 20, t: 12, b: 52 },
     hovermode: 'closest',
     hoverlabel: {
