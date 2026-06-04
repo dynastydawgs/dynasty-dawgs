@@ -1766,6 +1766,32 @@
   .mb-clause { font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 99px; letter-spacing: 0.06em; line-height: 1.5; }
   .mb-clause.always  { background: rgba(56,196,232,0.10); color: var(--blue);   border: 1px solid rgba(56,196,232,0.25); }
   .mb-clause.cond    { background: rgba(245,158,66,0.10);  color: var(--orange); border: 1px solid rgba(245,158,66,0.25); }
+
+  /* ── Dynasty Tier Classification Table ── */
+  .mb-tier-panel { margin-top: 32px; background: var(--surface); border: 1px solid rgba(56,189,248,0.18); border-radius: var(--radius-lg); padding: 20px; }
+  .mb-tier-panel-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+  .mb-tier-panel-badge { font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em; padding: 3px 10px; border-radius: 99px; background: rgba(56,189,248,0.12); color: var(--blue); border: 1px solid rgba(56,189,248,0.28); text-transform: uppercase; white-space: nowrap; }
+  .mb-tier-panel-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .mb-tier-panel-sub { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+  .mb-tier-header-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 4px; }
+  .mb-tier-col-lbl { font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.28); line-height: 1.3; }
+  .mb-tier-col-lbl.col-name { flex: 1; min-width: 0; }
+  .mb-tier-col-lbl.col-stars { width: 80px; flex-shrink: 0; text-align: center; }
+  .mb-tier-col-lbl.col-action { width: 68px; flex-shrink: 0; text-align: center; }
+  .mb-tier-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); border-radius: 4px; transition: background .12s; }
+  .mb-tier-row:last-child { border-bottom: none; }
+  .mb-tier-row:hover { background: rgba(255,255,255,0.03); }
+  .mb-tier-pill { font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: 0.07em; padding: 3px 8px; border-radius: 4px; border: 1px solid transparent; text-transform: uppercase; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mb-tier-stars-cell { width: 80px; flex-shrink: 0; text-align: center; font-size: 11px; letter-spacing: 1px; line-height: 1; }
+  .mb-tier-action-badge { width: 68px; flex-shrink: 0; text-align: center; font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: 0.1em; padding: 3px 0; border-radius: 4px; border: 1px solid transparent; }
+  /* Action badge colours */
+  .mba-buy     { background: rgba(74,222,128,0.13);  color: #4ade80;  border-color: rgba(74,222,128,0.28);  }
+  .mba-sell    { background: rgba(248,113,113,0.14); color: #f87171;  border-color: rgba(248,113,113,0.28); }
+  .mba-hold    { background: rgba(56,189,248,0.10);  color: #38bdf8;  border-color: rgba(56,189,248,0.22);  }
+  .mba-monitor { background: rgba(251,191,36,0.11);  color: #fbbf24;  border-color: rgba(251,191,36,0.24);  }
+  .mba-cut     { background: rgba(100,116,139,0.10); color: #64748b;  border-color: rgba(100,116,139,0.20); }
+  /* Inline roster-row action signal tag */
+  .bp-rp-action { font-family: var(--mono); font-size: 6.5px; font-weight: 700; letter-spacing: 0.08em; padding: 1px 5px; border-radius: 3px; border: 1px solid transparent; flex-shrink: 0; white-space: nowrap; }
   .mb-clause.boost   { background: rgba(45,214,168,0.10);  color: var(--green);  border: 1px solid rgba(45,214,168,0.25); }
   .mb-clause.risk    { background: rgba(255,92,114,0.10);  color: var(--red);    border: 1px solid rgba(255,92,114,0.22); }
   .mb-clause.pos     { background: rgba(168,85,247,0.10);  color: #c084fc;       border: 1px solid rgba(168,85,247,0.25); }
@@ -15345,29 +15371,32 @@ function _bpCornerstones(rosterId) {
 
 // Swing players — Rising Star / Prove It / Cliff Risk with PPG, tier, reason
 // ── Roster Profile Classifier ─────────────────────────────────────────────────
+// prod  = Production Upside 1–5 (how much weekly/season scoring ceiling remains)
+// val   = Value Increase Upside 1–5 (how much dynasty trade value can still rise)
+// action = BUY | SELL | HOLD | MONITOR | CUT
 const _RP_LABELS = {
-  'UNTOUCHABLE':       { color:'#f5c842', bg:'rgba(245,200,66,0.15)',   border:'rgba(245,200,66,0.30)',   tier:'franchise' },
-  'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise' },
-  'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran'   },
-  'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect'  },
-  'RISING STAR':         { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending' },
-  'BREAKOUT CANDIDATE':  { color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending' },
-  'MAKE-OR-BREAK':       { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending' },
-  'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect'  },
-  'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star'      },
-  'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)', tier:'star'      },
-  'BREAKOUT STAR':     { color:'#f472b6', bg:'rgba(244,114,182,0.13)', border:'rgba(244,114,182,0.28)', tier:'star'      },
-  'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)', tier:'prospect'  },
-  'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',  tier:'prospect'  },
-  'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)', tier:'prospect'  },
-  'VETERAN PRODUCER':  { color:'#fdba74', bg:'rgba(253,186,116,0.12)', border:'rgba(253,186,116,0.24)', tier:'veteran'   },
-  'STEADY VETERAN':    { color:'#94a3b8', bg:'rgba(148,163,184,0.11)', border:'rgba(148,163,184,0.22)', tier:'veteran'   },
-  'STEADY CONTRIBUTOR':{ color:'#64748b', bg:'rgba(100,116,139,0.11)', border:'rgba(100,116,139,0.20)', tier:'veteran'   },
-  'DEVELOPMENTAL':     { color:'#6ee7b7', bg:'rgba(110,231,183,0.10)', border:'rgba(110,231,183,0.20)', tier:'prospect'  },
-  'AGING VET':         { color:'#f87171', bg:'rgba(248,113,113,0.12)', border:'rgba(248,113,113,0.24)', tier:'veteran'   },
-  'HANDCUFF':          { color:'#38bdf8', bg:'rgba(56,189,248,0.11)',  border:'rgba(56,189,248,0.22)',  tier:'depth'     },
-  'DEPTH PIECE':       { color:'#475569', bg:'rgba(71,85,105,0.12)',   border:'rgba(71,85,105,0.22)',   tier:'depth'     },
-  'BACKUP':            { color:'#334155', bg:'rgba(51,65,85,0.12)',    border:'rgba(51,65,85,0.20)',    tier:'depth'     },
+  'UNTOUCHABLE':       { color:'#f5c842', bg:'rgba(245,200,66,0.15)',   border:'rgba(245,200,66,0.30)',   tier:'franchise', prod:5, val:1, action:'HOLD'    },
+  'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise', prod:5, val:2, action:'HOLD'    },
+  'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran',   prod:4, val:1, action:'SELL'    },
+  'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect',  prod:2, val:5, action:'BUY'     },
+  'RISING STAR':       { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending', prod:3, val:4, action:'BUY'     },
+  'BREAKOUT CANDIDATE':{ color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending', prod:2, val:4, action:'BUY'     },
+  'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending', prod:2, val:3, action:'MONITOR' },
+  'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect',  prod:1, val:5, action:'BUY'     },
+  'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star',      prod:4, val:3, action:'HOLD'    },
+  'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)',  tier:'star',      prod:4, val:2, action:'HOLD'    },
+  'BREAKOUT STAR':     { color:'#f472b6', bg:'rgba(244,114,182,0.13)', border:'rgba(244,114,182,0.28)',  tier:'star',      prod:3, val:5, action:'BUY'     },
+  'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)',  tier:'prospect',  prod:1, val:4, action:'BUY'     },
+  'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',   tier:'prospect',  prod:1, val:3, action:'MONITOR' },
+  'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)',  tier:'prospect',  prod:1, val:2, action:'MONITOR' },
+  'VETERAN PRODUCER':  { color:'#fdba74', bg:'rgba(253,186,116,0.12)', border:'rgba(253,186,116,0.24)',  tier:'veteran',   prod:4, val:1, action:'SELL'    },
+  'STEADY VETERAN':    { color:'#94a3b8', bg:'rgba(148,163,184,0.11)', border:'rgba(148,163,184,0.22)',  tier:'veteran',   prod:3, val:1, action:'SELL'    },
+  'STEADY CONTRIBUTOR':{ color:'#64748b', bg:'rgba(100,116,139,0.11)', border:'rgba(100,116,139,0.20)',  tier:'veteran',   prod:3, val:1, action:'HOLD'    },
+  'DEVELOPMENTAL':     { color:'#6ee7b7', bg:'rgba(110,231,183,0.10)', border:'rgba(110,231,183,0.20)',  tier:'prospect',  prod:1, val:3, action:'HOLD'    },
+  'AGING VET':         { color:'#f87171', bg:'rgba(248,113,113,0.12)', border:'rgba(248,113,113,0.24)',  tier:'veteran',   prod:2, val:1, action:'SELL'    },
+  'HANDCUFF':          { color:'#38bdf8', bg:'rgba(56,189,248,0.11)',  border:'rgba(56,189,248,0.22)',   tier:'depth',     prod:2, val:2, action:'HOLD'    },
+  'DEPTH PIECE':       { color:'#475569', bg:'rgba(71,85,105,0.12)',   border:'rgba(71,85,105,0.22)',    tier:'depth',     prod:1, val:1, action:'CUT'     },
+  'BACKUP':            { color:'#334155', bg:'rgba(51,65,85,0.12)',    border:'rgba(51,65,85,0.20)',     tier:'depth',     prod:1, val:1, action:'CUT'     },
 };
 
 function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
@@ -16497,6 +16526,30 @@ function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
     if (!sellReason && posPct <= 0.22 && posRank > 5 && val >= 2800) {
       sellReason = `Surplus ${pos} — this team already ranks top-${Math.round(posPct * 100) || 22}% at ${pos}. Redirect the value.`;
       sellType   = 'surplus';
+    }
+
+    // Tier-based sell: classification says action=SELL (peak prod, value declining) with tradeable value
+    if (!sellReason && val >= 1500) {
+      const tierLabel = (() => {
+        const basePpg = projectionCache[pid]?.basePpg ?? 0;
+        const sp2 = sleeperPlayers[pid]; const yExp = sp2?.years_exp ?? 99;
+        const posAvg = { QB:20, RB:11, WR:10, TE:8 };
+        return _bpClassifyPlayer(fc, age, basePpg, true, yExp, posAvg);
+      })();
+      const tierMeta = _RP_LABELS[tierLabel];
+      if (tierMeta?.action === 'SELL') {
+        const tierDesc = tierLabel === 'VETERAN STAR'
+          ? `Classified as ${tierLabel} — high production but value is at or near its ceiling. Sell while the market is strong.`
+          : tierLabel === 'VETERAN PRODUCER'
+          ? `Classified as ${tierLabel} — currently producing but dynasty value is declining. Best return window is now.`
+          : tierLabel === 'AGING VET'
+          ? `Classified as ${tierLabel} — limited upside on both production and value. Sell before further erosion.`
+          : tierLabel === 'STEADY VETERAN'
+          ? `Classified as ${tierLabel} — reliable but low dynasty ceiling. Value won't rise; redirect to higher-upside assets.`
+          : `Classified as ${tierLabel} — production and value both trending down. Sell before the cliff arrives.`;
+        sellReason = tierDesc;
+        sellType   = 'tier_sell';
+      }
     }
 
     if (!sellReason) return null;
@@ -18550,6 +18603,10 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
            <span style="color:var(--text-dim);font-size:8px;margin:0 1px;">→</span>
            <span class="bp-rp-label" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${p.label}</span>`
         : `<span class="bp-rp-label" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${p.label}</span>`;
+      // Action signal badge — only show actionable signals (not HOLD/CUT to reduce noise)
+      const _actionColors = { BUY:'rgba(74,222,128,0.13):#4ade80:rgba(74,222,128,0.28)', SELL:'rgba(248,113,113,0.14):#f87171:rgba(248,113,113,0.28)', MONITOR:'rgba(251,191,36,0.11):#fbbf24:rgba(251,191,36,0.24)' };
+      const _ac = lm.action && _actionColors[lm.action] ? lm.action : null;
+      const actionBadge = _ac ? (() => { const [bg,col,bdr] = _actionColors[_ac].split(':'); return `<span class="bp-rp-action" style="background:${bg};color:${col};border-color:${bdr};">${_ac}</span>`; })() : '';
       const starterDot = p.isStarter ? `<span style="width:4px;height:4px;border-radius:50%;background:rgba(74,222,128,0.6);flex-shrink:0;margin-right:1px;" title="Starter"></span>` : '';
       return `<div class="bp-rp-row">
         <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;">
@@ -18557,6 +18614,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         <span class="bp-rp-pos" style="color:${pc};">${p.pos}</span>
         <span class="bp-rp-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
         ${labelHTML}
+        ${actionBadge}
         ${oRankStr ? `<span class="bp-rp-rank">${oRankStr}</span>` : ''}
         ${ppgStr   ? `<span class="bp-rp-ppg">${ppgStr}</span>`   : ''}
       </div>`;
@@ -20748,6 +20806,70 @@ function _mbInjSort(key) {
   _mbRenderInjTable(_mbPos);
 }
 
+// ── Dynasty Tier Classification Table ────────────────────────────────────────
+function _mbTierTableHtml() {
+  const stars = (n, color) => {
+    let s = '';
+    for (let i = 1; i <= 5; i++) s += `<span style="color:${i <= n ? color : 'rgba(255,255,255,0.12)'}">${i <= n ? '★' : '★'}</span>`;
+    return s;
+  };
+
+  // Display order: franchise first, then star, ascending, prospect, veteran, depth
+  const tierOrder = [
+    ['franchise', 'Franchise Assets'],
+    ['star',      'Star Producers'],
+    ['ascending', 'Ascending'],
+    ['prospect',  'Prospects'],
+    ['veteran',   'Veterans'],
+    ['depth',     'Depth'],
+  ];
+
+  const actionClass = { BUY:'mba-buy', SELL:'mba-sell', HOLD:'mba-hold', MONITOR:'mba-monitor', CUT:'mba-cut' };
+
+  const actionLegend = Object.entries(actionClass).map(([a, cls]) =>
+    `<span class="mb-tier-action-badge ${cls}" style="width:auto;padding:2px 8px;display:inline-block;">${a}</span>`
+  ).join('');
+
+  let html = `
+    <div class="mb-tier-panel">
+      <div class="mb-tier-panel-head">
+        <span class="mb-tier-panel-badge">Strategy Guide</span>
+        <div>
+          <div class="mb-tier-panel-title">Dynasty Tier Classifications</div>
+          <div class="mb-tier-panel-sub">Production Upside · Value Increase Upside · Trade Action Signal</div>
+        </div>
+      </div>
+      <div class="mb-tier-header-row">
+        <div class="mb-tier-col-lbl col-name">Player Category</div>
+        <div class="mb-tier-col-lbl col-stars">Production<br>Upside</div>
+        <div class="mb-tier-col-lbl col-stars">Value Increase<br>Upside</div>
+        <div class="mb-tier-col-lbl col-action">Action<br>Signal</div>
+      </div>`;
+
+  for (const [tierKey, tierLabel] of tierOrder) {
+    const entries = Object.entries(_RP_LABELS).filter(([, lm]) => lm.tier === tierKey);
+    if (!entries.length) continue;
+    html += `<div style="font-family:var(--mono);font-size:7px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.22);padding:10px 6px 4px;margin-top:4px;border-top:1px solid rgba(255,255,255,0.05);">${tierLabel}</div>`;
+    for (const [key, lm] of entries) {
+      const ac = actionClass[lm.action] ?? 'mba-hold';
+      html += `<div class="mb-tier-row">
+        <div class="mb-tier-pill" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${key}</div>
+        <div class="mb-tier-stars-cell">${stars(lm.prod, '#f5c842')}</div>
+        <div class="mb-tier-stars-cell">${stars(lm.val, '#38bdf8')}</div>
+        <div class="mb-tier-action-badge ${ac}">${lm.action}</div>
+      </div>`;
+    }
+  }
+
+  html += `
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.28);letter-spacing:0.1em;margin-right:4px;">LEGEND</span>
+        ${actionLegend}
+      </div>
+    </div>`;
+  return html;
+}
+
 // ── Main render ───────────────────────────────────────────────────────────────
 
 function renderModelBuilding() {
@@ -20760,11 +20882,13 @@ function renderModelBuilding() {
 
   const stagesHtml  = _mbStagesHtml(_mbPos);
   const weightsHtml = _mbWeightsHtml(_mbPos);
+  const tierHtml    = _mbTierTableHtml();
 
   root.innerHTML = `
     <div class="mb-pos-tabs">${posTabs}</div>
     ${stagesHtml}
-    ${weightsHtml}`;
+    ${weightsHtml}
+    ${tierHtml}`;
 
 }
 
