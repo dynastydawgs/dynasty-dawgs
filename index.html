@@ -15389,12 +15389,12 @@ const _RP_LABELS = {
   // Rank ≤100, age ≤29, yr 4+: producing at peak, market knows it
   'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)',  tier:'star',      prod:4,   val:1.5, action:'HOLD'    },
   // ── Ascending ──────────────────────────────────────────────────────────────
-  // Rank ≤100, performing above avg yr 1–2: market knows them, ceiling is PROVEN STAR territory
-  'RISING STAR':       { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending', prod:3,   val:2.5, action:'BUY'     },
-  // Rank ≤100, yr 1–2, lower production bar: realistic ceiling ~4,500-5,000 (PROVEN STAR), not CORNERSTONE
-  'BREAKOUT CANDIDATE':{ color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending', prod:2.5, val:2.5, action:'BUY'     },
-  // Rank ≤125, yr 2, do-or-die: uncertain outcome caps value ceiling
-  'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending', prod:2.5, val:2.5, action:'MONITOR' },
+  // Rank ≤100, performing above avg yr 1–2: producing → market partially priced in → ~$450-600 expected gain
+  'RISING STAR':       { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending', prod:3,   val:2,   action:'BUY'     },
+  // Rank ≤100, yr 1–2, lower bar: ~$350-600 expected gain — real but modest
+  'BREAKOUT CANDIDATE':{ color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending', prod:2.5, val:2,   action:'BUY'     },
+  // Rank ≤125, yr 2, do-or-die: uncertain — could gain or lose value in equal measure
+  'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending', prod:2.5, val:2,   action:'MONITOR' },
   // ── Prospects ──────────────────────────────────────────────────────────────
   // Top-36 rookies: already fully priced in for their dynasty rank, real production potential
   'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect',  prod:3.5, val:3,   action:'BUY'     },
@@ -15402,9 +15402,12 @@ const _RP_LABELS = {
   'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect',  prod:2.5, val:3,   action:'BUY'     },
   // Rank ≤125, age ≤24: realistic ceiling PRIME PRODUCER territory (~3,500-4,500)
   'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)',  tier:'prospect',  prod:1.5, val:2.5, action:'BUY'     },
-  'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',   tier:'prospect',  prod:1,   val:3,   action:'MONITOR' },
-  'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)',  tier:'prospect',  prod:1,   val:2,   action:'MONITOR' },
-  'DEVELOPMENTAL':     { color:'#6ee7b7', bg:'rgba(110,231,183,0.10)', border:'rgba(110,231,183,0.20)',  tier:'prospect',  prod:1,   val:3,   action:'HOLD'    },
+  // Rank ≤175, age ≤23: speculative cheapies — lower hit rate than PROMISING UPSIDE → ~$400-500 expected
+  'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',   tier:'prospect',  prod:1,   val:2,   action:'MONITOR' },
+  // High variance stash — low probability ceiling → ~$200-250 expected gain
+  'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)',  tier:'prospect',  prod:1,   val:1.5, action:'MONITOR' },
+  // Stash — low hit rate, small probability-weighted expected gain → ~$300-400
+  'DEVELOPMENTAL':     { color:'#6ee7b7', bg:'rgba(110,231,183,0.10)', border:'rgba(110,231,183,0.20)',  tier:'prospect',  prod:1,   val:1.5, action:'HOLD'    },
   // ── Veterans ───────────────────────────────────────────────────────────────
   'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran',   prod:4,   val:1,   action:'SELL'    },
   'VETERAN PRODUCER':  { color:'#fdba74', bg:'rgba(253,186,116,0.12)', border:'rgba(253,186,116,0.24)',  tier:'veteran',   prod:4,   val:1,   action:'SELL'    },
