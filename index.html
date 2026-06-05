@@ -15383,23 +15383,23 @@ const _RP_LABELS = {
   'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise', prod:5,   val:1.5, action:'HOLD'    },
   // ── Star Producers ─────────────────────────────────────────────────────────
   // Top-36, age ≤25, yr 1+: producing and ascending — market hasn't priced full ceiling
-  'BREAKOUT STAR':     { color:'#f472b6', bg:'rgba(244,114,182,0.13)', border:'rgba(244,114,182,0.28)',  tier:'star',      prod:3.5, val:4,   action:'BUY'     },
-  // Rank ≤50, age ≤31, proven: moderate room left as rank moves from 30s→20s
-  'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star',      prod:4,   val:2.5, action:'HOLD'    },
+  'BREAKOUT STAR':     { color:'#f472b6', bg:'rgba(244,114,182,0.13)', border:'rgba(244,114,182,0.28)',  tier:'star',      prod:3.5, val:2,   action:'BUY'     },
+  // Rank ≤50, age ≤31, proven: mostly priced in, small movement left
+  'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star',      prod:4,   val:1.5, action:'HOLD'    },
   // Rank ≤100, age ≤29, yr 4+: producing at peak, market knows it
-  'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)',  tier:'star',      prod:4,   val:2,   action:'HOLD'    },
+  'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)',  tier:'star',      prod:4,   val:1.5, action:'HOLD'    },
   // ── Ascending ──────────────────────────────────────────────────────────────
   // Rank ≤100, performing above avg yr 1–2: visible to market but ceiling still open
   'RISING STAR':       { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending', prod:3,   val:3.5, action:'BUY'     },
   // Rank ≤100, yr 1–2, lower production bar: less proven = more value room
-  'BREAKOUT CANDIDATE':{ color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending', prod:2,   val:4,   action:'BUY'     },
+  'BREAKOUT CANDIDATE':{ color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending', prod:2.5, val:4,   action:'BUY'     },
   // Rank ≤125, yr 2, do-or-die: uncertain outcome caps value ceiling
-  'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending', prod:2,   val:2.5, action:'MONITOR' },
+  'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending', prod:2.5, val:2.5, action:'MONITOR' },
   // ── Prospects ──────────────────────────────────────────────────────────────
   // Top-36 rookies: already fully priced in for their dynasty rank, real production potential
   'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect',  prod:3.5, val:3,   action:'BUY'     },
   // Rank 37–75, yr 0–1: less priced in than blue-chip, solid ceiling ahead
-  'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect',  prod:2.5, val:4,   action:'BUY'     },
+  'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect',  prod:2.5, val:3.5, action:'BUY'     },
   // Rank ≤125, age ≤24: some market recognition, production still speculative
   'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)',  tier:'prospect',  prod:1.5, val:3.5, action:'BUY'     },
   'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',   tier:'prospect',  prod:1,   val:3,   action:'MONITOR' },
@@ -20822,11 +20822,17 @@ function _mbInjSort(key) {
 // ── Dynasty Tier Classification Table ────────────────────────────────────────
 function _mbTierTableHtml() {
   const stars = (n, color) => {
+    const empty = 'rgba(255,255,255,0.11)';
     let s = '';
     for (let i = 1; i <= 5; i++) {
-      if (n >= i)           s += `<span style="color:${color};">★</span>`;
-      else if (n >= i - 0.5) s += `<span style="color:${color};opacity:0.38;">★</span>`;
-      else                   s += `<span style="color:rgba(255,255,255,0.11);">★</span>`;
+      if (n >= i) {
+        s += `<span style="color:${color};">★</span>`;
+      } else if (n >= i - 0.5) {
+        // Half-filled: gradient clips color to left 50%, empty to right 50%
+        s += `<span style="display:inline-block;background:linear-gradient(90deg,${color} 50%,${empty} 50%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">★</span>`;
+      } else {
+        s += `<span style="color:${empty};">★</span>`;
+      }
     }
     return s;
   };
