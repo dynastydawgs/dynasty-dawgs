@@ -2564,17 +2564,35 @@
     font-family:var(--mono); letter-spacing:0.12em; cursor:pointer;
     text-transform:uppercase; transition:all 0.2s; }
   .bp-fs-close:hover { background:rgba(239,68,68,0.28); }
-  .bp-fs-scroll { flex:1; overflow:auto; padding:16px; }
-  .bp-fs-grid { display:grid; gap:13px; align-items:start;
-    grid-template-columns:270px repeat(3,1fr); }
-  @media (max-width:1300px) { .bp-fs-grid { grid-template-columns:1fr 1fr 1fr; } }
-  @media (max-width:960px)  { .bp-fs-grid { grid-template-columns:1fr 1fr; } }
-  @media (max-width:620px)  { .bp-fs-grid { grid-template-columns:1fr; } }
-  .bp-fs-col { display:flex; flex-direction:column; gap:13px; }
-  .bp-fs-col:nth-child(1){animation:bp-col-in 0.35s 0.05s both ease}
-  .bp-fs-col:nth-child(2){animation:bp-col-in 0.35s 0.13s both ease}
-  .bp-fs-col:nth-child(3){animation:bp-col-in 0.35s 0.21s both ease}
-  .bp-fs-col:nth-child(4){animation:bp-col-in 0.35s 0.29s both ease}
+
+  /* ── Fullscreen page nav ── */
+  .bp-fs-pnav { display:flex; align-items:center; background:rgba(0,0,0,0.35); border-bottom:1px solid rgba(255,255,255,0.07); flex-shrink:0; }
+  .bp-fs-pnav-btn { font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:rgba(255,255,255,0.35); background:transparent; border:none; border-bottom:2px solid transparent; padding:11px 22px; cursor:pointer; transition:color 0.15s,border-color 0.15s; white-space:nowrap; }
+  .bp-fs-pnav-btn:hover { color:rgba(255,255,255,0.65); }
+  .bp-fs-pnav-btn.bp-fs-pnav-active { color:#fff; border-bottom-color:var(--accent); }
+  .bp-fs-pnav-spacer { flex:1; }
+  .bp-fs-pnav-arrows { display:flex; gap:4px; padding:0 12px; align-items:center; }
+  .bp-fs-arrow { font-size:14px; color:rgba(255,255,255,0.30); background:transparent; border:1px solid rgba(255,255,255,0.10); border-radius:4px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+  .bp-fs-arrow:hover:not(:disabled) { color:rgba(255,255,255,0.7); border-color:rgba(255,255,255,0.30); }
+  .bp-fs-arrow:disabled { opacity:0.2; cursor:default; }
+  .bp-fs-page-counter { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.25); letter-spacing:0.1em; padding:0 6px; }
+
+  /* ── Fullscreen pages ── */
+  .bp-fs-pages-wrap { flex:1; position:relative; overflow:hidden; }
+  .bp-fs-page { position:absolute; inset:0; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:12px; transition:transform 0.32s cubic-bezier(0.4,0,0.2,1),opacity 0.28s ease; will-change:transform; }
+  .bp-fs-page.bpfsp-active { transform:translateX(0);     opacity:1; pointer-events:auto; }
+  .bp-fs-page.bpfsp-left   { transform:translateX(-100%); opacity:0; pointer-events:none; }
+  .bp-fs-page.bpfsp-right  { transform:translateX(100%);  opacity:0; pointer-events:none; }
+
+  /* ── Fullscreen grid helpers ── */
+  .bp-fs-row2  { display:grid; grid-template-columns:1fr 1fr;      gap:12px; align-items:start; }
+  .bp-fs-row2w { display:grid; grid-template-columns:3fr 2fr;      gap:12px; align-items:start; }
+  .bp-fs-row3  { display:grid; grid-template-columns:1fr 1fr 1fr;  gap:12px; align-items:start; }
+  .bp-fs-row4  { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px; align-items:start; }
+  @media (max-width:1100px) { .bp-fs-row4,.bp-fs-row3 { grid-template-columns:1fr 1fr; } }
+  @media (max-width:700px)  { .bp-fs-row4,.bp-fs-row3,.bp-fs-row2,.bp-fs-row2w { grid-template-columns:1fr; } }
+  .bp-fs-col { display:flex; flex-direction:column; gap:12px; }
+
   .bp-fs-p { background:rgba(255,255,255,0.026); border:1px solid rgba(255,255,255,0.07);
     border-left:3px solid var(--bpa,rgba(255,255,255,0.15)); border-radius:11px; padding:13px 15px; }
   .bp-fs-pt { font-family:var(--mono); font-size:8.5px; letter-spacing:0.2em;
@@ -19801,24 +19819,49 @@ function _bpFsMetricBlock(d) {
   </div>`;
 }
 
+function bpFsGoTo(idx) {
+  const pages = document.querySelectorAll('.bp-fs-page');
+  const navBtns = document.querySelectorAll('.bp-fs-pnav-btn');
+  const counter = document.getElementById('bp-fs-counter');
+  const prevBtn = document.getElementById('bp-fs-prev');
+  const nextBtn = document.getElementById('bp-fs-next');
+  const n = pages.length;
+  idx = Math.max(0, Math.min(n - 1, idx));
+  pages.forEach((p, i) => {
+    p.classList.remove('bpfsp-active','bpfsp-left','bpfsp-right');
+    p.classList.add(i < idx ? 'bpfsp-left' : i > idx ? 'bpfsp-right' : 'bpfsp-active');
+  });
+  navBtns.forEach((b, i) => b.classList.toggle('bp-fs-pnav-active', i === idx));
+  if (counter) counter.textContent = `${idx + 1} / ${n}`;
+  if (prevBtn) prevBtn.disabled = idx === 0;
+  if (nextBtn) nextBtn.disabled = idx === n - 1;
+  window._bpFsPage = idx;
+}
+
 function openBlueprintFullscreen() {
   const d = window._bpData;
-  if (!d) { return; }
+  if (!d) return;
   document.getElementById('bp-fs-overlay')?.remove();
 
-  const _ppgFs = d.teamProj ? `<div class="bp-lineup-total"><span style="font-family:var(--mono);font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.35);">PROJECTED PPG</span><span style="font-family:var(--display);font-size:17px;font-weight:900;color:#fff;">${d.teamProj.totalPpg.toFixed(1)}</span></div>` : '';
+  const _ppgFs    = d.teamProj ? `<div class="bp-lineup-total"><span style="font-family:var(--mono);font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.35);">PROJECTED PPG</span><span style="font-family:var(--display);font-size:17px;font-weight:900;color:#fff;">${d.teamProj.totalPpg.toFixed(1)}</span></div>` : '';
   const _radarLeg = Object.entries(d.radarScores).map(([ax,sc])=>`<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:#fff;margin-left:3px;">${sc}</span></div>`).join('');
   const _shapeLeg = Object.entries(d.shapeScores).map(([ax,sc])=>`<div class="bp-radar-leg-row"><span>${ax}</span><span style="color:#fff;margin-left:3px;">${sc}</span></div>`).join('');
   const _tvLine   = `Total ${(d.teamRow.totalValue/1000).toFixed(1)}k · Players ${(d.teamRow.playerValue/1000).toFixed(1)}k · Picks ${(d.teamRow.pickValue/1000).toFixed(1)}k`;
-  const _pickLine = `Pick value: ${(d.teamRow.pickValue/1000).toFixed(1)}k · Rank #${d.pickValueRank} of ${d.total}`;
+
+  const p = (accentHex, titleHTML, bodyHTML) =>
+    `<div class="bp-fs-p" style="--bpa:${accentHex};">
+       <div class="bp-fs-pt"><span class="bp-pdot" style="background:${accentHex};"></span>${titleHTML}</div>
+       ${bodyHTML}
+     </div>`;
 
   const ov = document.createElement('div');
   ov.className = 'bp-fs-overlay';
   ov.id = 'bp-fs-overlay';
   ov.innerHTML = `
+    <!-- Top bar -->
     <div class="bp-fs-topbar">
       <div class="bp-fs-meta">
-        <span style="font-size:20px;">🗺️</span>
+        <span style="font-size:18px;">🗺️</span>
         <div>
           <div class="bp-fs-tname">${d.teamRow.name}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
@@ -19828,103 +19871,123 @@ function openBlueprintFullscreen() {
         </div>
         <span class="bp-phase-badge" style="color:${d.phStyle.color};border-color:${d.phStyle.border};background:${d.phStyle.bg};">${d.phase}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.25);letter-spacing:0.1em;display:none;" id="bp-fs-esc-hint">ESC TO CLOSE</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.22);letter-spacing:0.1em;display:none;" id="bp-fs-esc-hint">ESC</span>
         <button class="bp-fs-close" onclick="closeBlueprintFullscreen()">✕ CLOSE</button>
       </div>
     </div>
-    <div class="bp-fs-scroll">
-      <div class="bp-fs-grid">
 
-        <!-- COL 1: Identity + Metrics + Radars -->
-        <div class="bp-fs-col">
-          ${_bpFsHeroBlock(d)}
-          ${_bpFsMetricBlock(d)}
-          <div class="bp-fs-p bp-panel-radar" style="--bpa:#fb7185;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">positional rank</span></div>
-            ${_bpRadarSVG(d.radarScores, d.prodRadarScores)}
-            <div class="bp-radar-legend">${_radarLeg}</div>
-          </div>
-          <div class="bp-fs-p bp-panel-radar" style="--bpa:#a78bfa;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#a78bfa;"></span>ROSTER SHAPE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">health dimensions</span></div>
-            ${_bpShapeRadarSVG(d.shapeScores)}
-            <div class="bp-radar-legend">${_shapeLeg}</div>
-          </div>
-        </div>
-
-        <!-- COL 2: Grades + Value + Lineup -->
-        <div class="bp-fs-col">
-          <div class="bp-fs-p" style="--bpa:#38bdf8;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">vs ${d.total} teams · incl. picks</span></div>
-            <div class="bp-grade-row" style="margin-bottom:14px;">${d.posGradesHTML}</div>
-            <div class="bp-fs-pt" style="margin-top:4px;"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL AGE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">bar=team · tick=avg</span></div>
-            ${d.ageBarHTML || '<div style="color:rgba(255,255,255,0.3);font-size:10px;">Age data unavailable.</div>'}
-          </div>
-          <div class="bp-fs-p" style="--bpa:#fbbf24;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fbbf24;"></span>VALUE BREAKDOWN</div>
-            <div class="bp-pie-row">
-              <div class="bp-pie" style="background:${d.pieCSS};"></div>
-              <div class="bp-pie-legend">${d.pieLegHTML}</div>
-            </div>
-            <div style="margin-top:7px;font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.3);">${_tvLine}</div>
-            <div class="bp-fs-pt" style="margin-top:11px;"><span class="bp-pdot" style="background:#fbbf24;"></span>ROSTER CONSTRUCTION</div>
-            <div class="bp-const-bar">${d.constBarSegs}</div>
-            <div class="bp-const-legend">${d.constLegend}</div>
-          </div>
-          <div class="bp-fs-p" style="--bpa:#2dd4bf;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#2dd4bf;"></span>OPTIMAL LINEUP<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">base projections</span></div>
-            ${d.lineupRowsHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">Run projections first.</div>'}
-            ${_ppgFs}
-          </div>
-          <div class="bp-fs-p" style="--bpa:#38bdf8;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#38bdf8;"></span>SLOT ANALYSIS<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">last szn · proj · vs league avg</span></div>
-            ${d.slotMapHTML}
-          </div>
-        </div>
-
-        <!-- COL 3: Cornerstones + Capital + Swing + Needs -->
-        <div class="bp-fs-col">
-          <div class="bp-fs-p" style="--bpa:#f5c842;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#f5c842;"></span>CORNERSTONES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">top assets by FC value</span></div>
-            ${d.csRowsHTML}
-          </div>
-          <div class="bp-fs-p" style="--bpa:#94a3b8;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#94a3b8;"></span>DRAFT CAPITAL<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">future picks owned</span></div>
-            ${d.capitalHTML}
-          </div>
-          <div class="bp-fs-p" style="--bpa:#fb923c;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb923c;"></span>ROSTER PROFILES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">starters + key bench · role classification</span></div>
-            ${d.swingHTML}
-            <div class="bp-fs-pt" style="margin-top:11px;"><span class="bp-pdot" style="background:#fb923c;"></span>POSITIONAL NEEDS</div>
-            ${d.needsHTML}
-          </div>
-        </div>
-
-        <!-- COL 4: Trade Intelligence + Roster -->
-        <div class="bp-fs-col">
-          <div class="bp-fs-p" style="--bpa:rgba(255,255,255,0.55);">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:rgba(255,255,255,0.65);"></span>TRADE INTELLIGENCE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">data-driven · two paths</span></div>
-            ${d.tradeIntelHTML ?? d.suggestedMovesHTML ?? ''}
-          </div>
-          <div class="bp-fs-p" style="--bpa:rgba(255,255,255,0.2);">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:rgba(255,255,255,0.35);"></span>FULL ROSTER<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">by FC value</span></div>
-            <div class="bp-roster-grid" style="margin-top:6px;">${d.rosterGridHTML}</div>
-          </div>
-        </div>
-
+    <!-- Page nav bar -->
+    <div class="bp-fs-pnav">
+      <button class="bp-fs-pnav-btn" onclick="bpFsGoTo(0)">OVERVIEW</button>
+      <button class="bp-fs-pnav-btn" onclick="bpFsGoTo(1)">TRADE</button>
+      <button class="bp-fs-pnav-btn" onclick="bpFsGoTo(2)">ROSTER</button>
+      <button class="bp-fs-pnav-btn" onclick="bpFsGoTo(3)">CAPITAL</button>
+      <div class="bp-fs-pnav-spacer"></div>
+      <div class="bp-fs-pnav-arrows">
+        <span class="bp-fs-page-counter" id="bp-fs-counter">1 / 4</span>
+        <button class="bp-fs-arrow" id="bp-fs-prev" onclick="bpFsGoTo(window._bpFsPage-1)" disabled>&#8592;</button>
+        <button class="bp-fs-arrow" id="bp-fs-next" onclick="bpFsGoTo(window._bpFsPage+1)">&#8594;</button>
       </div>
+    </div>
+
+    <!-- Pages wrap -->
+    <div class="bp-fs-pages-wrap">
+
+      <!-- PAGE 0: OVERVIEW -->
+      <div class="bp-fs-page bpfsp-active" id="bpfsp-0">
+        ${_bpFsHeroBlock(d)}
+        ${_bpFsMetricBlock(d)}
+        <div class="bp-fs-row4">
+          <div class="bp-fs-col">
+            <div class="bp-fs-p bp-panel-radar" style="--bpa:#fb7185;">
+              <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">positional rank</span></div>
+              ${_bpRadarSVG(d.radarScores, d.prodRadarScores)}
+              <div class="bp-radar-legend">${_radarLeg}</div>
+            </div>
+            <div class="bp-fs-p bp-panel-radar" style="--bpa:#a78bfa;">
+              <div class="bp-fs-pt"><span class="bp-pdot" style="background:#a78bfa;"></span>ROSTER SHAPE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">health</span></div>
+              ${_bpShapeRadarSVG(d.shapeScores)}
+              <div class="bp-radar-legend">${_shapeLeg}</div>
+            </div>
+          </div>
+          <div class="bp-fs-col">
+            ${p('#38bdf8','POSITIONAL GRADES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">vs '+d.total+' teams</span>',
+              `<div class="bp-grade-row" style="margin-bottom:14px;">${d.posGradesHTML}</div>
+               <div class="bp-fs-pt" style="margin-top:4px;"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL AGE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">bar=team · tick=avg</span></div>
+               ${d.ageBarHTML || '<div style="color:rgba(255,255,255,0.3);font-size:10px;">Age data unavailable.</div>'}`)}
+            ${p('#fbbf24','VALUE BREAKDOWN',
+              `<div class="bp-pie-row"><div class="bp-pie" style="background:${d.pieCSS};"></div><div class="bp-pie-legend">${d.pieLegHTML}</div></div>
+               <div style="margin-top:7px;font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.3);">${_tvLine}</div>
+               <div class="bp-fs-pt" style="margin-top:11px;"><span class="bp-pdot" style="background:#fbbf24;"></span>ROSTER CONSTRUCTION</div>
+               <div class="bp-const-bar">${d.constBarSegs}</div><div class="bp-const-legend">${d.constLegend}</div>`)}
+          </div>
+          <div class="bp-fs-col" style="grid-column:span 2;">
+            ${p('#a3e635','PRODUCTION PORTFOLIO<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">starter ppg by position vs league · bull/bear range</span>', d.prodBreakdownHTML ?? '')}
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 1: TRADE -->
+      <div class="bp-fs-page bpfsp-right" id="bpfsp-1">
+        <div class="bp-fs-row2w">
+          <div class="bp-fs-col">
+            ${p('#f5c842','DYNASTY STRATEGY<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">team archetype · roster category guidance</span>', d.dynastyStrategyHTML ?? '')}
+            ${p('rgba(255,255,255,0.55)','TRADE INTELLIGENCE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">data-driven · phase-aware · two paths</span>', d.tradeIntelHTML ?? '')}
+          </div>
+          <div class="bp-fs-col">
+            ${p('#fb923c','POSITIONAL NEEDS<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">vs league</span>',
+              (d.needsHTML ?? '') + (d.holdsHTML ? `<div class="bp-fs-pt" style="margin-top:11px;"><span class="bp-pdot" style="background:#38bdf8;"></span>HOLDS<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">developing · monitor</span></div>${d.holdsHTML}` : ''))}
+            ${p('#fb923c','TRADE CHIPS<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">sell signals · idle capital</span>',
+              d.deadCapitalHTML || '<div style="color:rgba(255,255,255,0.22);font-size:10px;padding:6px 0;font-style:italic;">No clear sell signals identified.</div>')}
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 2: ROSTER -->
+      <div class="bp-fs-page bpfsp-right" id="bpfsp-2">
+        <div class="bp-fs-row2">
+          <div class="bp-fs-col">
+            ${p('#fb923c','ROSTER PROFILES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">starters + key bench · role classification</span>', d.swingHTML ?? '')}
+          </div>
+          <div class="bp-fs-col">
+            ${p('#2dd4bf','OPTIMAL LINEUP<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">base projections</span>',
+              (d.lineupRowsHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">Run projections first.</div>') + _ppgFs)}
+            ${p('#38bdf8','SLOT ANALYSIS<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">last szn · proj · vs league avg</span>', d.slotMapHTML ?? '')}
+            ${p('rgba(255,255,255,0.2)','FULL ROSTER<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">by FC value · line = starter threshold</span>',
+              `<div class="bp-roster-grid" style="margin-top:6px;">${d.rosterGridHTML ?? ''}</div>`)}
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 3: CAPITAL -->
+      <div class="bp-fs-page bpfsp-right" id="bpfsp-3">
+        <div class="bp-fs-row2">
+          <div class="bp-fs-col">
+            ${p('#f5c842','CORNERSTONES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">top assets · ⚠ = age cliff approaching</span>', d.csRowsHTML ?? '')}
+            ${p('#f87171','INJURY RISK &amp; DEPTH<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">availability concerns · backup depth</span>', d.injuryRiskHTML ?? '')}
+          </div>
+          <div class="bp-fs-col">
+            ${p('#94a3b8','DRAFT CAPITAL<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">picks owned · hit rate per pick</span>', d.capitalHTML ?? '')}
+          </div>
+        </div>
+      </div>
+
     </div>`;
 
   document.body.appendChild(ov);
   document.body.style.overflow = 'hidden';
+  window._bpFsPage = 0;
 
-  // Show ESC hint
-  setTimeout(() => { const h = document.getElementById('bp-fs-esc-hint'); if(h) h.style.display='block'; }, 400);
+  setTimeout(() => { const h = document.getElementById('bp-fs-esc-hint'); if(h) h.style.display='block'; }, 600);
 
-  // ESC key handler
-  const escFn = e => { if (e.key === 'Escape') { closeBlueprintFullscreen(); document.removeEventListener('keydown', escFn); } };
-  document.addEventListener('keydown', escFn);
-  ov._escFn = escFn;
+  const kbFn = e => {
+    if (e.key === 'Escape')     { closeBlueprintFullscreen(); document.removeEventListener('keydown', kbFn); }
+    if (e.key === 'ArrowRight') bpFsGoTo(window._bpFsPage + 1);
+    if (e.key === 'ArrowLeft')  bpFsGoTo(window._bpFsPage - 1);
+  };
+  document.addEventListener('keydown', kbFn);
+  ov._escFn = kbFn;
 }
 
 function closeBlueprintFullscreen() {
