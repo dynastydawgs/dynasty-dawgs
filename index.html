@@ -17321,9 +17321,14 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     const myHasCapital = mySpare.length >= 3 || myPicks.filter(p=>(p.round??99)<=2).length >= 2;
 
     for (const sell of agingSellers) {
+      const sellORank          = fcPlayerMap[sell.pid]?.overallRank ?? 999;
+      const isCornerstoneAsset = sellORank <= 25; // UNTOUCHABLE (≤12) or CORNERSTONE (≤25)
+
       for (const prospect of blueChips) {
         const ratio = prospect.val / sell.val;
-        if (ratio < 0.62 || ratio > 1.55) continue;
+        // Cornerstones command a premium — floor is higher; never accept <0.68 raw
+        const minRatio = isCornerstoneAsset ? 0.68 : 0.62;
+        if (ratio < minRatio || ratio > 1.55) continue;
 
         // If prospect costs more than sell, throw in a pick — apply _bpEffVal discount:
         // multiple pieces are worth less than their sum (4 quarters ≠ a dollar in dynasty)
@@ -17336,8 +17341,8 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
           }) ?? null;
         }
 
-        // If we're selling at a discount (ratio < 0.92), ask for a pick from them —
-        // BUT don't request more picks if we're already pick-rich (≥5 premium picks owned)
+        // Cornerstones/Untouchables ALWAYS demand a pick on top — they come at a premium.
+        // Non-cornerstones: ask for a pick only when trading at a discount (ratio < 0.92).
         const myPremiumPickCount = myPicks.filter(p => (p.round ?? 99) <= 2).length;
         const alreadyPickRich    = myPremiumPickCount >= 5;
         const theirTeam  = allTeams.find(t => t.roster_id === prospect.roster_id);
@@ -17345,14 +17350,27 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
           .map(pk => ({...pk, val:_bpPickVal(pk)}))
           .filter(pk => (pk.round??99) <= 2 && pk.val >= 280)
           .sort((a,b) => b.val - a.val);
-        const bonusPick = (!myBonus && ratio < 0.92 && !alreadyPickRich) ? (theirPicks[0] ?? null) : null;
 
+        const needsPickOnTop = isCornerstoneAsset || ratio < 0.92;
+        const bonusPick = (!myBonus && needsPickOnTop && !alreadyPickRich) ? (theirPicks[0] ?? null) : null;
+
+        // Cornerstone: if buyer has no pick to offer AND we're below full value, skip —
+        // never suggest trading a top-25 dynasty asset at a loss with nothing to close the gap
+        if (isCornerstoneAsset && !bonusPick && !myBonus && ratio < 1.0) continue;
+
+        const csNote = isCornerstoneAsset
+          ? ` ${sell.name} is a top-25 dynasty asset — cornerstones come at a premium.`
+          : '';
         const pickNote = myBonus
           ? ` Include the ${myBonus.label ?? myBonus.tier+' pick'} to close the deal — slightly overpaying is worth it. ${prospect.name.split(' ')[1] ?? prospect.name} is a compounding asset; ${sell.name.split(' ')[1] ?? sell.name}'s value only goes one direction from here.`
-          : bonusPick ? ` + ask for their ${bonusPick.label ?? 'pick'} to offset the value gap.` : '';
+          : bonusPick
+            ? isCornerstoneAsset
+              ? ` Demand their ${bonusPick.label ?? 'first-round pick'} on top — do not move a top-25 dynasty player without it.`
+              : ` + ask for their ${bonusPick.label ?? 'pick'} to offset the value gap.`
+            : '';
 
         return { type:'sell_for_prospect', sell, prospect, bonusPick: myBonus ?? bonusPick, myBonus,
-          rationale:`Trade ${sell.name} (${sell.age}yo aging producer) for ${prospect.name} (${prospect.age}yo blue-chip prospect).${pickNote} Production depreciates; young elite assets compound.` };
+          rationale:`Trade ${sell.name} (${sell.age}yo aging producer) for ${prospect.name} (${prospect.age}yo blue-chip prospect).${csNote}${pickNote} Production depreciates; young elite assets compound.` };
       }
     }
     // Fallback: no prospect match — collect picks instead
