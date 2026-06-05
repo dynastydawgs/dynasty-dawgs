@@ -2947,6 +2947,66 @@
   /* ── Purgatory Alert (FRINGE teams) ── */
   .bp-purgatory-alert { background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.28); border-radius:8px; padding:10px 14px; margin-bottom:12px; }
   .bp-purgatory-title { font-family:var(--display); font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:#f87171; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+
+  /* ── Trade Intelligence v2 ─────────────────────────────────────────────── */
+  .ts2-wrap { display:flex; flex-direction:column; gap:16px; }
+  /* Situation bar */
+  .ts2-sit-bar { display:flex; gap:6px; flex-wrap:wrap; }
+  .ts2-sit-chip { display:flex; flex-direction:column; padding:7px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:6px; flex:1; min-width:70px; }
+  .ts2-sit-chip-lbl { font-family:var(--mono); font-size:6.5px; letter-spacing:0.13em; text-transform:uppercase; color:rgba(255,255,255,0.25); margin-bottom:3px; }
+  .ts2-sit-chip-val { font-family:var(--mono); font-size:10px; font-weight:700; color:rgba(255,255,255,0.82); line-height:1.2; }
+  /* Section labels */
+  .ts2-section-lbl { font-family:var(--mono); font-size:7px; letter-spacing:0.15em; text-transform:uppercase; color:rgba(255,255,255,0.28); margin-bottom:8px; }
+  /* Signals */
+  .ts2-signals { display:flex; flex-direction:column; gap:6px; }
+  .ts2-signal-row { display:flex; align-items:flex-start; gap:7px; }
+  .ts2-signal-type { font-family:var(--mono); font-size:6.5px; font-weight:700; letter-spacing:0.08em; padding:2px 6px; border-radius:3px; flex-shrink:0; margin-top:2px; border:1px solid transparent; }
+  .ts2-signal-text { font-size:10px; color:rgba(255,255,255,0.52); line-height:1.5; }
+  .ts2-signal-text strong { color:rgba(255,255,255,0.80); font-weight:600; }
+  /* Strengths/needs row */
+  .ts2-pos-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .ts2-pos-badge { font-family:var(--mono); font-size:8px; font-weight:700; padding:2px 7px; border-radius:3px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); letter-spacing:0.06em; }
+  /* Trade chips */
+  .ts2-chips { display:flex; flex-direction:column; gap:5px; }
+  .ts2-chip-card { display:flex; align-items:center; gap:9px; background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:6px; padding:7px 10px; cursor:pointer; transition:background .12s; }
+  .ts2-chip-card:hover { background:rgba(255,255,255,0.045); }
+  .ts2-chip-name { font-size:10.5px; color:rgba(255,255,255,0.82); font-weight:500; }
+  .ts2-chip-reason { font-size:8.5px; color:rgba(255,255,255,0.28); line-height:1.4; margin-top:2px; }
+  .ts2-chip-val { font-family:var(--mono); font-size:9px; font-weight:700; color:rgba(251,146,60,0.65); margin-left:auto; flex-shrink:0; }
+  /* Priority moves */
+  .ts2-moves { display:flex; flex-direction:column; gap:8px; }
+  .ts2-move-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-left-width:3px; border-radius:7px; overflow:hidden; }
+  .ts2-move-head { display:flex; align-items:center; gap:10px; padding:9px 12px 8px; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .ts2-move-num { font-family:var(--display); font-size:24px; color:rgba(255,255,255,0.09); line-height:1; width:28px; flex-shrink:0; }
+  .ts2-move-type { font-family:var(--mono); font-size:6.5px; font-weight:700; letter-spacing:0.12em; padding:2px 7px; border-radius:3px; flex-shrink:0; border:1px solid transparent; }
+  .ts2-move-title { font-size:10.5px; font-weight:600; color:rgba(255,255,255,0.78); }
+  .ts2-move-body { padding:9px 12px; }
+  .ts2-pm-row { display:flex; align-items:center; gap:7px; padding:3px 0; }
+  .ts2-pm-tag { font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.08em; padding:2px 6px; border-radius:3px; flex-shrink:0; min-width:42px; text-align:center; border:1px solid transparent; }
+  .ts2-pm-tag.offer { background:rgba(251,146,60,0.12); color:#fb923c; border-color:rgba(251,146,60,0.22); }
+  .ts2-pm-tag.get   { background:rgba(74,222,128,0.10); color:#4ade80;  border-color:rgba(74,222,128,0.20); }
+  .ts2-pm-tag.picks { background:rgba(56,189,248,0.10); color:#38bdf8;  border-color:rgba(56,189,248,0.20); }
+  .ts2-pm-pieces { display:flex; align-items:center; gap:5px; flex-wrap:wrap; flex:1; }
+  .ts2-pm-piece { display:inline-flex; align-items:center; gap:4px; }
+  .ts2-pm-pname { font-size:10px; color:rgba(255,255,255,0.80); cursor:pointer; }
+  .ts2-pm-pname:hover { color:var(--accent); }
+  .ts2-pm-pval { font-family:var(--mono); font-size:8px; color:rgba(255,255,255,0.28); }
+  .ts2-pm-plus { color:rgba(255,255,255,0.16); font-size:9px; }
+  .ts2-pm-from { font-family:var(--mono); font-size:7.5px; color:rgba(255,255,255,0.22); margin-left:auto; flex-shrink:0; }
+  .ts2-rationale { font-size:9px; color:rgba(255,255,255,0.38); line-height:1.55; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.05); }
+  /* Acquisition targets within each move card */
+  .ts2-acq-list { margin-top:9px; padding-top:9px; border-top:1px solid rgba(255,255,255,0.05); }
+  .ts2-acq-lbl { font-family:var(--mono); font-size:7px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,255,255,0.22); margin-bottom:6px; }
+  .ts2-acq-cards { display:flex; flex-wrap:wrap; gap:5px; }
+  .ts2-acq-card { display:flex; align-items:center; gap:6px; padding:5px 8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:5px; cursor:pointer; transition:background .12s; }
+  .ts2-acq-card:hover { background:rgba(255,255,255,0.06); }
+  .ts2-acq-name { font-size:9.5px; color:rgba(255,255,255,0.75); }
+  .ts2-acq-meta { font-family:var(--mono); font-size:7.5px; color:rgba(255,255,255,0.28); margin-top:1px; }
+  /* No-move state */
+  .ts2-no-move { padding:22px 16px; text-align:center; }
+  .ts2-no-move-icon { font-size:22px; margin-bottom:7px; }
+  .ts2-no-move-title { font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:0.12em; color:rgba(255,255,255,0.38); margin-bottom:5px; }
+  .ts2-no-move-text { font-size:9px; color:rgba(255,255,255,0.25); line-height:1.55; max-width:340px; margin:0 auto; }
   .bp-purgatory-sub { font-size:9.5px; color:rgba(255,255,255,0.42); line-height:1.4; margin-bottom:8px; }
   .bp-purgatory-paths { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .bp-purgatory-path { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:6px; padding:7px 9px; }
@@ -17334,6 +17394,316 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
   };
 }
 
+// ── Trade Intelligence v2 ──────────────────────────────────────────────────────
+// Comprehensive, data-driven trade section that synthesises every blueprint signal:
+// slot analysis, roster radar, positional ranks, value share, picks, tier classifications.
+function _bpTradeIntelHTML({ phase, archetype, clock, ranks, total, isSF, w, l,
+  slotMap, trade, teamRow, rosterId, pickValueRank,
+  deadCapital, smPathA, smPathB, rebuildTier, tierMoves, shapeScores }) {
+
+  const posColors = { QB:'#c084fc', RB:'#4ade80', WR:'#38bdf8', TE:'#fb923c' };
+  const phaseColors = { 'WIN NOW':'#4ade80','CONTENDING':'#38bdf8','RELOAD':'#a78bfa',
+    'REBUILDING':'#fbbf24','AGING OUT':'#fb923c','FRINGE':'#f87171' };
+  const phaseColor = phaseColors[phase] ?? 'rgba(255,255,255,0.45)';
+
+  // ── SITUATION BAR ──────────────────────────────────────────────────────────
+  const goodPicks = (teamRow?.allPicks ?? []).filter(p => (p.round ?? 99) <= 2);
+  const r1s = goodPicks.filter(p => p.round === 1).length;
+  const r2s = goodPicks.filter(p => p.round === 2).length;
+  const pickStr = r1s ? `${r1s} 1st${r1s>1?'s':''}${r2s?` + ${r2s} 2nd${r2s>1?'s':''}`:''}`
+    : r2s ? `${r2s} 2nd${r2s>1?'s':''}` : 'no premium picks';
+
+  const windowStr = !clock ? '—'
+    : clock.type === 'WIN_NOW'  ? (clock.value<=1 ? 'closing' : `${clock.value}yr open`)
+    : clock.type === 'REBUILD'  ? `~${clock.value}yr out`
+    : 'stable';
+
+  const archLabel = (archetype ?? '—').replace(/-/g,' ');
+
+  const situBar = `<div class="ts2-sit-bar">
+    <div class="ts2-sit-chip" style="border-color:${phaseColor}35;">
+      <div class="ts2-sit-chip-lbl">Phase</div>
+      <div class="ts2-sit-chip-val" style="color:${phaseColor};font-size:9px;">${phase}</div>
+    </div>
+    <div class="ts2-sit-chip">
+      <div class="ts2-sit-chip-lbl">Archetype</div>
+      <div class="ts2-sit-chip-val" style="font-size:8.5px;">${archLabel}</div>
+    </div>
+    <div class="ts2-sit-chip">
+      <div class="ts2-sit-chip-lbl">Window</div>
+      <div class="ts2-sit-chip-val" style="font-size:9px;${clock?.type==='WIN_NOW'&&clock?.value<=1?'color:#fb923c;':''}">${windowStr}</div>
+    </div>
+    <div class="ts2-sit-chip">
+      <div class="ts2-sit-chip-lbl">Record</div>
+      <div class="ts2-sit-chip-val">${w !== undefined ? `${w}–${l}` : '—'}</div>
+    </div>
+    ${shapeScores?.Upside != null ? `<div class="ts2-sit-chip">
+      <div class="ts2-sit-chip-lbl">Upside</div>
+      <div class="ts2-sit-chip-val" style="color:${shapeScores.Upside>=75?'#4ade80':shapeScores.Upside>=50?'#fbbf24':'#f87171'};">${shapeScores.Upside}</div>
+    </div>` : ''}
+    <div class="ts2-sit-chip">
+      <div class="ts2-sit-chip-lbl">Capital</div>
+      <div class="ts2-sit-chip-val" style="font-size:8.5px;${!goodPicks.length?'color:rgba(255,255,255,0.30);':''}">${pickStr}</div>
+    </div>
+  </div>`;
+
+  // ── STRENGTHS / NEEDS ROW ─────────────────────────────────────────────────
+  const strHtml = (trade?.strengthPositions ?? []).map(p =>
+    `<span class="ts2-pos-badge" style="color:${posColors[p]??'var(--text-dim)'};">${p}</span>`).join('');
+  const wkHtml = (trade?.weaknessPositions ?? []).map(p =>
+    `<span class="ts2-pos-badge" style="color:${posColors[p]??'var(--text-dim)'};">${p}</span>`).join('');
+  const snRow = (strHtml || wkHtml) ? `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:7px 10px;background:rgba(255,255,255,0.02);border-radius:5px;border:1px solid rgba(255,255,255,0.06);">
+    ${strHtml ? `<div style="display:flex;align-items:center;gap:6px;"><span style="font-family:var(--mono);font-size:7px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.25);">STRENGTHS</span><div class="ts2-pos-row">${strHtml}</div></div>` : ''}
+    ${wkHtml  ? `<div style="display:flex;align-items:center;gap:6px;margin-left:${strHtml?'auto':'0'};"><span style="font-family:var(--mono);font-size:7px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.25);">NEEDS</span><div class="ts2-pos-row">${wkHtml}</div></div>` : ''}
+    ${trade?.phaseGoal ? `<div style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.30);font-style:italic;flex-basis:100%;">"${trade.phaseGoal}"</div>` : ''}
+  </div>` : '';
+
+  // ── KEY SIGNALS ─────────────────────────────────────────────────────────
+  const signals = [];
+
+  // Worst slot gap (from slot analysis)
+  const worstSlot = Object.entries(slotMap?.slots ?? {})
+    .filter(([, s]) => s.gapProj != null && s.gapProj < -1.2)
+    .sort(([, a], [, b]) => (a.gapProj ?? 0) - (b.gapProj ?? 0))[0];
+  if (worstSlot) {
+    const [key, sd] = worstSlot;
+    const gap = Math.abs(sd.gapProj ?? 0).toFixed(1);
+    signals.push({ type:'GAP', color:'#f87171',
+      text:`<strong>${key}</strong> is ${gap} PPG below league average (from slot analysis) — your biggest lineup upgrade target.` });
+  }
+
+  // Positional surplus — top-25% of league
+  const surplusPos = (trade?.strengthPositions ?? []).filter(p => {
+    const r = ranks[`${p}Comp`];
+    return r && (r-1)/Math.max(total-1,1) <= 0.28;
+  })[0];
+  if (surplusPos) {
+    const r = ranks[`${surplusPos}Comp`];
+    const pct = r ? Math.round((r-1)/Math.max(total-1,1)*100) : null;
+    signals.push({ type:'SURPLUS', color:'#fb923c',
+      text:`<strong>${surplusPos}</strong> ranks top-${pct||'25'}% in the league — you have the depth to trade from this position without weakening your lineup.` });
+  }
+
+  // Idle bench value
+  const idleTotal = (deadCapital ?? []).reduce((s, p) => s + (p.val ?? 0), 0);
+  if (idleTotal >= 3000) {
+    signals.push({ type:'IDLE', color:'#fbbf24',
+      text:`<strong>${(idleTotal/1000).toFixed(1)}k</strong> in dynasty value not starting — ${deadCapital.length} player${deadCapital.length>1?'s':''} contributing nothing to your weekly lineup.` });
+  }
+
+  // Draft capital signal
+  if (goodPicks.length >= 3) {
+    signals.push({ type:'CAPITAL', color:'#38bdf8',
+      text:`${goodPicks.length} premium picks (rounds 1–2) gives you real trade leverage. Contending teams will pay a premium for future capital.` });
+  } else if (!goodPicks.length && ['CONTENDING','WIN NOW'].includes(phase)) {
+    signals.push({ type:'WATCH', color:'#94a3b8',
+      text:`No premium draft picks on hand. Prioritise player-for-player trades — avoid selling players for picks you don't control.` });
+  }
+
+  // Win window urgency
+  if (clock?.type === 'WIN_NOW' && (clock.value ?? 3) <= 1) {
+    signals.push({ type:'URGENT', color:'#4ade80',
+      text:`Win window is closing fast. Every move should improve your lineup for this season — don't hold value players who aren't starting.` });
+  }
+
+  // Roster shape insights
+  if (phase === 'REBUILDING' && (shapeScores?.Upside ?? 0) >= 75) {
+    signals.push({ type:'ON TRACK', color:'#a78bfa',
+      text:`Upside score ${shapeScores.Upside}/100 — your rebuild is trending well. Be selective and patient; don't panic-sell developing assets.` });
+  }
+  if ((shapeScores?.Balance ?? 100) < 45) {
+    signals.push({ type:'LOPSIDED', color:'#f472b6',
+      text:`Balance score ${shapeScores.Balance}/100 — roster value is concentrated. Diversifying through trades will reduce week-to-week variance.` });
+  }
+
+  const signalsHTML = signals.length ? `<div>
+    <div class="ts2-section-lbl">KEY SIGNALS</div>
+    <div class="ts2-signals">
+      ${signals.slice(0, 5).map(s => `<div class="ts2-signal-row">
+        <span class="ts2-signal-type" style="background:${s.color}15;color:${s.color};border-color:${s.color}30;">${s.type}</span>
+        <div class="ts2-signal-text">${s.text}</div>
+      </div>`).join('')}
+    </div>
+  </div>` : '';
+
+  // ── TRADE CHIPS ─────────────────────────────────────────────────────────
+  const chips = deadCapital ?? [];
+  const chipsHTML = chips.length ? `<div>
+    <div class="ts2-section-lbl">TRADE CHIPS <span style="font-weight:400;color:rgba(255,255,255,0.20);">${chips.length} flagged · ${(idleTotal/1000).toFixed(1)}k idle value</span></div>
+    <div class="ts2-chips">
+      ${chips.slice(0, 5).map(chip => {
+        const pc = posColors[chip.pos] ?? 'rgba(255,255,255,0.4)';
+        const isSell = chip.category === 'SELL_SIGNAL';
+        const bdr = isSell ? 'rgba(248,113,113,0.16)' : 'rgba(251,191,36,0.14)';
+        const bg  = isSell ? 'rgba(248,113,113,0.05)' : 'rgba(251,191,36,0.04)';
+        const reasonPart = (chip.reason ?? '').split(' — ').slice(1).join(' — ').trim();
+        const reasonClip = reasonPart.slice(0, 80) + (reasonPart.length > 80 ? '…' : '');
+        return `<div class="ts2-chip-card" style="border-color:${bdr};background:${bg};" onclick="searchAndOpenProfile('${(chip.name||'').replace(/'/g,"\\'")}')">
+          <img src="https://sleepercdn.com/content/nfl/players/thumb/${chip.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:30px;height:30px;border-radius:50%;flex-shrink:0;">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
+              <span style="font-family:var(--mono);font-size:7px;font-weight:700;color:${pc};">${chip.pos}</span>
+              <span class="ts2-chip-name">${chip.name}</span>
+              <span style="font-family:var(--mono);font-size:7.5px;color:rgba(255,255,255,0.22);">${chip.age}yo</span>
+            </div>
+            ${reasonClip ? `<div class="ts2-chip-reason">${reasonClip}</div>` : ''}
+          </div>
+          <span class="ts2-chip-val">${(chip.val/1000).toFixed(1)}k</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>` : '';
+
+  // ── PRIORITY MOVES ────────────────────────────────────────────────────────
+  const allMoves = [
+    smPathA?.move  ? { meta: smPathA,  mv: smPathA.move,  pri: 1 } : null,
+    smPathB?.move  ? { meta: smPathB,  mv: smPathB.move,  pri: 2 } : null,
+    tierMoves?.upTier   ? { meta: { label:'UPGRADE',   tagline: tierMoves.upTier.rationale?.split('.')[0]??'Move up the tier ladder', color:'#4ade80', icon:'⬆' }, mv: tierMoves.upTier,   pri: 3 } : null,
+    tierMoves?.downTier ? { meta: { label:'REBALANCE', tagline: tierMoves.downTier.rationale?.split('.')[0]??'Spread value across the roster', color:'#fb923c', icon:'⬇' }, mv: tierMoves.downTier, pri: 3 } : null,
+  ].filter(Boolean);
+
+  const moveTypeMeta = {
+    uptier:            { label:'TRADE UP',      color:'#4ade80'  },
+    fill:              { label:'FILL THE GAP',  color:'#38bdf8'  },
+    sell_aging:        { label:'CASH OUT',       color:'#fb923c'  },
+    value_spread:      { label:'SPREAD VALUE',  color:'#fbbf24'  },
+    protect:           { label:'AGE DOWN',       color:'#a78bfa'  },
+    buy_low:           { label:'BUY LOW',        color:'#34d399'  },
+    sell_for_prospect: { label:'SELL FOR YOUTH', color:'#f472b6'  },
+    tier_trade:        { label:'TIER PLAY',      color:'#94a3b8'  },
+    tier_sell:         { label:'SELL HIGH',      color:'#fb923c'  },
+  };
+
+  const rPick3 = pk => {
+    const c = pk.tier==='early'?'#fbbf24':pk.tier==='mid'?'#94a3b8':'rgba(148,163,184,0.5)';
+    const lbl = pk.label ?? ((pk.tier?.charAt(0).toUpperCase()||'')+'R'+(pk.round??'?'));
+    return `<span class="ts2-pm-piece"><span style="font-family:var(--mono);font-size:8.5px;color:${c};">🎟 ${lbl}</span></span>`;
+  };
+  const rPlayer3 = p =>
+    `<span class="ts2-pm-piece"><img src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:16px;height:16px;border-radius:50%;flex-shrink:0;vertical-align:middle;"><span class="ts2-pm-pname" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')"> ${p.name}</span><span class="ts2-pm-pval">${(p.val/1000).toFixed(1)}k</span></span>`;
+
+  const renderPriorityMove = (src, idx) => {
+    const { meta, mv } = src;
+    if (!mv) return '';
+    const tm = moveTypeMeta[mv.type] ?? { label: meta.label ?? 'MOVE', color: meta.color ?? '#94a3b8' };
+    const numStr = String(idx + 1).padStart(2, '0');
+    const plus = `<span class="ts2-pm-plus">+</span>`;
+
+    let offerPieces = [], getPieces = [], fromStr = '';
+
+    if (mv.type === 'value_spread') {
+      offerPieces = [rPlayer3(mv.sell)];
+      getPieces   = (mv.haul?.pieces ?? []).map(p => p.isPick ? rPick3(p) : rPlayer3(p));
+      fromStr     = mv.haul?.fromTeam ? `from ${mv.haul.fromTeam.split(/[\s_]+/).pop()}` : '';
+    } else if (mv.type === 'sell_aging') {
+      offerPieces = [rPlayer3(mv.sell)];
+      getPieces   = (mv.haul?.picks ?? []).map(rPick3);
+      fromStr     = mv.haul?.fromTeam ? `from ${mv.haul.fromTeam.split(/[\s_]+/).pop()}` : '';
+    } else if (mv.type === 'sell_for_prospect') {
+      offerPieces = [rPlayer3(mv.sell), ...(mv.myBonus ? [rPick3(mv.myBonus)] : [])];
+      getPieces   = [rPlayer3(mv.prospect), ...(!mv.myBonus && mv.bonusPick ? [rPick3(mv.bonusPick)] : [])];
+      fromStr     = mv.prospect?.team ? `from ${mv.prospect.team}` : '';
+    } else {
+      offerPieces = [...(mv.pkg?.players??[]).map(rPlayer3), ...(mv.pkg?.picks??[]).map(rPick3)];
+      getPieces   = mv.target ? [rPlayer3(mv.target)] : [];
+      fromStr     = mv.target?.team ? `from ${mv.target.team}` : '';
+    }
+
+    const offerRow = offerPieces.length ? `<div class="ts2-pm-row">
+      <span class="ts2-pm-tag offer">OFFER</span>
+      <div class="ts2-pm-pieces">${offerPieces.join(plus)}</div>
+    </div>` : '';
+
+    const isPickGet = getPieces.some(p => p.includes('🎟'));
+    const getRow = getPieces.length ? `<div class="ts2-pm-row">
+      <span class="ts2-pm-tag ${isPickGet?'picks':'get'}">${isPickGet?'GET PICKS':'GET'}</span>
+      <div class="ts2-pm-pieces">${getPieces.join(plus)}</div>
+      ${fromStr ? `<span class="ts2-pm-from">${fromStr}</span>` : ''}
+    </div>` : '';
+
+    // Acquisition targets at the move's target position
+    const mvPos = mv.target?.pos ?? mv.prospect?.pos ?? (mv.pkg?.players?.[0] ? null : null)
+      ?? (mv.type === 'fill' ? mv.target?.pos : null);
+    const needPos = (trade?.weaknessPositions ?? [])[0];
+    const acqPos = mvPos ?? needPos ?? null;
+    const acqBlock = (() => {
+      if (!acqPos || !trade?.buys?.length) return '';
+      const bg = trade.buys.find(b => b.pos === acqPos && !b.isPicks);
+      if (!bg?.tiers?.length) return '';
+      const players = bg.tiers.flatMap(t => t.players ?? (t.player ? [t.player] : [])).slice(0, 4);
+      if (!players.length) return '';
+      const pc = posColors[acqPos] ?? '#94a3b8';
+      return `<div class="ts2-acq-list">
+        <div class="ts2-acq-lbl">AVAILABLE TARGETS · <span style="color:${pc};">${acqPos}</span></div>
+        <div class="ts2-acq-cards">
+          ${players.map(p => `<div class="ts2-acq-card" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')">
+            <img src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;">
+            <div>
+              <div class="ts2-acq-name">${p.name}</div>
+              <div class="ts2-acq-meta">${p.team??''} · ${p.age}yo · ${(p.value/1000).toFixed(1)}k</div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    })();
+
+    return `<div class="ts2-move-card" style="border-left-color:${tm.color}55;">
+      <div class="ts2-move-head">
+        <div class="ts2-move-num">${numStr}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+            <span class="ts2-move-type" style="background:${tm.color}15;color:${tm.color};border-color:${tm.color}30;">${tm.label}</span>
+            <span class="ts2-move-title">${meta.tagline ?? meta.label ?? ''}</span>
+          </div>
+        </div>
+      </div>
+      <div class="ts2-move-body">
+        ${offerRow}${getRow}
+        ${mv.rationale ? `<div class="ts2-rationale">${mv.rationale}</div>` : ''}
+        ${acqBlock}
+      </div>
+    </div>`;
+  };
+
+  const moveCards = allMoves.map((s, i) => renderPriorityMove(s, i)).filter(Boolean);
+
+  const noMoveMsg = `<div class="ts2-no-move">
+    <div class="ts2-no-move-icon">🔒</div>
+    <div class="ts2-no-move-title">HOLD POSITION</div>
+    <div class="ts2-no-move-text">${
+      chips.length
+        ? `No high-confidence trade found, but ${(idleTotal/1000).toFixed(1)}k is sitting idle on your bench. Focus on converting bench value into lineup contributors.`
+        : 'No urgent trade action identified. Monitor the market — wait for motivated sellers at your positions of need.'
+    }</div>
+  </div>`;
+
+  // Rebuild tier callout
+  const rtMeta = {
+    TEARDOWN:      { label:'FULL TEARDOWN',  desc:'Sell every producer, collect every pick. Maximize long-term capital.', color:'#f87171' },
+    ONE_YEAR_PUNT: { label:'ONE-YEAR PUNT',  desc:'Trim aging veterans, collect liquidity, target the next draft cycle.', color:'var(--orange)' },
+    HOUSE_MONEY:   { label:'HOUSE MONEY',    desc:'Strong rebuilder. Young assets banked. Stay patient — your best seasons are ahead.', color:'#38bdf8' },
+  };
+  const rt = rebuildTier ? rtMeta[rebuildTier] : null;
+  const rebuildBanner = rt ? `<div style="display:flex;gap:8px;padding:9px 12px;background:rgba(255,255,255,0.02);border:1px solid ${rt.color}28;border-left:3px solid ${rt.color};border-radius:6px;">
+    <div>
+      <div style="font-family:var(--mono);font-size:7px;font-weight:700;letter-spacing:0.13em;color:${rt.color};margin-bottom:3px;">REBUILD ARCHETYPE · ${rt.label}</div>
+      <div style="font-size:8.5px;color:rgba(255,255,255,0.38);line-height:1.5;">${rt.desc}</div>
+    </div>
+  </div>` : '';
+
+  return `<div class="ts2-wrap">
+    ${rebuildBanner}
+    ${situBar}
+    ${snRow}
+    ${signalsHTML}
+    ${chipsHTML}
+    <div>
+      <div class="ts2-section-lbl">PRIORITY MOVES</div>
+      <div class="ts2-moves">${moveCards.length ? moveCards.join('') : noMoveMsg}</div>
+    </div>
+  </div>`;
+}
+
 // ── Dual Path Renderer ─────────────────────────────────────────────────────────
 function _bpRenderDualPaths(pathA, pathB, rebuildTier) {
   const rPick = pk => {
@@ -18481,6 +18851,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const { pathA: smPathA, pathB: smPathB, rebuildTier } = _bpDualPathMoves(rosterId, allTeams, total, phase);
   // Tier strategy computed here so it can be embedded inside the path columns
   const tierMoves = _bpTierMoves(rosterId, allTeams, total, phase);
+  // Trade Intelligence v2 — synthesises all blueprint signals into priority moves
+  const tradeIntelHTML = _bpTradeIntelHTML({
+    phase, archetype, clock, ranks, total, isSF, w, l,
+    slotMap, trade, teamRow, rosterId, pickValueRank,
+    deadCapital, smPathA, smPathB, rebuildTier, tierMoves, shapeScores,
+  });
   const tierMovesHTML = (() => {
     const { downTier: dt, upTier: ut } = tierMoves;
     if (!dt && !ut) return '';
@@ -18756,7 +19132,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     suggestedMovesHTML, purgatoryHTML, holdsHTML,
     prodShareColor, valShareColor, fairShare,
     deadCapital, deadCapitalHTML,
-    tierMoves, tierMovesHTML,
+    tierMoves, tierMovesHTML, tradeIntelHTML,
     prodBreakdownHTML, injuryRiskHTML,
   };
 
@@ -18885,28 +19261,10 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         ${slotMapHTML}
       </div>
 
-      <!-- ROW: Trade Strategy (full-width) -->
+      <!-- ROW: Trade Intelligence (full-width) -->
       <div class="bp-panel" style="--bpa:#4ade80;">
-        <div class="bp-panel-title"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY<span class="bp-panel-sub">phase-aware · smart matching · suggested moves</span></div>
-
-        <!-- Dead capital alert (most urgent signal — show first) -->
-        ${deadCapitalHTML}
-
-        <!-- Phase overview paragraph -->
-        <!-- Section 1: Situation Overview -->
-        ${overviewParaHTML}
-
-        <!-- Section 2: Purgatory Alert (FRINGE only) -->
-        ${purgatoryHTML}
-
-        <!-- Section 3: Team snapshot -->
-        <div style="border-top:1px solid rgba(255,255,255,0.06);margin:10px 0 10px;"></div>
-        ${overviewHTML}
-
-        <!-- Section 4: Strategy Paths -->
-        <div style="border-top:1px solid rgba(255,255,255,0.06);margin:14px 0 10px;"></div>
-        <div class="bp-ts-section-title" style="margin-bottom:10px;">⚡ Strategy Paths<span style="font-family:var(--mono);font-size:7px;font-weight:400;color:rgba(255,255,255,0.28);margin-left:8px;letter-spacing:0.08em;">TWO DIRECTIONS · CHOOSE ONE</span></div>
-        ${suggestedMovesHTML}
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE INTELLIGENCE<span class="bp-panel-sub">data-driven · phase-aware · priority ranked</span></div>
+        ${tradeIntelHTML}
       </div>
 
       <!-- ROW: Swing Players | Needs + Holds -->
@@ -19116,26 +19474,11 @@ function openBlueprintFullscreen() {
           </div>
         </div>
 
-        <!-- COL 4: Trade Strategy (full) + Roster -->
+        <!-- COL 4: Trade Intelligence + Roster -->
         <div class="bp-fs-col">
           <div class="bp-fs-p" style="--bpa:#4ade80;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE STRATEGY<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">phase-aware · smart matching</span></div>
-            ${d.deadCapitalHTML ?? ''}
-
-            <!-- Section 1: Situation Overview -->
-            ${d.overviewParaHTML ?? ''}
-
-            <!-- Section 2: Purgatory Alert (FRINGE only) — shown between overview and team card -->
-            ${d.purgatoryHTML ?? ''}
-
-            <!-- Section 3: Team snapshot (archetype, strengths/needs) -->
-            <div style="border-top:1px solid rgba(255,255,255,0.06);margin:10px 0 10px;"></div>
-            ${d.overviewHTML}
-
-            <!-- Section 4: Strategy Paths -->
-            <div style="border-top:1px solid rgba(255,255,255,0.06);margin:14px 0 10px;"></div>
-            <div class="bp-ts-section-title" style="margin-bottom:8px;">⚡ Strategy Paths<span style="font-family:var(--mono);font-size:7px;font-weight:400;color:rgba(255,255,255,0.28);margin-left:8px;letter-spacing:0.08em;">TWO DIRECTIONS · CHOOSE ONE</span></div>
-            ${d.suggestedMovesHTML ?? ''}
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE INTELLIGENCE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">data-driven · priority ranked</span></div>
+            ${d.tradeIntelHTML ?? d.suggestedMovesHTML ?? ''}
           </div>
           <div class="bp-fs-p" style="--bpa:rgba(255,255,255,0.2);">
             <div class="bp-fs-pt"><span class="bp-pdot" style="background:rgba(255,255,255,0.35);"></span>FULL ROSTER<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">by FC value</span></div>
