@@ -19896,10 +19896,12 @@ function openBlueprintFullscreen() {
 
       <!-- PAGE 0: OVERVIEW -->
       <div class="bp-fs-page bpfsp-active" id="bpfsp-0">
-        ${_bpFsHeroBlock(d)}
-        ${_bpFsMetricBlock(d)}
         <div class="bp-fs-row4">
+
+          <!-- Col 1: Hero + Metrics + Radars -->
           <div class="bp-fs-col">
+            ${_bpFsHeroBlock(d)}
+            ${_bpFsMetricBlock(d)}
             <div class="bp-fs-p bp-panel-radar" style="--bpa:#fb7185;">
               <div class="bp-fs-pt"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">positional rank</span></div>
               ${_bpRadarSVG(d.radarScores, d.prodRadarScores)}
@@ -19911,8 +19913,10 @@ function openBlueprintFullscreen() {
               <div class="bp-radar-legend">${_shapeLeg}</div>
             </div>
           </div>
+
+          <!-- Col 2: Grades + Age + Value + Construction -->
           <div class="bp-fs-col">
-            ${p('#38bdf8','POSITIONAL GRADES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">vs '+d.total+' teams</span>',
+            ${p('#38bdf8','POSITIONAL GRADES<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">vs '+d.total+' teams · incl. picks</span>',
               `<div class="bp-grade-row" style="margin-bottom:14px;">${d.posGradesHTML}</div>
                <div class="bp-fs-pt" style="margin-top:4px;"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL AGE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">bar=team · tick=avg</span></div>
                ${d.ageBarHTML || '<div style="color:rgba(255,255,255,0.3);font-size:10px;">Age data unavailable.</div>'}`)}
@@ -19922,9 +19926,12 @@ function openBlueprintFullscreen() {
                <div class="bp-fs-pt" style="margin-top:11px;"><span class="bp-pdot" style="background:#fbbf24;"></span>ROSTER CONSTRUCTION</div>
                <div class="bp-const-bar">${d.constBarSegs}</div><div class="bp-const-legend">${d.constLegend}</div>`)}
           </div>
+
+          <!-- Col 3+4: Production Portfolio spanning full remaining width -->
           <div class="bp-fs-col" style="grid-column:span 2;">
             ${p('#a3e635','PRODUCTION PORTFOLIO<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">starter ppg by position vs league · bull/bear range</span>', d.prodBreakdownHTML ?? '')}
           </div>
+
         </div>
       </div>
 
