@@ -2441,6 +2441,14 @@
   .bp-trade-action { font-family:var(--mono); font-size:8px; font-weight:700; letter-spacing:0.06em; width:58px; flex-shrink:0; }
   .bp-trade-desc { flex:1; font-size:10px; color:var(--text-dim); }
 
+  /* Blueprint Tabs */
+  .bp-tab-nav { display:flex; gap:6px; padding:10px 0 0; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:14px; flex-wrap:wrap; }
+  .bp-tab-btn { font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,255,255,0.35); background:transparent; border:1px solid rgba(255,255,255,0.08); border-bottom:none; border-radius:5px 5px 0 0; padding:6px 14px; cursor:pointer; transition:color 0.15s,border-color 0.15s,background 0.15s; position:relative; bottom:-1px; }
+  .bp-tab-btn:hover { color:rgba(255,255,255,0.65); border-color:rgba(255,255,255,0.20); }
+  .bp-tab-btn.bp-tab-active { color:#fff; background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.22); }
+  .bp-tab-panel { display:none; flex-direction:column; gap:14px; }
+  .bp-tab-panel.bp-tab-active { display:flex; }
+
   /* Dynasty Strategy */
   .bp-ds-banner { display:inline-flex; align-items:center; gap:8px; border-radius:6px; padding:6px 16px; margin-bottom:14px; }
   .bp-ds-banner-word { font-family:var(--display); font-size:15px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:0.06em; }
@@ -18603,6 +18611,14 @@ async function renderBlueprintTab() {
   renderSingleTeamBlueprint(_blueprintRosterId, allTeams, isSF, total);
 }
 
+function switchBpTab(tab) {
+  document.querySelectorAll('.bp-tab-panel').forEach(p => p.classList.remove('bp-tab-active'));
+  document.querySelectorAll('.bp-tab-btn').forEach(b => b.classList.remove('bp-tab-active'));
+  document.getElementById('bptab-' + tab)?.classList.add('bp-tab-active');
+  document.getElementById('bptabbtn-' + tab)?.classList.add('bp-tab-active');
+  window._bpActiveTab = tab;
+}
+
 function switchBlueprintTeam(rosterId) {
   _blueprintRosterId = rosterId;
   const allTeams = computeTeamValues();
@@ -19554,7 +19570,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       </div>
     </div>
 
-    <!-- ═══ METRICS STRIP (5 chips) ═══ -->
+    <!-- ═══ METRICS STRIP ═══ -->
     <div class="bp-metrics-strip">
       <div class="bp-metric-chip" style="border-top-color:${trendColor};">
         <div class="bp-metric-label">3-YEAR WINDOW</div>
@@ -19589,10 +19605,17 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       </div>
     </div>
 
-    <!-- ═══ CONTENT ═══ -->
-    <div class="bp-content">
+    <!-- ═══ TAB NAV ═══ -->
+    <div class="bp-tab-nav">
+      <button class="bp-tab-btn" id="bptabbtn-overview" onclick="switchBpTab('overview')">OVERVIEW</button>
+      <button class="bp-tab-btn" id="bptabbtn-trade"    onclick="switchBpTab('trade')">TRADE</button>
+      <button class="bp-tab-btn" id="bptabbtn-roster"   onclick="switchBpTab('roster')">ROSTER</button>
+      <button class="bp-tab-btn" id="bptabbtn-capital"  onclick="switchBpTab('capital')">CAPITAL</button>
+    </div>
 
-      <!-- ROW: Radars -->
+    <!-- ═══ TAB: OVERVIEW ═══ -->
+    <div class="bp-tab-panel" id="bptab-overview">
+
       <div class="bp-row-split">
         <div class="bp-panel bp-panel-radar" style="--bpa:#fb7185;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb7185;"></span>ROSTER RADAR<span class="bp-panel-sub">positional league rank</span></div>
@@ -19606,7 +19629,6 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         </div>
       </div>
 
-      <!-- ROW: Grades+Age | Value+Construction -->
       <div class="bp-row-split">
         <div class="bp-panel" style="--bpa:#38bdf8;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#38bdf8;"></span>POSITIONAL GRADES<span class="bp-panel-sub">vs ${total} teams · incl. picks</span></div>
@@ -19627,57 +19649,69 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         </div>
       </div>
 
-      <!-- ROW: Production Portfolio (full-width) -->
       <div class="bp-panel" style="--bpa:#a3e635;">
         <div class="bp-panel-title"><span class="bp-pdot" style="background:#a3e635;"></span>PRODUCTION PORTFOLIO<span class="bp-panel-sub">starter ppg by position vs league · bull/bear range</span></div>
         ${prodBreakdownHTML}
       </div>
 
-      <!-- ROW: Lineup (full-width) -->
+    </div>
+
+    <!-- ═══ TAB: TRADE ═══ -->
+    <div class="bp-tab-panel" id="bptab-trade">
+
+      <div class="bp-panel" style="--bpa:#f5c842;">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#f5c842;"></span>DYNASTY STRATEGY<span class="bp-panel-sub">team archetype · roster category guidance</span></div>
+        ${dynastyStrategyHTML}
+      </div>
+
+      <div class="bp-panel" style="--bpa:rgba(255,255,255,0.55);">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:rgba(255,255,255,0.65);"></span>TRADE INTELLIGENCE<span class="bp-panel-sub">data-driven · phase-aware · two paths</span></div>
+        ${tradeIntelHTML}
+      </div>
+
+      <div class="bp-row-split">
+        <div class="bp-panel" style="--bpa:#fb923c;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>POSITIONAL NEEDS<span class="bp-panel-sub">vs league</span></div>
+          ${needsHTML}
+          ${holds.length ? `<div class="bp-panel-title" style="margin-top:14px;"><span class="bp-pdot" style="background:#38bdf8;"></span>HOLDS<span class="bp-panel-sub">developing · handcuff · monitor</span></div>${holdsHTML}` : ''}
+        </div>
+        <div class="bp-panel" style="--bpa:#fb923c;">
+          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>TRADE CHIPS<span class="bp-panel-sub">sell signals · idle capital</span></div>
+          ${deadCapitalHTML || '<div style="color:rgba(255,255,255,0.22);font-size:10px;padding:6px 0;font-style:italic;">No clear sell signals identified.</div>'}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══ TAB: ROSTER ═══ -->
+    <div class="bp-tab-panel" id="bptab-roster">
+
+      <div class="bp-panel" style="--bpa:#fb923c;">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>ROSTER PROFILES<span class="bp-panel-sub">starters + key bench · role classification</span></div>
+        ${swingHTML}
+      </div>
+
       <div class="bp-panel" style="--bpa:#2dd4bf;">
         <div class="bp-panel-title"><span class="bp-pdot" style="background:#2dd4bf;"></span>OPTIMAL LINEUP<span class="bp-panel-sub">base projections</span></div>
         ${lineupRowsHTML || '<div style="color:rgba(255,255,255,0.3);font-size:11px;">Run projections first.</div>'}
         ${_ppgTotal}
       </div>
 
-      <!-- ROW: Slot Map (full-width) -->
       <div class="bp-panel" style="--bpa:#38bdf8;">
         <div class="bp-panel-title"><span class="bp-pdot" style="background:#38bdf8;"></span>SLOT ANALYSIS<span class="bp-panel-sub">last season · projected · vs league avg per slot</span></div>
         ${slotMapHTML}
       </div>
 
-      <!-- ROW: Trade Intelligence (full-width) -->
-      <div class="bp-panel" style="--bpa:rgba(255,255,255,0.55);">
-        <div class="bp-panel-title"><span class="bp-pdot" style="background:rgba(255,255,255,0.65);"></span>TRADE INTELLIGENCE<span class="bp-panel-sub">data-driven · phase-aware · two paths</span></div>
-        ${tradeIntelHTML}
+      <div class="bp-panel" style="--bpa:rgba(255,255,255,0.2);">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:rgba(255,255,255,0.4);"></span>FULL ROSTER<span class="bp-panel-sub">by FC value · line = starter threshold</span></div>
+        <div class="bp-roster-grid" style="margin-top:8px;">${rosterGridHTML}</div>
       </div>
 
-      <!-- ROW: Dynasty Strategy (full-width) -->
-      <div class="bp-panel" style="--bpa:#f5c842;">
-        <div class="bp-panel-title"><span class="bp-pdot" style="background:#f5c842;"></span>DYNASTY STRATEGY<span class="bp-panel-sub">team archetype · roster category guidance</span></div>
-        ${dynastyStrategyHTML}
-      </div>
+    </div>
 
-      <!-- ROW: Swing Players | Needs + Holds -->
-      <div class="bp-row-split">
-        <div class="bp-panel" style="--bpa:#fb923c;">
-          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>ROSTER PROFILES<span class="bp-panel-sub">starters + key bench · role classification</span></div>
-          ${swingHTML}
-        </div>
-        <div class="bp-panel" style="--bpa:#fb923c;">
-          <div class="bp-panel-title"><span class="bp-pdot" style="background:#fb923c;"></span>POSITIONAL NEEDS<span class="bp-panel-sub">vs league</span></div>
-          ${needsHTML}
-          ${holds.length ? `<div class="bp-panel-title" style="margin-top:14px;"><span class="bp-pdot" style="background:#38bdf8;"></span>HOLDS<span class="bp-panel-sub">developing · handcuff · monitor</span></div>${holdsHTML}` : ''}
-        </div>
-      </div>
+    <!-- ═══ TAB: CAPITAL ═══ -->
+    <div class="bp-tab-panel" id="bptab-capital">
 
-      <!-- ROW: Injury Risk & Depth (full-width) -->
-      <div class="bp-panel" style="--bpa:#f87171;">
-        <div class="bp-panel-title"><span class="bp-pdot" style="background:#f87171;"></span>INJURY RISK &amp; DEPTH<span class="bp-panel-sub">availability concerns · backup depth assessment</span></div>
-        ${injuryRiskHTML}
-      </div>
-
-      <!-- ROW: Cornerstones (age cliff badges) | Draft Capital (hit rates) -->
       <div class="bp-row-split">
         <div class="bp-panel" style="--bpa:#f5c842;">
           <div class="bp-panel-title"><span class="bp-pdot" style="background:#f5c842;"></span>CORNERSTONES<span class="bp-panel-sub">top assets · ⚠ = age cliff approaching</span></div>
@@ -19689,14 +19723,15 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         </div>
       </div>
 
-      <!-- ROW: Full Roster -->
-      <div class="bp-panel" style="--bpa:rgba(255,255,255,0.2);">
-        <div class="bp-panel-title"><span class="bp-pdot" style="background:rgba(255,255,255,0.4);"></span>FULL ROSTER<span class="bp-panel-sub">by FC value · line = starter threshold</span></div>
-        <div class="bp-roster-grid" style="margin-top:8px;">${rosterGridHTML}</div>
+      <div class="bp-panel" style="--bpa:#f87171;">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#f87171;"></span>INJURY RISK &amp; DEPTH<span class="bp-panel-sub">availability concerns · backup depth assessment</span></div>
+        ${injuryRiskHTML}
       </div>
 
     </div>
+
   </div>`;
+  switchBpTab(window._bpActiveTab ?? 'overview');
 
   } catch(err) {
     console.error('[Blueprint crash] phase=' + phase, err);
