@@ -2441,6 +2441,24 @@
   .bp-trade-action { font-family:var(--mono); font-size:8px; font-weight:700; letter-spacing:0.06em; width:58px; flex-shrink:0; }
   .bp-trade-desc { flex:1; font-size:10px; color:var(--text-dim); }
 
+  /* Dynasty Strategy */
+  .bp-ds-banner { display:inline-flex; align-items:center; gap:8px; border-radius:6px; padding:6px 16px; margin-bottom:14px; }
+  .bp-ds-banner-word { font-family:var(--display); font-size:15px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:0.06em; }
+  .bp-ds-banner-ideal { font-family:var(--display); font-size:13px; font-weight:400; font-style:italic; color:rgba(255,255,255,0.75); text-transform:uppercase; letter-spacing:0.04em; }
+  .bp-ds-tier-badge { font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:0.09em; color:#fff; border-radius:20px; padding:3px 12px; display:inline-block; margin-bottom:10px; cursor:default; }
+  .bp-ds-bullet { font-size:11px; color:rgba(255,255,255,0.78); line-height:1.55; margin-bottom:8px; padding-left:2px; }
+  .bp-ds-bullet em { font-style:italic; }
+  .bp-ds-avoid { margin-top:12px; padding:9px 11px; background:rgba(248,113,113,0.07); border:1px solid rgba(248,113,113,0.22); border-radius:6px; }
+  .bp-ds-avoid-hdr { font-family:var(--mono); font-size:8px; font-weight:700; color:#f87171; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:7px; }
+  .bp-ds-avoid-item { font-size:10px; margin-bottom:4px; font-family:var(--mono); font-weight:700; letter-spacing:0.06em; }
+  .bp-ds-avoid-note { font-size:9px; color:rgba(255,255,255,0.38); margin-top:6px; font-style:italic; }
+  .bp-ds-cat-count { font-family:var(--mono); font-size:8px; opacity:0.6; margin-left:2px; }
+  .bp-ds-divider { height:1px; background:rgba(255,255,255,0.06); margin:10px 0; }
+  .bp-ds-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
+  .bp-ds-cat-chip { padding:5px 7px; border-radius:5px; text-align:center; }
+  .bp-ds-cat-chip-label { font-family:var(--mono); font-size:7px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; }
+  .bp-ds-cat-chip-n { font-family:var(--display); font-size:18px; font-weight:900; }
+
   /* ── Blueprint: Enhanced Visuals & Fullscreen ───────────────────────────── */
   @keyframes bp-slide-up  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
   @keyframes bp-glow-ring { 0%,100%{box-shadow:0 0 14px rgba(var(--gc-rgb,251,113,133),0.35)} 50%{box-shadow:0 0 32px rgba(var(--gc-rgb,251,113,133),0.65),0 0 6px rgba(var(--gc-rgb,251,113,133),0.4)} }
@@ -18519,6 +18537,162 @@ function switchBlueprintTeam(rosterId) {
   renderSingleTeamBlueprint(rosterId, allTeams, isSF, allTeams.length);
 }
 
+function _bpDynastyStrategy(rosterId, teamRow, allTeams, total, phase, shareStats, fairShare) {
+  const valShare = shareStats.valShare;
+  const fs = fairShare || (100 / total);
+
+  // Determine contending vs rebuilding
+  const isContending = ['WIN NOW','CONTENDING','AGING OUT'].includes(phase);
+  const isReload     = phase === 'RELOAD';
+  const isRebuilding = !isContending && !isReload;
+
+  // Value tier
+  let tier, tierLabel, tierColor, tierBg;
+  if (isContending) {
+    if      (valShare >= fs * 1.28) { tier='ELITE';     tierLabel='ELITE VALUE';     tierColor='#c084fc'; tierBg='#a855f7'; }
+    else if (valShare >= fs * 1.10) { tier='ENHANCED';  tierLabel='ENHANCED VALUE';  tierColor='#60a5fa'; tierBg='#3b82f6'; }
+    else                            { tier='STANDARD';  tierLabel='STANDARD VALUE';  tierColor='#22d3ee'; tierBg='#0891b2'; }
+  } else if (isReload) {
+    tier='RELOAD'; tierLabel='RELOAD'; tierColor='#4ade80'; tierBg='#16a34a';
+  } else {
+    tier='REBUILDING'; tierLabel='REBUILDING'; tierColor='#f87171'; tierBg='#dc2626';
+  }
+
+  // Map our labels → strategy categories
+  const CAT = {
+    'UNTOUCHABLE':'cs','CORNERSTONE':'cs',
+    'PROVEN STAR':'fnd','PRIME PRODUCER':'fnd','BREAKOUT STAR':'fnd','BLUE-CHIP':'fnd',
+    'RISING STAR':'up','ELITE PROSPECT':'up',
+    'BREAKOUT CANDIDATE':'shot','MAKE-OR-BREAK':'shot','PROMISING UPSIDE':'shot',
+    'POTENTIAL UPSIDE':'shot','LOTTERY TICKET':'shot','DEVELOPMENTAL':'shot',
+    'VETERAN STAR':'main','VETERAN PRODUCER':'main','STEADY VETERAN':'main',
+    'STEADY CONTRIBUTOR':'stp','AGING VET':'stp',
+    'HANDCUFF':'svc','DEPTH PIECE':'svc','BACKUP':'svc',
+  };
+  const roster = rostersData?.find(r => r.roster_id === rosterId);
+  const counts = {cs:0,fnd:0,up:0,shot:0,main:0,stp:0,svc:0};
+  for (const pid of (roster?.players ?? [])) {
+    const lbl = _bpClassifyPid(pid);
+    const cat = CAT[lbl];
+    if (cat) counts[cat]++;
+  }
+
+  // Helpers
+  const cat = (label, color) =>
+    `<span style="font-weight:700;color:${color};font-family:var(--mono);font-size:10px;letter-spacing:0.06em;">${label}</span>`;
+  const cnt = (n, color) =>
+    `<span class="bp-ds-cat-count" style="color:${color};">(${n})</span>`;
+  const bullet = (html) =>
+    `<div class="bp-ds-bullet">→ ${html}</div>`;
+
+  // Banner
+  const bannerPhase = isContending ? 'CONTENDING' : tier;
+  const banner = `<div class="bp-ds-banner" style="background:${tierBg};">
+    <span class="bp-ds-banner-ideal">IDEAL</span>
+    <span class="bp-ds-banner-word">${bannerPhase}</span>
+    <span class="bp-ds-banner-ideal">TEAM</span>
+  </div>`;
+
+  const tierBadge = `<span class="bp-ds-tier-badge" style="background:${tierBg};">${tierLabel}</span>`;
+
+  // Pick rank
+  const pickRank = [...allTeams].sort((a,b)=>b.pickValue-a.pickValue).findIndex(t=>t.roster_id===rosterId)+1;
+  const pickNeed = pickRank > Math.ceil(total*0.5);
+
+  // Build bullets by tier
+  let bullets = [], avoidItems = [];
+
+  if (tier === 'REBUILDING') {
+    bullets = [
+      bullet(`Maintain value with ${cat('CORNERSTONE','#fbbf24')} assets ${cnt(counts.cs,'#fbbf24')} <em style="font-size:9px;color:rgba(255,255,255,0.38);">(harder the rebuild, the fewer cornerstones)</em>`),
+      bullet(`Value is currency — production doesn't matter, gaining value does`),
+      bullet(`Realized &amp; Unrealized value ceiling — only hold players who can still go <em>up</em>`),
+      bullet(`Build around ${cat('FOUNDATIONAL','#818cf8')} assets ${cnt(counts.fnd,'#818cf8')} <em style="font-size:9px;color:rgba(255,255,255,0.38);">(harder the rebuild, the fewer foundationals)</em>`),
+      bullet(`Go super heavy ${cat('UPSIDE PREMIERE','#34d399')} ${cnt(counts.up,'#34d399')} + ${cat('UPSIDE SHOTS','#86efac')} ${cnt(counts.shot,'#86efac')} — these drive your value recovery`),
+      pickNeed ? bullet(`${cat('DRAFT CAPITAL','#f5c842')} is light (#${pickRank} of ${total}) — target picks in every trade`) : '',
+    ];
+    avoidItems = [
+      { label:'MAINSTAYS', color:'#c084fc' },
+      { label:'SHORT TERM LEAGUE WINNERS', color:'#38bdf8' },
+      { label:'PRODUCTIVE VETS', color:'#fbbf24' },
+      { label:'SHORT TERM PRODUCTION', color:'#fb923c' },
+    ];
+  } else if (tier === 'RELOAD') {
+    bullets = [
+      bullet(`Refresh value — you need players whose value can still climb`),
+      bullet(`Keep ${cat('CORNERSTONE','#fbbf24')} ${cnt(counts.cs,'#fbbf24')} + ${cat('FOUNDATIONAL','#818cf8')} ${cnt(counts.fnd,'#818cf8')} — they maintain value while you reload`),
+      bullet(`Stack ${cat('UPSIDE PREMIERE','#34d399')} ${cnt(counts.up,'#34d399')} — target the cheapest guys with the most room to rise`),
+      bullet(`${cat('UPSIDE SHOTS','#86efac')} ${cnt(counts.shot,'#86efac')} are fine — high ceiling bench pieces accelerate the reload`),
+      bullet(`Limit ${cat('MAINSTAYS','#c084fc')} ${cnt(counts.main,'#c084fc')} — realized ceiling, they won't grow your value`),
+      pickNeed ? bullet(`Draft capital is thin (#${pickRank} of ${total}) — ask for picks in every deal`) : bullet(`Leverage your picks (#${pickRank} of ${total}) to acquire ascending value`),
+    ];
+    avoidItems = [
+      { label:'MAINSTAYS (realized ceiling)', color:'#c084fc' },
+      { label:'AGING VETS / SHORT TERM PRODUCTION', color:'#f87171' },
+    ];
+  } else if (tier === 'STANDARD') {
+    bullets = [
+      bullet(`Load up on ${cat('WR','var(--blue)')} and ${cat('RB','var(--green)')} — volume positions carry the most value at this tier`),
+      bullet(`Fade ${cat('QB','#a78bfa')} — get the most productive guy at the cheapest possible price`),
+      bullet(`Punt ${cat('TE','var(--orange)')} — cheap productive vets serve you better than spending for an elite TE`),
+      bullet(`${cat('CORNERSTONE','#fbbf24')} ${cnt(counts.cs,'#fbbf24')} + ${cat('FOUNDATIONAL','#818cf8')} ${cnt(counts.fnd,'#818cf8')} are the bedrock — build your lineup around them`),
+      bullet(`${cat('MAINSTAYS','#c084fc')} ${cnt(counts.main,'#c084fc')} ok in small doses — don't depend on them week-to-week`),
+      bullet(`Sprinkle ${cat('UPSIDE PREMIERE','#34d399')} ${cnt(counts.up,'#34d399')} + ${cat('UPSIDE SHOTS','#86efac')} ${cnt(counts.shot,'#86efac')} on the bench for future value insurance`),
+    ];
+  } else if (tier === 'ENHANCED') {
+    bullets = [
+      bullet(`Focus on player categories — get the absolute best at each position`),
+      bullet(`${cat('CORNERSTONE','#fbbf24')} ${cnt(counts.cs,'#fbbf24')} + ${cat('FOUNDATIONAL','#818cf8')} ${cnt(counts.fnd,'#818cf8')} are non-negotiable — target 4–5 combined`),
+      bullet(`Elite ${cat('TE','var(--orange)')} and ${cat('QB','#a78bfa')} are preferable now — you have the budget to afford them`),
+      bullet(`${cat('MAINSTAYS','#c084fc')} ${cnt(counts.main,'#c084fc')} ok — don't rely on them as your primary production source`),
+      bullet(`Sprinkle ${cat('UPSIDE PREMIERE','#34d399')} ${cnt(counts.up,'#34d399')} + ${cat('UPSIDE SHOTS','#86efac')} ${cnt(counts.shot,'#86efac')} — value insurance without sacrificing contention`),
+      bullet(`Package extra bench pieces to upgrade ${cat('CORNERSTONE','#fbbf24')} / ${cat('FOUNDATIONAL','#818cf8')} depth`),
+    ];
+  } else { // ELITE
+    bullets = [
+      bullet(`Elite ${cat('TE','var(--orange)')} and ${cat('QB','#a78bfa')} are preferable — you have the value to afford the best at every position`),
+      bullet(`Target any top-2 round player you don't already own — fill in the gaps`),
+      bullet(`${cat('CORNERSTONE','#fbbf24')} ${cnt(counts.cs,'#fbbf24')} do the heavy lifting for value and production`),
+      bullet(`Pair cornerstones with short-term producers for cheap, elite production at every slot`),
+      bullet(`Package ${cat('UPSIDE SHOTS','#86efac')} ${cnt(counts.shot,'#86efac')} and ${cat('FOUNDATIONAL','#818cf8')} ${cnt(counts.fnd,'#818cf8')} bench pieces to move up to elite cornerstones`),
+      bullet(`You have no excuse to not spend — convert value into production to win now`),
+    ];
+  }
+
+  // Roster category summary chips
+  const chipDefs = [
+    { key:'cs',   label:'CORNERSTONE',    color:'#fbbf24', bg:'rgba(251,191,36,0.12)'  },
+    { key:'fnd',  label:'FOUNDATIONAL',   color:'#818cf8', bg:'rgba(129,140,248,0.12)' },
+    { key:'up',   label:'UPSIDE PREMIERE',color:'#34d399', bg:'rgba(52,211,153,0.12)'  },
+    { key:'shot', label:'UPSIDE SHOTS',   color:'#86efac', bg:'rgba(134,239,172,0.10)' },
+    { key:'main', label:'MAINSTAY',       color:'#c084fc', bg:'rgba(192,132,252,0.10)' },
+    { key:'stp',  label:'SHORT TERM PROD',color:'#fb923c', bg:'rgba(251,146,60,0.10)'  },
+  ];
+  const chipsHTML = chipDefs.map(c => `
+    <div class="bp-ds-cat-chip" style="background:${c.bg};border:1px solid ${c.color}22;">
+      <div class="bp-ds-cat-chip-n" style="color:${c.color};">${counts[c.key]}</div>
+      <div class="bp-ds-cat-chip-label" style="color:${c.color};">${c.label}</div>
+    </div>`).join('');
+
+  const avoidHTML = avoidItems.length ? `
+    <div class="bp-ds-avoid">
+      <div class="bp-ds-avoid-hdr">Do NOT roster long-term:</div>
+      ${avoidItems.map(a => `<div class="bp-ds-avoid-item" style="color:${a.color};">${a.label}</div>`).join('')}
+      <div class="bp-ds-avoid-note">→ Short term market plays only — flip for value wins, then move on</div>
+    </div>` : '';
+
+  return `
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      ${tierBadge}
+      ${banner}
+      <div style="display:flex;flex-direction:column;gap:0;">${bullets.join('')}</div>
+      ${avoidHTML}
+      <div class="bp-ds-divider"></div>
+      <div style="font-family:var(--mono);font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.08em;margin-bottom:6px;text-transform:uppercase;">Roster Category Breakdown</div>
+      <div class="bp-ds-grid">${chipsHTML}</div>
+    </div>`;
+}
+
 function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const el = document.getElementById('bp-single-content');
   if (!el) return;
@@ -18941,6 +19115,9 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const prodShareColor = shareStats.prodShare >= fairShare * 1.1 ? 'var(--green)' : shareStats.prodShare < fairShare * 0.85 ? 'var(--red)' : 'var(--text-dim)';
   const valShareColor  = shareStats.valShare  >= fairShare * 1.1 ? 'var(--green)' : shareStats.valShare  < fairShare * 0.85 ? 'var(--red)' : 'var(--text-dim)';
 
+  // ── Dynasty Strategy ──────────────────────────────────────────────────────
+  const dynastyStrategyHTML = _bpDynastyStrategy(rosterId, teamRow, allTeams, total, phase, shareStats, fairShare);
+
   // ── NEW: Risers & Fallers ─────────────────────────────────────────────────
   const rf = _bpRisersFallers(rosterId);
   const rfHTML = (() => {
@@ -19268,6 +19445,7 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
     deadCapital, deadCapitalHTML,
     tierMoves, tierMovesHTML, tradeIntelHTML,
     prodBreakdownHTML, injuryRiskHTML,
+    dynastyStrategyHTML,
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -19399,6 +19577,12 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       <div class="bp-panel" style="--bpa:rgba(255,255,255,0.55);">
         <div class="bp-panel-title"><span class="bp-pdot" style="background:rgba(255,255,255,0.65);"></span>TRADE INTELLIGENCE<span class="bp-panel-sub">data-driven · phase-aware · two paths</span></div>
         ${tradeIntelHTML}
+      </div>
+
+      <!-- ROW: Dynasty Strategy (full-width) -->
+      <div class="bp-panel" style="--bpa:#f5c842;">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:#f5c842;"></span>DYNASTY STRATEGY<span class="bp-panel-sub">team archetype · roster category guidance</span></div>
+        ${dynastyStrategyHTML}
       </div>
 
       <!-- ROW: Swing Players | Needs + Holds -->
