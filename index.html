@@ -1792,6 +1792,13 @@
   .mba-cut     { background: rgba(100,116,139,0.10); color: #64748b;  border-color: rgba(100,116,139,0.20); }
   /* Inline roster-row action signal tag */
   .bp-rp-action { font-family: var(--mono); font-size: 6.5px; font-weight: 700; letter-spacing: 0.08em; padding: 1px 5px; border-radius: 3px; border: 1px solid transparent; flex-shrink: 0; white-space: nowrap; }
+  /* Hit rate badge in tier table */
+  .mb-tier-hit-cell { width: 56px; flex-shrink: 0; text-align: center; }
+  .mb-hit-badge { font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: 0.06em; padding: 3px 0; border-radius: 4px; border: 1px solid transparent; display: block; }
+  .mb-hit-high  { color: #4ade80; background: rgba(74,222,128,0.10);  border-color: rgba(74,222,128,0.22);  }
+  .mb-hit-mid   { color: #fbbf24; background: rgba(251,191,36,0.10);  border-color: rgba(251,191,36,0.22);  }
+  .mb-hit-low   { color: #fb923c; background: rgba(251,146,60,0.10);  border-color: rgba(251,146,60,0.22);  }
+  .mb-hit-vlow  { color: #64748b; background: rgba(100,116,139,0.08); border-color: rgba(100,116,139,0.16); }
   .mb-clause.boost   { background: rgba(45,214,168,0.10);  color: var(--green);  border: 1px solid rgba(45,214,168,0.25); }
   .mb-clause.risk    { background: rgba(255,92,114,0.10);  color: var(--red);    border: 1px solid rgba(255,92,114,0.22); }
   .mb-clause.pos     { background: rgba(168,85,247,0.10);  color: #c084fc;       border: 1px solid rgba(168,85,247,0.25); }
@@ -15371,54 +15378,58 @@ function _bpCornerstones(rosterId) {
 
 // Swing players — Rising Star / Prove It / Cliff Risk with PPG, tier, reason
 // ── Roster Profile Classifier ─────────────────────────────────────────────────
-// prod  = Production Upside 1–5: expected this-season output (current/near-term, like redraft signal)
-// val   = Value Increase Upside 1–5: how much dynasty trade value can still rise from current price
-// action = BUY | SELL | HOLD | MONITOR | CUT
-// Half-star increments (0.5) are supported — displayed as dimmed ★ in the tier table.
+// prod     = Production Upside 1–5: expected this-season output (current/near-term, like redraft signal)
+// val      = Value Ceiling 1–5: how high can dynasty trade value realistically go? (price-to-ceiling ratio)
+// hitRate  = Probability (0–1) of actually reaching that ceiling
+// action   = BUY | SELL | HOLD | MONITOR | CUT  (derived from val × hitRate = expected upside)
+// Half-star increments (0.5) are supported in the tier table display.
 const _RP_LABELS = {
   // ── Franchise ──────────────────────────────────────────────────────────────
-  // Fully priced in at the top; untouchable has no value ceiling left to grow
-  'UNTOUCHABLE':       { color:'#f5c842', bg:'rgba(245,200,66,0.15)',   border:'rgba(245,200,66,0.30)',   tier:'franchise', prod:5,   val:1,   action:'HOLD'    },
-  // Rank 13–25: nearly fully priced in, tiny window remains
-  'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise', prod:5,   val:1.5, action:'HOLD'    },
+  'UNTOUCHABLE':       { color:'#f5c842', bg:'rgba(245,200,66,0.15)',   border:'rgba(245,200,66,0.30)',   tier:'franchise', prod:5,   val:1,   hitRate:1.00, action:'HOLD'    },
+  'CORNERSTONE':       { color:'#fbbf24', bg:'rgba(251,191,36,0.12)',   border:'rgba(251,191,36,0.26)',   tier:'franchise', prod:5,   val:1.5, hitRate:0.95, action:'HOLD'    },
   // ── Star Producers ─────────────────────────────────────────────────────────
-  // Top-36, age ≤25, yr 1+: producing and ascending — market hasn't priced full ceiling
-  'BREAKOUT STAR':     { color:'#f472b6', bg:'rgba(244,114,182,0.13)', border:'rgba(244,114,182,0.28)',  tier:'star',      prod:3.5, val:2.5, action:'BUY'     },
-  // Rank ≤50, age ≤31: at 59% of age-adjusted ceiling (~$7,500) — small room
-  'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star',      prod:4,   val:2,   action:'HOLD'    },
-  // Rank ≤100, age ≤29, yr 4+: at 57% of age-adjusted ceiling — similar small room
-  'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)',  tier:'star',      prod:4,   val:2,   action:'HOLD'    },
+  'BREAKOUT STAR':     { color:'#f472b6', bg:'rgba(244,114,182,0.13)', border:'rgba(244,114,182,0.28)',  tier:'star',      prod:3.5, val:2.5, hitRate:0.65, action:'BUY'     },
+  'PROVEN STAR':       { color:'#818cf8', bg:'rgba(129,140,248,0.13)',  border:'rgba(129,140,248,0.26)',  tier:'star',      prod:4,   val:2,   hitRate:0.85, action:'HOLD'    },
+  'PRIME PRODUCER':    { color:'#a78bfa', bg:'rgba(167,139,250,0.13)', border:'rgba(167,139,250,0.26)',  tier:'star',      prod:4,   val:2,   hitRate:0.80, action:'HOLD'    },
   // ── Ascending ──────────────────────────────────────────────────────────────
-  // Rank ≤100, yr 1–2, producing above avg: at ~47% of ceiling (~$7,000) — solid room
-  'RISING STAR':       { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending', prod:3,   val:3,   action:'BUY'     },
-  // Rank ≤100, yr 1–2, lower bar: at ~49% of ceiling — similar room, less proven
-  'BREAKOUT CANDIDATE':{ color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending', prod:2.5, val:3,   action:'BUY'     },
-  // Rank ≤125, yr 2, do-or-die: at ~28% of ceiling (~$6,500) — lots of room if they hit
-  'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending', prod:2.5, val:3.5, action:'MONITOR' },
+  'RISING STAR':       { color:'#34d399', bg:'rgba(52,211,153,0.13)',   border:'rgba(52,211,153,0.28)',   tier:'ascending', prod:3,   val:3,   hitRate:0.60, action:'BUY'     },
+  'BREAKOUT CANDIDATE':{ color:'#fbbf24', bg:'rgba(251,191,36,0.11)',   border:'rgba(251,191,36,0.24)',   tier:'ascending', prod:2.5, val:3,   hitRate:0.40, action:'BUY'     },
+  'MAKE-OR-BREAK':     { color:'#fb923c', bg:'rgba(251,146,60,0.12)',   border:'rgba(251,146,60,0.26)',   tier:'ascending', prod:2.5, val:3.5, hitRate:0.30, action:'MONITOR' },
   // ── Prospects ──────────────────────────────────────────────────────────────
-  // Top-36 rookies at ~$5,100 avg: at 57% of ~$9,000 ceiling — priced for their rank already
-  'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect',  prod:3.5, val:2.5, action:'BUY'     },
-  // Rank 37–75, yr 0–1 at ~$3,600: at 40% of ~$9,000 ceiling — more room than blue-chip
-  'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect',  prod:2.5, val:3.5, action:'BUY'     },
-  // Rank ≤125, age ≤24 at ~$2,000: at 29% of ~$7,000 ceiling — cheap relative to upside
-  'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)',  tier:'prospect',  prod:1,   val:4,   action:'BUY'     },
-  // Rank ≤175, age ≤23 at ~$1,200: at 20% of ~$6,000 ceiling — very cheap relative to ceiling
-  'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',   tier:'prospect',  prod:1,   val:4,   action:'MONITOR' },
-  // ~$700 FC, ceiling ~$4,000 — at 17% of ceiling, maximum price-to-ceiling upside
-  'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)',  tier:'prospect',  prod:1,   val:5,   action:'MONITOR' },
-  // Stash at ~$900 FC, ceiling ~$5,000 — at 18% of ceiling, same tier as lottery ticket
-  'DEVELOPMENTAL':     { color:'#6ee7b7', bg:'rgba(110,231,183,0.10)', border:'rgba(110,231,183,0.20)',  tier:'prospect',  prod:1,   val:4.5, action:'HOLD'    },
+  'BLUE-CHIP':         { color:'#4ade80', bg:'rgba(74,222,128,0.13)',   border:'rgba(74,222,128,0.26)',   tier:'prospect',  prod:3.5, val:2.5, hitRate:0.55, action:'BUY'     },
+  'ELITE PROSPECT':    { color:'#34d399', bg:'rgba(52,211,153,0.12)',   border:'rgba(52,211,153,0.24)',   tier:'prospect',  prod:2.5, val:3.5, hitRate:0.40, action:'BUY'     },
+  'PROMISING UPSIDE':  { color:'#86efac', bg:'rgba(134,239,172,0.11)', border:'rgba(134,239,172,0.22)',  tier:'prospect',  prod:1,   val:4,   hitRate:0.25, action:'BUY'     },
+  'POTENTIAL UPSIDE':  { color:'#fcd34d', bg:'rgba(252,211,77,0.10)',  border:'rgba(252,211,77,0.22)',   tier:'prospect',  prod:1,   val:4,   hitRate:0.15, action:'MONITOR' },
+  'LOTTERY TICKET':    { color:'#94a3b8', bg:'rgba(148,163,184,0.09)', border:'rgba(148,163,184,0.18)',  tier:'prospect',  prod:1,   val:5,   hitRate:0.08, action:'MONITOR' },
+  'DEVELOPMENTAL':     { color:'#6ee7b7', bg:'rgba(110,231,183,0.10)', border:'rgba(110,231,183,0.20)',  tier:'prospect',  prod:1,   val:4.5, hitRate:0.10, action:'HOLD'    },
   // ── Veterans ───────────────────────────────────────────────────────────────
-  'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran',   prod:4,   val:1,   action:'SELL'    },
-  'VETERAN PRODUCER':  { color:'#fdba74', bg:'rgba(253,186,116,0.12)', border:'rgba(253,186,116,0.24)',  tier:'veteran',   prod:4,   val:1,   action:'SELL'    },
-  'STEADY VETERAN':    { color:'#94a3b8', bg:'rgba(148,163,184,0.11)', border:'rgba(148,163,184,0.22)',  tier:'veteran',   prod:3,   val:1,   action:'SELL'    },
-  'STEADY CONTRIBUTOR':{ color:'#64748b', bg:'rgba(100,116,139,0.11)', border:'rgba(100,116,139,0.20)',  tier:'veteran',   prod:3,   val:1,   action:'HOLD'    },
-  'AGING VET':         { color:'#f87171', bg:'rgba(248,113,113,0.12)', border:'rgba(248,113,113,0.24)',  tier:'veteran',   prod:2,   val:1,   action:'SELL'    },
+  'VETERAN STAR':      { color:'#fb923c', bg:'rgba(251,146,60,0.14)',   border:'rgba(251,146,60,0.28)',   tier:'veteran',   prod:4,   val:1,   hitRate:0.00, action:'SELL'    },
+  'VETERAN PRODUCER':  { color:'#fdba74', bg:'rgba(253,186,116,0.12)', border:'rgba(253,186,116,0.24)',  tier:'veteran',   prod:4,   val:1,   hitRate:0.00, action:'SELL'    },
+  'STEADY VETERAN':    { color:'#94a3b8', bg:'rgba(148,163,184,0.11)', border:'rgba(148,163,184,0.22)',  tier:'veteran',   prod:3,   val:1,   hitRate:0.00, action:'SELL'    },
+  'STEADY CONTRIBUTOR':{ color:'#64748b', bg:'rgba(100,116,139,0.11)', border:'rgba(100,116,139,0.20)',  tier:'veteran',   prod:3,   val:1,   hitRate:0.00, action:'HOLD'    },
+  'AGING VET':         { color:'#f87171', bg:'rgba(248,113,113,0.12)', border:'rgba(248,113,113,0.24)',  tier:'veteran',   prod:2,   val:1,   hitRate:0.00, action:'SELL'    },
   // ── Depth ──────────────────────────────────────────────────────────────────
-  'HANDCUFF':          { color:'#38bdf8', bg:'rgba(56,189,248,0.11)',  border:'rgba(56,189,248,0.22)',   tier:'depth',     prod:2,   val:2,   action:'HOLD'    },
-  'DEPTH PIECE':       { color:'#475569', bg:'rgba(71,85,105,0.12)',   border:'rgba(71,85,105,0.22)',    tier:'depth',     prod:1,   val:1,   action:'CUT'     },
-  'BACKUP':            { color:'#334155', bg:'rgba(51,65,85,0.12)',    border:'rgba(51,65,85,0.20)',     tier:'depth',     prod:1,   val:1,   action:'CUT'     },
+  'HANDCUFF':          { color:'#38bdf8', bg:'rgba(56,189,248,0.11)',  border:'rgba(56,189,248,0.22)',   tier:'depth',     prod:2,   val:2,   hitRate:0.25, action:'HOLD'    },
+  'DEPTH PIECE':       { color:'#475569', bg:'rgba(71,85,105,0.12)',   border:'rgba(71,85,105,0.22)',    tier:'depth',     prod:1,   val:1,   hitRate:0.05, action:'CUT'     },
+  'BACKUP':            { color:'#334155', bg:'rgba(51,65,85,0.12)',    border:'rgba(51,65,85,0.20)',     tier:'depth',     prod:1,   val:1,   hitRate:0.05, action:'CUT'     },
 };
+
+// Expected upside = val × hitRate — probability-adjusted dynasty growth signal
+// Used by trade logic to rank buy targets (prevents lottery tickets from appearing as "best buys")
+function _rpExpectedUpside(label) {
+  const lm = _RP_LABELS[label];
+  return lm ? Math.round(lm.val * lm.hitRate * 100) / 100 : 0;
+}
+
+// Quick tier classification for a PID — used for trade scoring without a full profile render
+function _bpClassifyPid(pid) {
+  const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
+  if (!fc || !sp) return 'BACKUP';
+  const age  = _bpAge(sp.birth_date) ?? 27;
+  const ppg  = projectionCache[pid]?.basePpg ?? 0;
+  const yExp = sp.years_exp ?? 0;
+  return _bpClassifyPlayer(fc, age, ppg, true, yExp, null);
+}
 
 function _bpClassifyPlayer(fc, age, basePpg, isStarter, yearsExp, posAvgPpg) {
   const oRank  = fc.overallRank ?? 999;
@@ -16651,13 +16662,16 @@ function _bpSuggestedMoves(rosterId, allTeams, total, phase) {
           const fc = fcPlayerMap[pid]; const sp = sleeperPlayers[pid];
           if (!fc || fc.position !== targetPos) return null;
           const val = fc.value ?? 0;
-          // Value must be in trade range
           if (val < valLo || val > valHi) return null;
           const age = _bpAge(sp?.birth_date) ?? 27;
-          // For age-cliff same-position buys: must be younger than the sell
           if (sell.sellType === 'age_cliff' && targetPos === sell.pos && age >= sell.age - 1) return null;
-          return { pid, name: fc.name, val, age: +age.toFixed(1), team: teamShort, roster_id: t.roster_id };
-        }).filter(Boolean).sort((a, b) => b.val - a.val);
+          const expUp = _rpExpectedUpside(_bpClassifyPid(pid));
+          return { pid, name: fc.name, val, age: +age.toFixed(1), team: teamShort, roster_id: t.roster_id, expUp };
+        }).filter(Boolean).sort((a, b) => {
+          // Rank by expected upside first — prevents low-probability stashes from surfacing as top buys
+          if (Math.abs(a.expUp - b.expUp) > 0.15) return b.expUp - a.expUp;
+          return b.val - a.val; // tiebreak: higher dynasty value
+        });
 
         // Don't take their clear #1 cornerstone (top player on their roster)
         const tAllVals = tPids
@@ -17057,7 +17071,19 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
       .sort((a,b) => a.val - b.val); // smallest first so we don't overpay
     const hasCapital = sparePicks.length >= 3 || myPicks.filter(p=>(p.round??99)<=2).length >= 2;
 
-    for (const tgt of byNeed(leaguePlayers.filter(p => p.age <= 25 && p.val >= 800 && p.val <= 5000)).slice(0, 20)) {
+    // Sort buy targets by expected upside (val × hitRate) within each position-need group
+    // This prevents LOTTERY TICKET / DEVELOPMENTAL players from appearing as "best buys"
+    // despite having high value ceilings — their low hit rates pull expected score below threshold
+    const _buyTgts = byNeed(leaguePlayers.filter(p => p.age <= 25 && p.val >= 800 && p.val <= 5000))
+      .map(p => ({ ...p, _expUp: _rpExpectedUpside(_bpClassifyPid(p.pid)) }))
+      .filter(p => p._expUp >= 0.75)   // min threshold: excludes LOTTERY TICKET (0.40), DEVELOPMENTAL (0.45), POTENTIAL UPSIDE (0.60)
+      .sort((a, b) => {
+        const ai = weakPositions.indexOf(a.pos), bi = weakPositions.indexOf(b.pos);
+        if (ai !== bi) { if (ai === -1) return 1; if (bi === -1) return -1; return ai - bi; }
+        return b._expUp - a._expUp;    // within same position need: best expected upside first
+      })
+      .slice(0, 20);
+    for (const tgt of _buyTgts) {
       // Widen lower tolerance — we may cover the gap with a pick
       const offer = selling.find(p => p.val >= tgt.val*0.68 && p.val <= tgt.val*1.22 && p.age > tgt.age+2 && posImpactOk([p.pid]));
       if (!offer) continue;
@@ -20856,19 +20882,32 @@ function _mbTierTableHtml() {
     `<span class="mb-tier-action-badge ${cls}" style="width:auto;padding:2px 8px;display:inline-block;">${a}</span>`
   ).join('');
 
+  const hitBadge = (rate) => {
+    const pct = Math.round(rate * 100);
+    if (rate === 0) return `<span class="mb-hit-badge mb-hit-vlow">N/A</span>`;
+    const cls = rate >= 0.60 ? 'mb-hit-high' : rate >= 0.30 ? 'mb-hit-mid' : rate >= 0.15 ? 'mb-hit-low' : 'mb-hit-vlow';
+    return `<span class="mb-hit-badge ${cls}">${pct}%</span>`;
+  };
+
   let html = `
     <div class="mb-tier-panel">
       <div class="mb-tier-panel-head">
         <span class="mb-tier-panel-badge">Strategy Guide</span>
         <div>
           <div class="mb-tier-panel-title">Dynasty Tier Classifications</div>
-          <div class="mb-tier-panel-sub">Production Upside · Value Increase Upside · Trade Action Signal</div>
+          <div class="mb-tier-panel-sub">Production Upside · Value Ceiling · Hit Rate · Action Signal</div>
         </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.38);line-height:1.5;margin-bottom:12px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:5px;border:1px solid rgba(255,255,255,0.06);">
+        <b style="color:rgba(255,255,255,0.55);">Value Ceiling</b> = how high can FC value realistically go from today's price &nbsp;·&nbsp;
+        <b style="color:rgba(255,255,255,0.55);">Hit Rate</b> = probability of reaching that ceiling &nbsp;·&nbsp;
+        <b style="color:rgba(255,255,255,0.55);">Action</b> is derived from both — a 5★ ceiling with 8% hit rate is still a MONITOR, not a BUY
       </div>
       <div class="mb-tier-header-row">
         <div class="mb-tier-col-lbl col-name">Player Category</div>
         <div class="mb-tier-col-lbl col-stars">Production<br>Upside</div>
-        <div class="mb-tier-col-lbl col-stars">Value Increase<br>Upside</div>
+        <div class="mb-tier-col-lbl col-stars">Value<br>Ceiling</div>
+        <div class="mb-tier-col-lbl" style="width:56px;flex-shrink:0;text-align:center;">Hit<br>Rate</div>
         <div class="mb-tier-col-lbl col-action">Action<br>Signal</div>
       </div>`;
 
@@ -20882,6 +20921,7 @@ function _mbTierTableHtml() {
         <div class="mb-tier-pill" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${key}</div>
         <div class="mb-tier-stars-cell">${stars(lm.prod, '#f5c842')}</div>
         <div class="mb-tier-stars-cell">${stars(lm.val, '#38bdf8')}</div>
+        <div class="mb-tier-hit-cell">${hitBadge(lm.hitRate)}</div>
         <div class="mb-tier-action-badge ${ac}">${lm.action}</div>
       </div>`;
     }
