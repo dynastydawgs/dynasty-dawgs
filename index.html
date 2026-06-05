@@ -17108,14 +17108,83 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     return null;
   };
 
-  // PROTECT WINDOW: Swap an aging vet for a younger producer at the same position
+  // ── Partner motivation check ──────────────────────────────────────────────
+  // Returns true if the team that owns targetPid has a plausible reason to trade
+  // their player (especially a younger one) in exchange for an older/cheaper asset.
+  // This prevents suggestions like "offer 2.6k Jones for 3.3k Stroud" — Stroud's team
+  // has no motivation to accept unless they're rebuilding or have clear surplus.
+  const _partnerWouldMove = (targetPid, offerVal) => {
+    const partnerRoster = rostersData?.find(r => r.players?.includes(targetPid));
+    if (!partnerRoster) return true;
+    const partnerTeam = allTeams.find(t => t.roster_id === partnerRoster.roster_id);
+    if (!partnerTeam) return true;
+    const partnerPhase = _bpPhase(partnerTeam, allTeams);
+    const targetFc = fcPlayerMap[targetPid];
+    const targetAge = _bpAge(sleeperPlayers[targetPid]?.birth_date) ?? 27;
+
+    // REBUILDING / AGING OUT: actively trying to move young players for picks/veterans
+    if (['REBUILDING', 'AGING OUT', 'FRINGE'].includes(partnerPhase)) return true;
+
+    // WIN NOW / CONTENDING: would trade a young player only for fair or better value
+    // — they won't give up a better asset unless they get at least equal value back
+    if (['WIN NOW', 'CONTENDING'].includes(partnerPhase)) {
+      const valOk = offerVal >= (targetFc?.value ?? 0) * 0.92;
+      // Also accept if they have documented surplus at this position (top-25%)
+      const posR = leagueRankings[partnerRoster.roster_id]?.[`${targetFc?.position}Comp`];
+      const hasSurplus = posR && (posR - 1) / Math.max(total - 1, 1) <= 0.28;
+      return valOk || hasSurplus;
+    }
+
+    // RELOAD: will trade to extend window — accept near-fair value
+    return offerVal >= (targetFc?.value ?? 0) * 0.88;
+  };
+
+  // PROTECT WINDOW: Swap an aging vet for a younger producer at the same position.
+  // Rules: the trade must make ECONOMIC sense for the other team too.
+  //  • Near-even swap (within ±10%): straight up.
+  //  • We're getting more value (10–35% gap): throw in a pick to close the deal.
+  //  • Never suggest a trade where we ask for more value than we offer without compensation.
+  //  • Only target teams whose phase gives them motivation to trade their younger player.
   const protectWindowMove = () => {
+    const sparePicks = myPicks
+      .map(pk => ({ ...pk, val: _bpPickVal(pk) }))
+      .filter(pk => (pk.round ?? 99) <= 3)
+      .sort((a, b) => a.val - b.val); // smallest first — don't overpay
+
     for (const sell of myPlayers.filter(p => p.age >= 28 && p.val >= 1500).sort((a,b) => b.val-a.val)) {
-      const tgt = leaguePlayers.find(p =>
-        p.pos === sell.pos && p.age >= 23 && p.age < sell.age-1.5 &&
-        p.ppg >= sell.ppg*0.70 && p.val >= sell.val*0.72 && p.val <= sell.val*1.28);
-      if (tgt) return { type:'protect', pkg:{ players:[sell], picks:[] }, target:tgt,
-        rationale:`Similar production, more runway. ${sell.name} (${sell.age}yo) → ${tgt.name} (${tgt.age}yo). Same position, better trajectory — keep competing without aging out.` };
+      if (!posImpactOk([sell.pid])) continue;
+
+      const candidates = leaguePlayers.filter(p =>
+        p.pos === sell.pos &&
+        p.age >= 23 && p.age < sell.age - 1.5 &&
+        p.ppg >= sell.ppg * 0.70
+      );
+
+      // ── Path A: near-even straight swap (target within ±10% of sell value) ──
+      const evenTgt = candidates.find(p =>
+        p.val >= sell.val * 0.90 && p.val <= sell.val * 1.10 &&
+        _partnerWouldMove(p.pid, sell.val)
+      );
+      if (evenTgt) {
+        const yrDiff = Math.round(sell.age - evenTgt.age * 10) / 10;
+        return { type:'protect', pkg:{ players:[sell], picks:[] }, target:evenTgt,
+          rationale:`Near-even value swap, ${yrDiff.toFixed(0)}+ years younger. ${sell.name} (${sell.age}yo, ${(sell.val/1000).toFixed(1)}k) → ${evenTgt.name} (${evenTgt.age}yo, ${(evenTgt.val/1000).toFixed(1)}k). Same production window, better age trajectory.` };
+      }
+
+      // ── Path B: target worth 10–35% more — include a sweetener pick ──────
+      const premTgt = candidates.find(p =>
+        p.val > sell.val * 1.10 && p.val <= sell.val * 1.38 &&
+        _partnerWouldMove(p.pid, sell.val + (sparePicks[0]?.val ?? 0))
+      );
+      if (premTgt && sparePicks.length) {
+        const gap = premTgt.val - sell.val;
+        const sweetener = sparePicks.find(pk => pk.val >= gap * 0.58 && pk.val <= gap * 1.30);
+        if (sweetener) {
+          const pkLabel = sweetener.label ?? `${sweetener.tier ?? ''}R${sweetener.round ?? '?'} pick`;
+          return { type:'protect', pkg:{ players:[sell], picks:[sweetener] }, target:premTgt,
+            rationale:`${sell.name} (${sell.age}yo) + ${pkLabel} → ${premTgt.name} (${premTgt.age}yo). You're paying a slight premium for the runway — ${premTgt.age}yo has significantly more peak seasons ahead. Worth the overpay to extend your window.` };
+        }
+      }
     }
     return null;
   };
@@ -17144,23 +17213,34 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
       })
       .slice(0, 20);
     for (const tgt of _buyTgts) {
-      // Widen lower tolerance — we may cover the gap with a pick
-      const offer = selling.find(p => p.val >= tgt.val*0.68 && p.val <= tgt.val*1.22 && p.age > tgt.age+2 && posImpactOk([p.pid]));
+      // Must be fair value for the other team — they won't give up an ascending player for less
+      // Near-even (within 85-115% of target value): straight swap is realistic
+      // If gap > 15%: we MUST include a pick to make it fair, and partner must have motivation
+      const offer = selling.find(p =>
+        p.val >= tgt.val * 0.85 && p.val <= tgt.val * 1.20 &&
+        p.age > tgt.age + 2 &&
+        posImpactOk([p.pid]) &&
+        _partnerWouldMove(tgt.pid, p.val)
+      );
       if (!offer) continue;
 
       const gap = tgt.val - offer.val;
-      let sweetener = null;
-      if (gap > 0 && hasCapital) {
-        // Find the smallest pick that covers at least 60% of the gap
-        sweetener = sparePicks.find(pk => pk.val >= gap * 0.60) ?? null;
+
+      // Straight swap: offer covers ≥85% of target value — fair enough
+      if (gap <= tgt.val * 0.15) {
+        return { type:'buy_low', pkg:{ players:[offer], picks:[] }, target:tgt,
+          rationale:`Same price range, better trajectory. ${offer.name} (${offer.age}yo, ${(offer.val/1000).toFixed(1)}k) → ${tgt.name} (${tgt.age}yo, ${(tgt.val/1000).toFixed(1)}k). Near-equal value today, years of upside still ahead.` };
       }
 
-      const picks = sweetener ? [sweetener] : [];
-      const overpayNote = sweetener
-        ? ` Throw in the ${sweetener.label ?? sweetener.tier+' pick'} to close the deal — slightly overpaying is worth it to get ${tgt.name.split(' ')[1] ?? tgt.name}'s upside while ${offer.name.split(' ')[1] ?? offer.name}'s value is still high.`
-        : '';
-      return { type:'buy_low', pkg:{ players:[offer], picks }, target:tgt,
-        rationale:`Same price, better trajectory. ${offer.name} (${offer.age}yo) → ${tgt.name} (${tgt.age}yo). Identical value today, years of upside still ahead.${overpayNote}` };
+      // Gap of 15–20%: add a pick sweetener to make it fair and more likely to be accepted
+      if (hasCapital) {
+        const sweetener = sparePicks.find(pk => pk.val >= gap * 0.65 && pk.val <= gap * 1.40) ?? null;
+        if (sweetener) {
+          const pkLabel = sweetener.label ?? `${sweetener.tier ?? ''}R${sweetener.round ?? '?'} pick`;
+          return { type:'buy_low', pkg:{ players:[offer], picks:[sweetener] }, target:tgt,
+            rationale:`${offer.name} (${offer.age}yo) + ${pkLabel} → ${tgt.name} (${tgt.age}yo). Throw in the pick to close the value gap — slightly overpaying is worth it for ${tgt.name.split(' ')[1] ?? tgt.name}'s upside while ${offer.name.split(' ')[1] ?? offer.name}'s value is still high.` };
+        }
+      }
     }
     return null;
   };
