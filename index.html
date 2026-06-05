@@ -2952,17 +2952,32 @@
   .ts2-wrap { display:flex; flex-direction:column; gap:16px; }
   /* Situation bar */
   .ts2-sit-bar { display:flex; gap:6px; flex-wrap:wrap; }
-  .ts2-sit-chip { display:flex; flex-direction:column; padding:7px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:6px; flex:1; min-width:70px; }
-  .ts2-sit-chip-lbl { font-family:var(--mono); font-size:6.5px; letter-spacing:0.13em; text-transform:uppercase; color:rgba(255,255,255,0.25); margin-bottom:3px; }
-  .ts2-sit-chip-val { font-family:var(--mono); font-size:10px; font-weight:700; color:rgba(255,255,255,0.82); line-height:1.2; }
+  .ts2-sit-chip { display:flex; flex-direction:column; padding:7px 10px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:6px; flex:1; min-width:70px; }
+  .ts2-sit-chip-lbl { font-family:var(--mono); font-size:6.5px; letter-spacing:0.13em; text-transform:uppercase; color:rgba(255,255,255,0.38); margin-bottom:3px; }
+  .ts2-sit-chip-val { font-family:var(--mono); font-size:10px; font-weight:700; color:rgba(255,255,255,0.88); line-height:1.2; }
+  /* Two-path layout */
+  .ts2-paths { display:flex; gap:10px; align-items:flex-start; }
+  .ts2-path-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:7px; }
+  .ts2-path-head { padding:10px 12px; border-radius:6px; border-left:3px solid; background:rgba(255,255,255,0.04); }
+  .ts2-path-col-lbl { font-family:var(--mono); font-size:7.5px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:3px; }
+  .ts2-path-col-tagline { font-size:9px; color:rgba(255,255,255,0.52); line-height:1.4; }
+  .ts2-path-or { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 2px; min-width:22px; padding-top:44px; }
+  .ts2-path-or-line { flex:1; width:1px; background:rgba(255,255,255,0.08); min-height:20px; }
+  .ts2-path-or-txt { font-family:var(--mono); font-size:7.5px; color:rgba(255,255,255,0.22); padding:6px 0; letter-spacing:0.08em; writing-mode:vertical-rl; }
+  @media (max-width:640px) {
+    .ts2-paths { flex-direction:column; }
+    .ts2-path-or { flex-direction:row; padding:2px 0; min-width:unset; }
+    .ts2-path-or-line { flex:1; height:1px; width:auto; min-height:unset; }
+    .ts2-path-or-txt { writing-mode:horizontal-tb; padding:0 8px; }
+  }
   /* Section labels */
   .ts2-section-lbl { font-family:var(--mono); font-size:7px; letter-spacing:0.15em; text-transform:uppercase; color:rgba(255,255,255,0.28); margin-bottom:8px; }
   /* Signals */
   .ts2-signals { display:flex; flex-direction:column; gap:6px; }
   .ts2-signal-row { display:flex; align-items:flex-start; gap:7px; }
   .ts2-signal-type { font-family:var(--mono); font-size:6.5px; font-weight:700; letter-spacing:0.08em; padding:2px 6px; border-radius:3px; flex-shrink:0; margin-top:2px; border:1px solid transparent; }
-  .ts2-signal-text { font-size:10px; color:rgba(255,255,255,0.52); line-height:1.5; }
-  .ts2-signal-text strong { color:rgba(255,255,255,0.80); font-weight:600; }
+  .ts2-signal-text { font-size:10px; color:rgba(255,255,255,0.62); line-height:1.5; }
+  .ts2-signal-text strong { color:rgba(255,255,255,0.90); font-weight:600; }
   /* Strengths/needs row */
   .ts2-pos-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .ts2-pos-badge { font-family:var(--mono); font-size:8px; font-weight:700; padding:2px 7px; border-radius:3px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); letter-spacing:0.06em; }
@@ -2975,9 +2990,9 @@
   .ts2-chip-val { font-family:var(--mono); font-size:9px; font-weight:700; color:rgba(251,146,60,0.65); margin-left:auto; flex-shrink:0; }
   /* Priority moves */
   .ts2-moves { display:flex; flex-direction:column; gap:8px; }
-  .ts2-move-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-left-width:3px; border-radius:7px; overflow:hidden; }
-  .ts2-move-head { display:flex; align-items:center; gap:10px; padding:9px 12px 8px; border-bottom:1px solid rgba(255,255,255,0.05); }
-  .ts2-move-num { font-family:var(--display); font-size:24px; color:rgba(255,255,255,0.09); line-height:1; width:28px; flex-shrink:0; }
+  .ts2-move-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); border-left-width:3px; border-radius:7px; overflow:hidden; }
+  .ts2-move-head { display:flex; align-items:center; gap:10px; padding:8px 10px 7px; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .ts2-move-num { font-family:var(--display); font-size:20px; color:rgba(255,255,255,0.12); line-height:1; width:24px; flex-shrink:0; }
   .ts2-move-type { font-family:var(--mono); font-size:6.5px; font-weight:700; letter-spacing:0.12em; padding:2px 7px; border-radius:3px; flex-shrink:0; border:1px solid transparent; }
   .ts2-move-title { font-size:10.5px; font-weight:600; color:rgba(255,255,255,0.78); }
   .ts2-move-body { padding:9px 12px; }
@@ -17466,44 +17481,67 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
 
   const fringePaths = fringePickRich
     ? {
-        // Pick-rich teams need to SPEND picks, not collect more
-        A:{ label:'CONVERT CAPITAL',    tagline:`${fringeGoodPicks} premium picks sitting idle — package them into an ascending player now`, color:'var(--orange)', icon:'🎯', gen:fringeConvertPicksMove },
-        B:{ label:'SELL FOR YOUTH',     tagline:'Trade aging producers for blue-chip young prospects — no extra picks needed', color:'#a78bfa', icon:'💎', gen:() => youngProspectMove(25.0) },
+        A:{ label:'SPEND THE PICKS',    tagline:`${fringeGoodPicks} premium picks on hand — convert 2 into an ascending player now`, color:'var(--orange)', icon:'🎯',
+            gen:fringeConvertPicksMove,  gen2:() => youngProspectMove(25.0) },
+        B:{ label:'PRESERVE THE PICKS', tagline:'Trade aging producers for blue-chip youth — keep your picks for the next draft cycle', color:'#a78bfa', icon:'💎',
+            gen:() => youngProspectMove(25.0), gen2:fringeConvertPicksMove },
       }
     : fringePushMode
     ? {
-        A:{ label:'PUSH CHIPS IN',       tagline:`${fringeWeakSlots.length} weak slot${fringeWeakSlots.length>1?'s':''} — use your picks to close the gap and compete`, color:'var(--orange)', icon:'🎰', gen:fringePushMove },
-        B:{ label:'CONSOLIDATE & SWING', tagline:'Package spare pieces into one elite player at your weakest spot', color:'#38bdf8', icon:'💎', gen:consolidateMove },
+        A:{ label:'PUSH CHIPS IN',       tagline:`Use your picks to close the lineup gap and compete this season`, color:'var(--orange)', icon:'🎰',
+            gen:fringePushMove,           gen2:consolidateMove },
+        B:{ label:'CONSOLIDATE & SWING', tagline:'Package spare pieces into one elite player at your weakest spot', color:'#38bdf8', icon:'💎',
+            gen:consolidateMove,          gen2:fringePushMove },
       }
     : {
-        A:{ label:'SPREAD THE VALUE',    tagline:'Trade a star for multiple pieces — more total value and trade currency', color:'#f87171', icon:'📤', gen:valueSpreadMove },
-        B:{ label:'SELL FOR YOUTH',      tagline:'Trade aging producers for blue-chip prospects + first round picks', color:'#a78bfa', icon:'🏷️', gen:() => youngProspectMove(25.0) },
+        A:{ label:'SPREAD THE VALUE',    tagline:'Trade a star for multiple pieces — more total value and trade currency', color:'#f87171', icon:'📤',
+            gen:valueSpreadMove,          gen2:() => youngProspectMove(25.0) },
+        B:{ label:'SELL FOR YOUTH',      tagline:'Trade aging producers for blue-chip prospects + first round picks', color:'#a78bfa', icon:'🏷️',
+            gen:() => youngProspectMove(25.0), gen2:valueSpreadMove },
       };
 
   const phaseMap = {
     'WIN NOW':    {
-      A:{ label:'UPTIER TO A SUPERSTAR',   tagline:'Pay the premium — championships demand elite production', color:'var(--green)',  icon:'⚡', gen:uptierMove },
-      B:{ label:'FILL EVERY STARTER SLOT', tagline:'Convert non-producing value into weekly lineup points',   color:'#2dd4bf',      icon:'🎯', gen:fillLineupMove },
+      A:{ label:'GO ALL IN',               tagline:'Pay the premium for elite production — championships only come around so often', color:'var(--green)',  icon:'⚡',
+          gen:uptierMove,                   gen2:fillLineupMove },
+      B:{ label:'FILL EVERY SLOT',         tagline:'Convert non-starting value into weekly points — no idle assets',   color:'#2dd4bf',      icon:'🎯',
+          gen:fillLineupMove,               gen2:protectWindowMove },
     },
     'CONTENDING': {
-      A:{ label:'PUSH ALL-IN',             tagline:'Windows close — sacrifice value for production now',      color:'var(--green)',  icon:'⚡', gen:uptierMove },
-      B:{ label:'PROTECT THE WINDOW',      tagline:'Same production, better age trajectory',                  color:'#38bdf8',      icon:'🔒', gen:protectWindowMove },
+      A:{ label:'PUSH ALL-IN',             tagline:'Windows close — sacrifice value for production now',      color:'var(--green)',  icon:'⚡',
+          gen:uptierMove,                   gen2:fillLineupMove },
+      B:{ label:'PROTECT THE WINDOW',      tagline:'Age down key players and buy low on ascending assets',    color:'#38bdf8',      icon:'🔒',
+          gen:protectWindowMove,            gen2:buyLowMove },
     },
-    'RELOAD':     reloadPaths,
+    'RELOAD':     {
+      ...reloadPaths,
+      A:{ ...reloadPaths.A, gen2: reloadHasPicks ? reloadSoftRebuildMove : () => sellAgingMove(27) },
+      B:{ ...reloadPaths.B, gen2: reloadHasPicks ? reloadPicksMove        : fillLineupMove },
+    },
     'FRINGE':     fringePaths,
     'AGING OUT':  {
-      A:{ label:'ONE MORE RUN',            tagline:'Mortgage the future — championship or bust',              color:'var(--red)',    icon:'🚨', gen:uptierMove },
-      B:{ label:'CASH OUT FOR YOUTH',      tagline:'Trade aging producers for blue-chip prospects + first round picks', color:'#a78bfa', icon:'💎', gen:() => youngProspectMove(25.5) },
+      A:{ label:'ONE MORE RUN',            tagline:'Mortgage the future — championship or bust',              color:'var(--red)',    icon:'🚨',
+          gen:uptierMove,                   gen2:fillLineupMove },
+      B:{ label:'CASH OUT FOR YOUTH',      tagline:'Trade aging producers for blue-chip prospects + picks',   color:'#a78bfa',      icon:'💎',
+          gen:() => youngProspectMove(25.5), gen2:() => sellAgingMove(25.5) },
     },
-    'REBUILDING': rebuildPaths[rebuildTier ?? 'ONE_YEAR_PUNT'] ?? rebuildPaths.ONE_YEAR_PUNT,
+    'REBUILDING': (() => {
+      const rp = rebuildPaths[rebuildTier ?? 'ONE_YEAR_PUNT'] ?? rebuildPaths.ONE_YEAR_PUNT;
+      const gen2Map = {
+        TEARDOWN:      { A: () => sellAgingMove(24),     B: () => youngProspectMove(26) },
+        ONE_YEAR_PUNT: { A: () => sellAgingMove(27),     B: fastTrackMove },
+        HOUSE_MONEY:   { A: consolidateMove,             B: buyLowMove },
+      };
+      const g2 = gen2Map[rebuildTier ?? 'ONE_YEAR_PUNT'];
+      return { A:{ ...rp.A, gen2: g2?.A }, B:{ ...rp.B, gen2: g2?.B } };
+    })(),
   };
 
   const def = phaseMap[phase] ?? phaseMap['CONTENDING'];
-  // safeGen: wrap every move generator so one bad team's data can't crash the whole blueprint
   const safeGen = fn => { try { return fn(); } catch(e) { console.warn('[Blueprint move gen]', e); return null; } };
   return {
-    pathA: { ...def.A, move: safeGen(def.A.gen) },
-    pathB: { ...def.B, move: safeGen(def.B.gen) },
+    pathA: { ...def.A, move: safeGen(def.A.gen), move2: def.A.gen2 ? safeGen(def.A.gen2) : null },
+    pathB: { ...def.B, move: safeGen(def.B.gen), move2: def.B.gen2 ? safeGen(def.B.gen2) : null },
     rebuildTier,
   };
 }
@@ -17671,14 +17709,7 @@ function _bpTradeIntelHTML({ phase, archetype, clock, ranks, total, isSF, w, l,
     </div>
   </div>` : '';
 
-  // ── PRIORITY MOVES ────────────────────────────────────────────────────────
-  const allMoves = [
-    smPathA?.move  ? { meta: smPathA,  mv: smPathA.move,  pri: 1 } : null,
-    smPathB?.move  ? { meta: smPathB,  mv: smPathB.move,  pri: 2 } : null,
-    tierMoves?.upTier   ? { meta: { label:'UPGRADE',   tagline: tierMoves.upTier.rationale?.split('.')[0]??'Move up the tier ladder', color:'#4ade80', icon:'⬆' }, mv: tierMoves.upTier,   pri: 3 } : null,
-    tierMoves?.downTier ? { meta: { label:'REBALANCE', tagline: tierMoves.downTier.rationale?.split('.')[0]??'Spread value across the roster', color:'#fb923c', icon:'⬇' }, mv: tierMoves.downTier, pri: 3 } : null,
-  ].filter(Boolean);
-
+  // ── TWO PATHS × 2 MOVES ───────────────────────────────────────────────────
   const moveTypeMeta = {
     uptier:            { label:'TRADE UP',      color:'#4ade80'  },
     fill:              { label:'FILL THE GAP',  color:'#38bdf8'  },
@@ -17699,15 +17730,13 @@ function _bpTradeIntelHTML({ phase, archetype, clock, ranks, total, isSF, w, l,
   const rPlayer3 = p =>
     `<span class="ts2-pm-piece"><img src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:16px;height:16px;border-radius:50%;flex-shrink:0;vertical-align:middle;"><span class="ts2-pm-pname" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')"> ${p.name}</span><span class="ts2-pm-pval">${(p.val/1000).toFixed(1)}k</span></span>`;
 
-  const renderPriorityMove = (src, idx) => {
-    const { meta, mv } = src;
+  // Render a single move card (used inside each path column)
+  const renderMoveCard = (mv, meta, numStr, acqPos) => {
     if (!mv) return '';
-    const tm = moveTypeMeta[mv.type] ?? { label: meta.label ?? 'MOVE', color: meta.color ?? '#94a3b8' };
-    const numStr = String(idx + 1).padStart(2, '0');
+    const tm = moveTypeMeta[mv.type] ?? { label: meta?.label ?? 'MOVE', color: meta?.color ?? '#94a3b8' };
     const plus = `<span class="ts2-pm-plus">+</span>`;
 
     let offerPieces = [], getPieces = [], fromStr = '';
-
     if (mv.type === 'value_spread') {
       offerPieces = [rPlayer3(mv.sell)];
       getPieces   = (mv.haul?.pieces ?? []).map(p => p.isPick ? rPick3(p) : rPlayer3(p));
@@ -17725,74 +17754,50 @@ function _bpTradeIntelHTML({ phase, archetype, clock, ranks, total, isSF, w, l,
       getPieces   = mv.target ? [rPlayer3(mv.target)] : [];
       fromStr     = mv.target?.team ? `from ${mv.target.team}` : '';
     }
-
-    const offerRow = offerPieces.length ? `<div class="ts2-pm-row">
-      <span class="ts2-pm-tag offer">OFFER</span>
-      <div class="ts2-pm-pieces">${offerPieces.join(plus)}</div>
-    </div>` : '';
-
+    const offerRow = offerPieces.length ? `<div class="ts2-pm-row"><span class="ts2-pm-tag offer">OFFER</span><div class="ts2-pm-pieces">${offerPieces.join(plus)}</div></div>` : '';
     const isPickGet = getPieces.some(p => p.includes('🎟'));
-    const getRow = getPieces.length ? `<div class="ts2-pm-row">
-      <span class="ts2-pm-tag ${isPickGet?'picks':'get'}">${isPickGet?'GET PICKS':'GET'}</span>
-      <div class="ts2-pm-pieces">${getPieces.join(plus)}</div>
-      ${fromStr ? `<span class="ts2-pm-from">${fromStr}</span>` : ''}
-    </div>` : '';
+    const getRow = getPieces.length ? `<div class="ts2-pm-row"><span class="ts2-pm-tag ${isPickGet?'picks':'get'}">${isPickGet?'GET PICKS':'GET'}</span><div class="ts2-pm-pieces">${getPieces.join(plus)}</div>${fromStr?`<span class="ts2-pm-from">${fromStr}</span>`:''}</div>` : '';
 
-    // Acquisition targets at the move's target position
-    const mvPos = mv.target?.pos ?? mv.prospect?.pos ?? (mv.pkg?.players?.[0] ? null : null)
-      ?? (mv.type === 'fill' ? mv.target?.pos : null);
-    const needPos = (trade?.weaknessPositions ?? [])[0];
-    const acqPos = mvPos ?? needPos ?? null;
+    // Acquisition targets at this move's target position
+    const resolvedAcqPos = acqPos ?? mv.target?.pos ?? mv.prospect?.pos ?? (trade?.weaknessPositions??[])[0] ?? null;
     const acqBlock = (() => {
-      if (!acqPos || !trade?.buys?.length) return '';
-      const bg = trade.buys.find(b => b.pos === acqPos && !b.isPicks);
+      if (!resolvedAcqPos || !trade?.buys?.length) return '';
+      const bg = trade.buys.find(b => b.pos === resolvedAcqPos && !b.isPicks);
       if (!bg?.tiers?.length) return '';
-      const players = bg.tiers.flatMap(t => t.players ?? (t.player ? [t.player] : [])).slice(0, 4);
+      const players = bg.tiers.flatMap(t => t.players ?? (t.player ? [t.player] : [])).slice(0, 3);
       if (!players.length) return '';
-      const pc = posColors[acqPos] ?? '#94a3b8';
-      return `<div class="ts2-acq-list">
-        <div class="ts2-acq-lbl">AVAILABLE TARGETS · <span style="color:${pc};">${acqPos}</span></div>
-        <div class="ts2-acq-cards">
-          ${players.map(p => `<div class="ts2-acq-card" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')">
-            <img src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;">
-            <div>
-              <div class="ts2-acq-name">${p.name}</div>
-              <div class="ts2-acq-meta">${p.team??''} · ${p.age}yo · ${(p.value/1000).toFixed(1)}k</div>
-            </div>
-          </div>`).join('')}
-        </div>
-      </div>`;
+      const pc = posColors[resolvedAcqPos] ?? '#94a3b8';
+      return `<div class="ts2-acq-list"><div class="ts2-acq-lbl">AVAILABLE · <span style="color:${pc};">${resolvedAcqPos}</span></div><div class="ts2-acq-cards">${players.map(p=>`<div class="ts2-acq-card" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}')"><img src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:18px;height:18px;border-radius:50%;flex-shrink:0;"><div><div class="ts2-acq-name">${p.name}</div><div class="ts2-acq-meta">${p.team??''} · ${p.age}yo · ${(p.value/1000).toFixed(1)}k</div></div></div>`).join('')}</div></div>`;
     })();
 
     return `<div class="ts2-move-card" style="border-left-color:${tm.color}55;">
       <div class="ts2-move-head">
         <div class="ts2-move-num">${numStr}</div>
         <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
-            <span class="ts2-move-type" style="background:${tm.color}15;color:${tm.color};border-color:${tm.color}30;">${tm.label}</span>
-            <span class="ts2-move-title">${meta.tagline ?? meta.label ?? ''}</span>
-          </div>
+          <span class="ts2-move-type" style="background:${tm.color}15;color:${tm.color};border-color:${tm.color}30;">${tm.label}</span>
         </div>
       </div>
-      <div class="ts2-move-body">
-        ${offerRow}${getRow}
-        ${mv.rationale ? `<div class="ts2-rationale">${mv.rationale}</div>` : ''}
-        ${acqBlock}
-      </div>
+      <div class="ts2-move-body">${offerRow}${getRow}${mv.rationale?`<div class="ts2-rationale">${mv.rationale}</div>`:''}${acqBlock}</div>
     </div>`;
   };
 
-  const moveCards = allMoves.map((s, i) => renderPriorityMove(s, i)).filter(Boolean);
+  // Render a full path column: header + 2 move cards
+  const renderPathCol = (path, pathLabel) => {
+    if (!path) return '';
+    const col = path.color ?? '#94a3b8';
+    const m1 = path.move   ? renderMoveCard(path.move,  path, '01', null) : '';
+    const m2 = path.move2  ? renderMoveCard(path.move2, path, '02', null) : '';
+    const noMove = `<div class="ts2-no-move" style="padding:14px 10px;"><div class="ts2-no-move-title" style="font-size:8px;">HOLD POSITION</div><div class="ts2-no-move-text" style="font-size:8.5px;">No clear opportunity — monitor the market.</div></div>`;
+    return `<div class="ts2-path-col">
+      <div class="ts2-path-head" style="border-left-color:${col};">
+        <div class="ts2-path-col-lbl" style="color:${col};">${pathLabel} · ${path.label ?? ''}</div>
+        <div class="ts2-path-col-tagline">${path.tagline ?? ''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px;">${m1 || m2 ? (m1 + m2) : noMove}</div>
+    </div>`;
+  };
 
-  const noMoveMsg = `<div class="ts2-no-move">
-    <div class="ts2-no-move-icon">🔒</div>
-    <div class="ts2-no-move-title">HOLD POSITION</div>
-    <div class="ts2-no-move-text">${
-      chips.length
-        ? `No high-confidence trade found, but ${(idleTotal/1000).toFixed(1)}k is sitting idle on your bench. Focus on converting bench value into lineup contributors.`
-        : 'No urgent trade action identified. Monitor the market — wait for motivated sellers at your positions of need.'
-    }</div>
-  </div>`;
+  const noMoveMsg = `<div class="ts2-no-move"><div class="ts2-no-move-icon">🔒</div><div class="ts2-no-move-title">HOLD POSITION</div><div class="ts2-no-move-text">${chips.length?`No high-confidence trade found, but ${(idleTotal/1000).toFixed(1)}k is sitting idle. Focus on converting bench value into lineup contributors.`:'No urgent trade action identified. Monitor the market and wait for motivated sellers at your positions of need.'}</div></div>`;
 
   // Rebuild tier callout
   const rtMeta = {
@@ -17808,16 +17813,24 @@ function _bpTradeIntelHTML({ phase, archetype, clock, ranks, total, isSF, w, l,
     </div>
   </div>` : '';
 
+  const pathsHTML = (smPathA || smPathB)
+    ? `<div>
+        <div class="ts2-section-lbl" style="margin-bottom:10px;">STRATEGY PATHS <span style="font-weight:400;color:rgba(255,255,255,0.20);">TWO DIRECTIONS · CHOOSE ONE</span></div>
+        <div class="ts2-paths">
+          ${renderPathCol(smPathA, 'PATH A')}
+          <div class="ts2-path-or"><div class="ts2-path-or-line"></div><div class="ts2-path-or-txt">OR</div><div class="ts2-path-or-line"></div></div>
+          ${renderPathCol(smPathB, 'PATH B')}
+        </div>
+      </div>`
+    : noMoveMsg;
+
   return `<div class="ts2-wrap">
     ${rebuildBanner}
     ${situBar}
     ${snRow}
     ${signalsHTML}
     ${chipsHTML}
-    <div>
-      <div class="ts2-section-lbl">PRIORITY MOVES</div>
-      <div class="ts2-moves">${moveCards.length ? moveCards.join('') : noMoveMsg}</div>
-    </div>
+    ${pathsHTML}
   </div>`;
 }
 
@@ -19383,8 +19396,8 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
       </div>
 
       <!-- ROW: Trade Intelligence (full-width) -->
-      <div class="bp-panel" style="--bpa:#4ade80;">
-        <div class="bp-panel-title"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE INTELLIGENCE<span class="bp-panel-sub">data-driven · phase-aware · priority ranked</span></div>
+      <div class="bp-panel" style="--bpa:rgba(255,255,255,0.55);">
+        <div class="bp-panel-title"><span class="bp-pdot" style="background:rgba(255,255,255,0.65);"></span>TRADE INTELLIGENCE<span class="bp-panel-sub">data-driven · phase-aware · two paths</span></div>
         ${tradeIntelHTML}
       </div>
 
@@ -19597,8 +19610,8 @@ function openBlueprintFullscreen() {
 
         <!-- COL 4: Trade Intelligence + Roster -->
         <div class="bp-fs-col">
-          <div class="bp-fs-p" style="--bpa:#4ade80;">
-            <div class="bp-fs-pt"><span class="bp-pdot" style="background:#4ade80;"></span>TRADE INTELLIGENCE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">data-driven · priority ranked</span></div>
+          <div class="bp-fs-p" style="--bpa:rgba(255,255,255,0.55);">
+            <div class="bp-fs-pt"><span class="bp-pdot" style="background:rgba(255,255,255,0.65);"></span>TRADE INTELLIGENCE<span class="bp-panel-sub" style="color:rgba(255,255,255,0.28);">data-driven · two paths</span></div>
             ${d.tradeIntelHTML ?? d.suggestedMovesHTML ?? ''}
           </div>
           <div class="bp-fs-p" style="--bpa:rgba(255,255,255,0.2);">
