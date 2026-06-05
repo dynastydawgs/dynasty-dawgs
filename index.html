@@ -18851,12 +18851,9 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
   const { pathA: smPathA, pathB: smPathB, rebuildTier } = _bpDualPathMoves(rosterId, allTeams, total, phase);
   // Tier strategy computed here so it can be embedded inside the path columns
   const tierMoves = _bpTierMoves(rosterId, allTeams, total, phase);
-  // Trade Intelligence v2 — synthesises all blueprint signals into priority moves
-  const tradeIntelHTML = _bpTradeIntelHTML({
-    phase, archetype, clock, ranks, total, isSF, w, l,
-    slotMap, trade, teamRow, rosterId, pickValueRank,
-    deadCapital, smPathA, smPathB, rebuildTier, tierMoves, shapeScores,
-  });
+  // Trade Intelligence v2 — computed after w/l are available (line ~19113)
+  // Placeholder; real assignment below after record is extracted.
+  let tradeIntelHTML = '';
   const tierMovesHTML = (() => {
     const { downTier: dt, upTier: ut } = tierMoves;
     if (!dt && !ut) return '';
@@ -19111,6 +19108,13 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
 
   // ── Record ────────────────────────────────────────────────────────────────
   const w = teamRow.wins ?? 0, l = teamRow.losses ?? 0;
+
+  // Trade Intelligence v2 — needs w/l so computed here
+  tradeIntelHTML = _bpTradeIntelHTML({
+    phase, archetype, clock, ranks, total, isSF, w, l,
+    slotMap, trade, teamRow, rosterId, pickValueRank,
+    deadCapital, smPathA, smPathB, rebuildTier, tierMoves, shapeScores,
+  });
 
   // ── Production Portfolio & Injury Risk ────────────────────────────────────
   const prodBreakdown    = _bpProdBreakdown(rosterId);
