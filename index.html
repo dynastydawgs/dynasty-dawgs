@@ -16900,6 +16900,14 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
           ? leagueSlotAvg.reduce((s,v)=>s+v,0) / leagueSlotAvg.length : 0;
         // Block if remaining lineup at pos falls below 80% of league average
         if (leagueAvgPpg > 0 && newAvg < leagueAvgPpg * 0.80) return false;
+        // Block if team is positionally strong (top half composite rank) and trade strips
+        // quality depth — don't leave a strength position undermanned
+        const myPosRank = ranks[`${pos}Comp`] ?? Math.ceil(total / 2);
+        const myPosPct  = (myPosRank - 1) / Math.max(total - 1, 1); // 0=best, 1=worst
+        if (myPosPct <= 0.50) {
+          const qualityRemaining = allAtPos.filter(p => (fcPlayerMap[p.pid]?.overallRank ?? 999) <= 120).length;
+          if (qualityRemaining < slotCount) return false;
+        }
       }
       if (isRebuilding) {
         // Block if trading away a player with too much of our dynasty value
@@ -17056,6 +17064,52 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
         const slotLabel = weakSlot ? weakSlot[0] : pos;
         return { type:'fill', pkg:{ players:[hog], picks:pk?[pk]:[] }, target:vet,
           rationale:`${hog.name} holds value but doesn't start every week. ${vet.name} (${vet.ppg.toFixed(1)} ppg) fills your ${slotLabel} — proven production at your weakest slot.` };
+      }
+    }
+    return null;
+  };
+
+  // PICK BUY: For WIN NOW/CONTENDING teams with premium capital — spend picks on proven production.
+  // Tried before player trades so contenders aren't asked to gut roster depth unnecessarily.
+  const pickBuyMove = () => {
+    const premiumPicks = myPicks
+      .map(pk => ({...pk, val:_bpPickVal(pk)}))
+      .filter(pk => (pk.round??99) <= 2)
+      .sort((a,b) => b.val - a.val);
+    if (!premiumPicks.length) return null;
+
+    // Target the weakest starting slot first
+    const weakSlot = Object.entries(slotMap.slots)
+      .filter(([, s]) => s.gapProj != null && s.gapProj < 0)
+      .sort(([, a], [, b]) => (a.gapProj ?? 0) - (b.gapProj ?? 0))[0];
+    const targetPos = weakSlot ? weakSlot[1].pos : weakProdPos;
+
+    const targets = byNeed(leaguePlayers
+      .filter(p => p.ppg >= 9 && p.age >= 24 && p.age <= 33 && p.val >= 1800)
+    ).sort((a, b) => {
+      // Same-position targets first, then by ppg
+      const posMatch = (a.pos === targetPos ? 0 : 1) - (b.pos === targetPos ? 0 : 1);
+      return posMatch || b.ppg - a.ppg;
+    }).slice(0, 20);
+
+    const pk1 = premiumPicks[0];
+    const pk2 = premiumPicks[1] ?? null;
+
+    // Try: single pick
+    for (const target of targets) {
+      if (pk1.val >= target.val * 0.78 && pk1.val <= target.val * 1.28) {
+        return { type:'pick_buy', pkg:{ players:[], picks:[pk1] }, target,
+          rationale:`Use your ${pk1.label ?? 'premium pick'} to land ${target.name} (${target.ppg.toFixed(1)} ppg). Your window is open — picks sitting idle don't win championships. Convert capital into proven production.` };
+      }
+    }
+    // Try: two picks
+    if (pk2) {
+      for (const target of targets) {
+        const eff = _bpEffVal([{value:pk1.val},{value:pk2.val}]);
+        if (eff >= target.val * 0.80 && pk1.val + pk2.val <= target.val * 1.52) {
+          return { type:'pick_buy', pkg:{ players:[], picks:[pk1, pk2] }, target,
+            rationale:`Package your ${pk1.label ?? '1st'} + ${pk2.label ?? '2nd'} for ${target.name} (${target.ppg.toFixed(1)} ppg). Draft capital hoarded during a win window is wasted potential — spend it on production now.` };
+        }
       }
     }
     return null;
@@ -17539,13 +17593,13 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
   const phaseMap = {
     'WIN NOW':    {
       A:{ label:'GO ALL IN',               tagline:'Pay the premium for elite production — championships only come around so often', color:'var(--green)',  icon:'⚡',
-          gen:uptierMove,                   gen2:fillLineupMove },
-      B:{ label:'FILL EVERY SLOT',         tagline:'Convert non-starting value into weekly points — no idle assets',   color:'#2dd4bf',      icon:'🎯',
-          gen:fillLineupMove,               gen2:protectWindowMove },
+          gen:uptierMove,                   gen2:() => pickBuyMove() ?? fillLineupMove() },
+      B:{ label:'SPEND CAPITAL',           tagline:'Picks idle in a win window are wasted — convert them into proven production now', color:'#fbbf24', icon:'🎯',
+          gen:() => pickBuyMove() ?? fillLineupMove(), gen2:protectWindowMove },
     },
     'CONTENDING': {
       A:{ label:'PUSH ALL-IN',             tagline:'Windows close — sacrifice value for production now',      color:'var(--green)',  icon:'⚡',
-          gen:uptierMove,                   gen2:fillLineupMove },
+          gen:uptierMove,                   gen2:() => pickBuyMove() ?? fillLineupMove() },
       B:{ label:'PROTECT THE WINDOW',      tagline:'Age down key players and buy low on ascending assets',    color:'#38bdf8',      icon:'🔒',
           gen:protectWindowMove,            gen2:buyLowMove },
     },
@@ -17749,6 +17803,7 @@ function _bpTradeIntelHTML({ phase, archetype, clock, ranks, total, isSF, w, l,
   const moveTypeMeta = {
     uptier:            { label:'TRADE UP',      color:'#4ade80'  },
     fill:              { label:'FILL THE GAP',  color:'#38bdf8'  },
+    pick_buy:          { label:'SPEND CAPITAL', color:'#fbbf24'  },
     sell_aging:        { label:'CASH OUT',       color:'#fb923c'  },
     value_spread:      { label:'SPREAD VALUE',  color:'#fbbf24'  },
     protect:           { label:'AGE DOWN',       color:'#a78bfa'  },
