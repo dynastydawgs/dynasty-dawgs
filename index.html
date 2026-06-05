@@ -18621,10 +18621,6 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
            <span style="color:var(--text-dim);font-size:8px;margin:0 1px;">→</span>
            <span class="bp-rp-label" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${p.label}</span>`
         : `<span class="bp-rp-label" style="color:${lm.color};background:${lm.bg};border-color:${lm.border};">${p.label}</span>`;
-      // Action signal badge — only show actionable signals (not HOLD/CUT to reduce noise)
-      const _actionColors = { BUY:'rgba(74,222,128,0.13):#4ade80:rgba(74,222,128,0.28)', SELL:'rgba(248,113,113,0.14):#f87171:rgba(248,113,113,0.28)', MONITOR:'rgba(251,191,36,0.11):#fbbf24:rgba(251,191,36,0.24)' };
-      const _ac = lm.action && _actionColors[lm.action] ? lm.action : null;
-      const actionBadge = _ac ? (() => { const [bg,col,bdr] = _actionColors[_ac].split(':'); return `<span class="bp-rp-action" style="background:${bg};color:${col};border-color:${bdr};">${_ac}</span>`; })() : '';
       const starterDot = p.isStarter ? `<span style="width:4px;height:4px;border-radius:50%;background:rgba(74,222,128,0.6);flex-shrink:0;margin-right:1px;" title="Starter"></span>` : '';
       return `<div class="bp-rp-row">
         <img class="bp-thumb" src="https://sleepercdn.com/content/nfl/players/thumb/${p.pid}.jpg" onerror="this.style.opacity=0" loading="lazy" style="width:20px;height:20px;border-radius:50%;flex-shrink:0;">
@@ -18632,7 +18628,6 @@ function renderSingleTeamBlueprint(rosterId, allTeams, isSF, total) {
         <span class="bp-rp-pos" style="color:${pc};">${p.pos}</span>
         <span class="bp-rp-name" onclick="searchAndOpenProfile('${(p.name||'').replace(/'/g,"\\'")}'">${p.name ?? '—'}</span>
         ${labelHTML}
-        ${actionBadge}
         ${oRankStr ? `<span class="bp-rp-rank">${oRankStr}</span>` : ''}
         ${ppgStr   ? `<span class="bp-rp-ppg">${ppgStr}</span>`   : ''}
       </div>`;
