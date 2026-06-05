@@ -17303,13 +17303,16 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
           }) ?? null;
         }
 
-        // If we're selling at a discount (ratio < 0.92), ask for a pick from them
+        // If we're selling at a discount (ratio < 0.92), ask for a pick from them —
+        // BUT don't request more picks if we're already pick-rich (≥5 premium picks owned)
+        const myPremiumPickCount = myPicks.filter(p => (p.round ?? 99) <= 2).length;
+        const alreadyPickRich    = myPremiumPickCount >= 5;
         const theirTeam  = allTeams.find(t => t.roster_id === prospect.roster_id);
         const theirPicks = (theirTeam?.allPicks ?? [])
           .map(pk => ({...pk, val:_bpPickVal(pk)}))
           .filter(pk => (pk.round??99) <= 2 && pk.val >= 280)
           .sort((a,b) => b.val - a.val);
-        const bonusPick = (!myBonus && ratio < 0.92) ? (theirPicks[0] ?? null) : null;
+        const bonusPick = (!myBonus && ratio < 0.92 && !alreadyPickRich) ? (theirPicks[0] ?? null) : null;
 
         const pickNote = myBonus
           ? ` Include the ${myBonus.label ?? myBonus.tier+' pick'} to close the deal — slightly overpaying is worth it. ${prospect.name.split(' ')[1] ?? prospect.name} is a compounding asset; ${sell.name.split(' ')[1] ?? sell.name}'s value only goes one direction from here.`
@@ -17409,11 +17412,15 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
 
   // ── FRINGE paths — driven by slot gap analysis + pick capital ─────────────
   const fringeGoodPicks  = myPicks.filter(p => (p.round ?? 99) <= 2).length;
+  const fringeAllPicks   = myPicks.length;
   const fringeWeakSlots  = Object.values(slotMap.slots).filter(s => s.gapProj != null && s.gapProj < -2.0);
   const fringeTotalGap   = Object.values(slotMap.slots).reduce((s, sl) => s + Math.min(0, sl.gapProj ?? 0), 0);
+  // Pick-rich: 5+ premium picks — priority is SPENDING picks, not accumulating more
+  const fringePickRich   = fringeGoodPicks >= 5;
   // Push mode: has 2+ firsts AND gap is manageable (1-2 weak slots, total gap > -8 ppg)
-  const fringePushMode   = fringeGoodPicks >= 2 && fringeWeakSlots.length <= 2 && fringeTotalGap > -8.0;
-  // What slot to target in push mode
+  const fringePushMode   = !fringePickRich && fringeGoodPicks >= 2 && fringeWeakSlots.length <= 2 && fringeTotalGap > -8.0;
+
+  // What slot to target in fringe push/pick-rich modes
   const fringePushSlot   = Object.entries(slotMap.slots)
     .filter(([, s]) => s.gapProj != null && s.gapProj < 0)
     .sort(([, a], [, b]) => (a.gapProj ?? 0) - (b.gapProj ?? 0))[0];
@@ -17425,7 +17432,6 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     const slotGap   = fringePushSlot[1].gapProj ?? 0;
     const goodPicks = myPicks.filter(p => (p.round ?? 99) <= 2).slice(0, 3);
     const pkEff     = _bpEffVal(goodPicks.slice(0,2).map(p => ({ value: p.val })));
-    // Try: package picks + spare player for a starter at that position
     const tgts = leaguePlayers
       .filter(p => p.pos === targetPos && p.ppg >= 9 && p.age <= 30 && p.val <= pkEff * 1.30)
       .sort((a,b) => b.ppg - a.ppg);
@@ -17436,14 +17442,42 @@ function _bpDualPathMoves(rosterId, allTeams, total, phase) {
     return consolidateMove();
   };
 
-  const fringePaths = fringePushMode
+  // FRINGE pick-rich: convert accumulated capital into ascending players
+  // A pick-rich team (5+ R1-R2 picks) should be SPENDING picks, not accumulating more.
+  const fringeConvertPicksMove = () => {
+    // Priority target: young ascending player at weakest position
+    const targetPos = fringePushSlot?.[1]?.pos ?? weakProdPos;
+    const goodPicks = myPicks.filter(p => (p.round ?? 99) <= 2).slice(0, 3);
+    if (goodPicks.length < 2) return fastTrackMove();
+    const pkEff = _bpEffVal(goodPicks.slice(0,2).map(p => ({ value: p.val })));
+    // Look for ascending players (age ≤ 26) with good expected upside at weak positions
+    const tgts = byNeed(leaguePlayers.filter(p =>
+      p.age <= 26 && p.val >= pkEff * 0.78 && p.val <= pkEff * 1.30 &&
+      _rpExpectedUpside(_bpClassifyPid(p.pid)) >= 1.0
+    )).slice(0, 10);
+    if (tgts.length) {
+      const tgt = tgts[0];
+      const slotGapStr = fringePushSlot ? `Your ${fringePushSlot[0]} slot is ${Math.abs(fringePushSlot[1].gapProj ?? 0).toFixed(1)} ppg below average. ` : '';
+      return { type:'fast_track', pkg:{ players:[], picks:goodPicks.slice(0,2) }, target:tgt,
+        rationale:`${slotGapStr}${fringeAllPicks} picks won't win your league — players do. ${tgt.name} (${tgt.age}yo, ${(tgt.val/1000).toFixed(1)}k) is an ascending asset you can start. Stop accumulating capital and start converting it.` };
+    }
+    return fastTrackMove();
+  };
+
+  const fringePaths = fringePickRich
+    ? {
+        // Pick-rich teams need to SPEND picks, not collect more
+        A:{ label:'CONVERT CAPITAL',    tagline:`${fringeGoodPicks} premium picks sitting idle — package them into an ascending player now`, color:'var(--orange)', icon:'🎯', gen:fringeConvertPicksMove },
+        B:{ label:'SELL FOR YOUTH',     tagline:'Trade aging producers for blue-chip young prospects — no extra picks needed', color:'#a78bfa', icon:'💎', gen:() => youngProspectMove(25.0) },
+      }
+    : fringePushMode
     ? {
         A:{ label:'PUSH CHIPS IN',       tagline:`${fringeWeakSlots.length} weak slot${fringeWeakSlots.length>1?'s':''} — use your picks to close the gap and compete`, color:'var(--orange)', icon:'🎰', gen:fringePushMove },
         B:{ label:'CONSOLIDATE & SWING', tagline:'Package spare pieces into one elite player at your weakest spot', color:'#38bdf8', icon:'💎', gen:consolidateMove },
       }
     : {
         A:{ label:'SPREAD THE VALUE',    tagline:'Trade a star for multiple pieces — more total value and trade currency', color:'#f87171', icon:'📤', gen:valueSpreadMove },
-        B:{ label:'GARAGE SALE',         tagline:'Not enough picks to compete — sell aging producers for blue-chip prospects', color:'#a78bfa', icon:'🏷️', gen:() => youngProspectMove(25.0) },
+        B:{ label:'SELL FOR YOUTH',      tagline:'Trade aging producers for blue-chip prospects + first round picks', color:'#a78bfa', icon:'🏷️', gen:() => youngProspectMove(25.0) },
       };
 
   const phaseMap = {
@@ -17571,8 +17605,11 @@ function _bpTradeIntelHTML({ phase, archetype, clock, ranks, total, isSF, w, l,
       text:`<strong>${(idleTotal/1000).toFixed(1)}k</strong> in dynasty value not starting — ${deadCapital.length} player${deadCapital.length>1?'s':''} contributing nothing to your weekly lineup.` });
   }
 
-  // Draft capital signal
-  if (goodPicks.length >= 3) {
+  // Draft capital signal — differentiate pick-rich vs pick-poor
+  if (goodPicks.length >= 5) {
+    signals.push({ type:'PICK RICH', color:'#fb923c',
+      text:`<strong>${goodPicks.length} premium picks</strong> (${(teamRow?.allPicks ?? []).length} total) — you have more capital than you can draft. Priority is <strong>converting picks to players</strong>, not accumulating more. Picks don't win leagues; players do.` });
+  } else if (goodPicks.length >= 3) {
     signals.push({ type:'CAPITAL', color:'#38bdf8',
       text:`${goodPicks.length} premium picks (rounds 1–2) gives you real trade leverage. Contending teams will pay a premium for future capital.` });
   } else if (!goodPicks.length && ['CONTENDING','WIN NOW'].includes(phase)) {
