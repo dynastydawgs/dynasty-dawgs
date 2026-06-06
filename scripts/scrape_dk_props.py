@@ -133,25 +133,29 @@ def parse_ou_text(text, stat, label):
 
     return players
 
-def auto_scroll(page, total_scrolls=30, pause=1.2):
-    """Scroll slowly from top to bottom, triggering lazy loads."""
+def auto_scroll(page, pause=1.2):
+    """Scroll down slowly, stopping as soon as 'NFL Betting News' appears."""
     page.evaluate('window.scrollTo(0, 0)')
     time.sleep(1)
-    for step in range(1, total_scrolls + 1):
-        page.evaluate(f'''
-            window.scrollTo({{
-                top: {step} * document.body.scrollHeight / {total_scrolls},
-                behavior: "smooth"
-            }})
-        ''')
+
+    step = 0
+    while True:
+        step += 1
+        page.evaluate(f'window.scrollBy(0, 400)')
         time.sleep(pause)
-    # Scroll back to top, then bottom once more
-    page.evaluate('window.scrollTo(0, 0)')
-    time.sleep(0.8)
-    for step in range(1, 15):
-        page.evaluate(f'window.scrollTo(0, {step} * document.body.scrollHeight / 14)')
-        time.sleep(0.7)
-    time.sleep(2)
+
+        # Stop scrolling once we hit the bottom-of-page news section
+        body_text = page.inner_text('body')
+        if 'NFL Betting News' in body_text:
+            print('  Reached "NFL Betting News" — stopping scroll.')
+            break
+
+        # Safety cap — never scroll more than 300 steps (~120 seconds)
+        if step > 300:
+            print('  Scroll cap reached.')
+            break
+
+    time.sleep(1.5)
 
 def scrape_page(page, stat, subcategory, nav, label, page_num, total_pages):
     url = make_url(subcategory, nav)
