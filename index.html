@@ -8412,6 +8412,7 @@ const AVG_CARRY_KEY   = 'dynasty_hub_avg_carry_pct_v1'; // stored avg RB carry s
 const DATA_BASE_URL = './data';
 let compDB      = {};   // "POS_tier_carYr" → [p15,p50,p85]
 let careerDB    = {};   // pid → [{season,ppr,ppg,games}]
+let vegasProps  = {};   // player full_name → {ppg, pass_yds, rush_yds, rec_yds, …} from odds-api.io
 let teamDB      = {};   // teamAbbr → {rushAttPg,passAttPg,offPlaysPg,runRate,passRate,teamYpc,ypp,tdPg,offRating}
 let depthDB     = {};   // teamAbbr → { QB:[{name,rank,status}], RB:[…], WR:[…], TE:[…] }
 // ESPN stores suffixes ("Jr.", "II") that Sleeper omits — strip before name-matching depthDB.
@@ -9099,7 +9100,7 @@ async function loadPrebuiltData(onProgress) {
     // no-cache: always revalidate with server — gets a fast 304 if unchanged,
     // new content if CI has rebuilt the data. Prevents stale data for repeat users.
     const NC = { cache: 'no-cache' };
-    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw, statTeamResRaw, advstatsResRaw, histResRaw] = await Promise.all([
+    const [compRes, careerRes, benchRes, teamResRaw, depthResRaw, ryoeResRaw, statTeamResRaw, advstatsResRaw, histResRaw, vegasResRaw] = await Promise.all([
       fetch(`${DATA_BASE_URL}/compdb.json`,      NC),
       fetch(`${DATA_BASE_URL}/careerdb.json`,    NC),
       fetch(`${DATA_BASE_URL}/benchmarks.json`,  NC),
@@ -9109,6 +9110,7 @@ async function loadPrebuiltData(onProgress) {
       fetch(`${DATA_BASE_URL}/statteamdb.json`,  NC).catch(() => null),
       fetch(`${DATA_BASE_URL}/advstatsdb.json`,  NC).catch(() => null),
       fetch(`${DATA_BASE_URL}/historicaldb.json`,NC).catch(() => null),
+      fetch(`${DATA_BASE_URL}/vegasprops.json`,  NC).catch(() => null),
     ]);
 
     if (!compRes.ok || !careerRes.ok || !benchRes.ok) {
@@ -9194,6 +9196,17 @@ async function loadPrebuiltData(onProgress) {
     // historicaldb.json is optional — career arcs for retired/legacy players (2009+)
     if (histResRaw?.ok) {
       try { historicalDB = await histResRaw.json(); } catch(e) {}
+    }
+    // vegasprops.json is optional — in-season player prop lines from DK/FD via odds-api.io
+    if (vegasResRaw?.ok) {
+      try {
+        const vd = await vegasResRaw.json();
+        vegasProps = vd?.players ?? {};
+        if (Object.keys(vegasProps).length) {
+          const wk = vd?.meta?.week;
+          console.log(`[Vegas] Loaded ${Object.keys(vegasProps).length} player props (Week ${wk ?? '—'})`);
+        }
+      } catch(e) {}
     }
 
     // Mark optional files as already loaded so _loadOptionalDataFiles() is a no-op
@@ -9290,6 +9303,14 @@ function _loadOptionalDataFiles() {
       if (statTeamRes?.ok) try { statTeamDB  = await statTeamRes.json(); } catch(e) {}
       if (advstatsRes?.ok) try { advstatsDB  = await advstatsRes.json(); } catch(e) {}
       if (histRes2?.ok)    try { historicalDB = await histRes2.json();   } catch(e) {}
+      // vegasprops.json — in-season DK/FanDuel player prop lines
+      try {
+        const vegasRes = await fetch(`${DATA_BASE_URL}/vegasprops.json`, NC).catch(() => null);
+        if (vegasRes?.ok) {
+          const vd = await vegasRes.json();
+          vegasProps = vd?.players ?? {};
+        }
+      } catch(e) {}
     } catch(e) { /* optional — silent failure is fine */ }
   })();
   return _optionalFilesPromise;
@@ -10783,7 +10804,19 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     const trendsEl = document.getElementById('pp-trends-content');
     if (trendsEl && careerChartHtml) trendsEl.innerHTML = careerChartHtml;
 
-    projEl.innerHTML = tepBar + `
+    // Vegas props badge — shown when DK/FD prop data is active for this player
+    const _vegasEntry = getVegasEntry(pid);
+    const vegasBadgeHtml = _vegasEntry ? `
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:6px 10px;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.22);border-radius:6px;">
+        <span style="font-size:10px;">🎰</span>
+        <span style="font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.1em;color:#fbbf24;">VEGAS-INFORMED</span>
+        <span style="font-size:9px;color:rgba(255,255,255,0.45);margin-left:2px;">DraftKings · FanDuel · ${_vegasEntry.updated ?? ''}</span>
+        ${_vegasEntry.pass_yds  ? `<span style="font-size:9px;color:rgba(255,255,255,0.55);margin-left:auto;">${_vegasEntry.pass_yds} pass yds</span>` : ''}
+        ${_vegasEntry.rush_yds  ? `<span style="font-size:9px;color:rgba(255,255,255,0.55);">${_vegasEntry.rush_yds} rush yds</span>` : ''}
+        ${_vegasEntry.rec_yds   ? `<span style="font-size:9px;color:rgba(255,255,255,0.55);">${_vegasEntry.rec_yds} rec yds</span>` : ''}
+      </div>` : '';
+
+    projEl.innerHTML = tepBar + vegasBadgeHtml + `
       <div class="pp-outcomes">
         ${card('bear', dispFloorPpr, dispFPpg, projStats(floorPpr,  pos, rbActuals), descs[0])}
         ${card('base', dispMedPpr,   dispMPpg, projStats(medianPpr, pos, rbActuals), descs[1])}
@@ -14115,6 +14148,26 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
 }
 
 // Full base-case projection using careerDB + compDB — no API calls required.
+// ── Vegas Props helpers ──────────────────────────────────────────────────────
+// getVegasPpg(pid) — returns in-season Vegas prop PPG for a player, or null.
+// Matches by full_name from sleeperPlayers. Active only when vegasProps has data.
+function getVegasPpg(pid) {
+  if (!vegasProps || !Object.keys(vegasProps).length) return null;
+  const name = sleeperPlayers?.[pid]?.full_name;
+  if (!name) return null;
+  const entry = vegasProps[name];
+  if (!entry?.ppg) return null;
+  return entry.ppg;
+}
+
+// getVegasEntry(pid) — returns full Vegas prop entry for a player, or null.
+function getVegasEntry(pid) {
+  if (!vegasProps || !Object.keys(vegasProps).length) return null;
+  const name = sleeperPlayers?.[pid]?.full_name;
+  if (!name) return null;
+  return vegasProps[name] ?? null;
+}
+
 // Checks projectionCache first: if a player profile has already been computed this
 // session its exact numbers are returned so the league tab always matches the profile.
 // Falls back to careerDB-based computation (careerDB now includes 2025 so this is
@@ -14474,7 +14527,17 @@ function computeBaseProjection(pid, pos, age, yearsExp, draftRound, draftPick) {
     }
   }
 
-  const basePpg = Math.round((medianPpr / typGames) * 10) / 10;
+  let basePpg = Math.round((medianPpr / typGames) * 10) / 10;
+
+  // ── Vegas props override (in-season only) ───────────────────────────────
+  // When DK/FanDuel have posted a line for this player this week, use it as
+  // the base. We blend 70% Vegas / 30% model to guard against outlier lines.
+  const _vegasPpg = getVegasPpg(pid);
+  if (_vegasPpg && _vegasPpg > 0) {
+    const blended = Math.round((_vegasPpg * 0.70 + basePpg * 0.30) * 10) / 10;
+    basePpg = blended;
+    medianPpr = Math.round(blended * typGames);
+  }
 
   // ── Stage variance bands ──
   const _approxBands = posNorm === 'QB' ? {
