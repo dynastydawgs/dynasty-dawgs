@@ -1,11 +1,9 @@
 """
-scrape_props_local.py — Dynasty Dawgs Local Season Props Scraper
-Reads player prop lines directly from the rendered page text.
-No network interception needed — if it's visible on screen, we capture it.
+scrape_props_local.py — Dynasty Dawgs FanDuel Season Props Scraper
+Auto-scrolls the page, then auto-clicks every collapsed player accordion
+to reveal Over/Under lines. No manual scrolling or clicking needed.
 
 Run:
-    pip install playwright
-    playwright install chromium
     python scripts/scrape_props_local.py
 """
 
@@ -13,10 +11,10 @@ import json, re, sys, time, pathlib
 from datetime import datetime, timezone
 from playwright.sync_api import sync_playwright
 
-# ── PPR scoring ──────────────────────────────────────────────────────────────
-PPR = dict(pass_yds=0.04, pass_tds=4.0, rush_yds=0.1, rush_tds=6.0,
-           rec=1.0, rec_yds=0.1, rec_tds=6.0)
+# ── FanDuel URL ───────────────────────────────────────────────────────────────
+FD_URL = 'https://sportsbook.fanduel.com/navigation/nfl?tab=player-props'
 
+# ── Stat section keywords (matched against page section headers) ──────────────
 SEASON_SECTIONS = {
     'pass_yds': ['regular season passing yards', 'passing yards'],
     'pass_tds': ['regular season passing touchdowns', 'passing touchdowns', 'passing tds'],
@@ -27,13 +25,7 @@ SEASON_SECTIONS = {
     'rec':      ['regular season receptions', 'receptions'],
 }
 
-def detect_section(line_lower):
-    for stat, keywords in SEASON_SECTIONS.items():
-        if any(kw in line_lower for kw in keywords):
-            return stat
-    return None
-
-# Words that indicate a non-player entry (footer locations, nav labels, etc.)
+# ── Garbage filter ────────────────────────────────────────────────────────────
 BAD_WORDS_FD = [
     'office', 'jersey', 'boston', 'hoboken', 'london', 'soho',
     'sportsbook', 'fanduel', 'parlay', 'gaming', 'responsible',
@@ -44,12 +36,10 @@ BAD_WORDS_FD = [
     'sign up', 'log in', 'how to', 'view all', 'more bets',
 ]
 
-def looks_like_player_fd(name):
-    """Return True only if name looks like an NFL player (Firstname Lastname)."""
+def looks_like_player(name):
     name = name.strip()
     if len(name) < 5 or len(name) > 42:
         return False
-    # Must have at least two words, each starting with a capital letter
     parts = name.split()
     if len(parts) < 2:
         return False
@@ -58,48 +48,96 @@ def looks_like_player_fd(name):
     nl = name.lower()
     if any(bw in nl for bw in BAD_WORDS_FD):
         return False
-    # Reject if any word is ALL-CAPS (nav/header text like "NFL", "PPG", etc.)
+    # Reject all-caps nav words (NFL, PPG, etc.)
     if any(p.isupper() and len(p) > 2 for p in parts):
         return False
     return True
 
-def parse_page_text(text):
+# ── Auto-scroll ───────────────────────────────────────────────────────────────
+def auto_scroll(page, pause=0.9):
+    """Scroll from top to bottom slowly so lazy-loaded content renders."""
+    print('  Auto-scrolling to load all sections...')
+    page.evaluate('window.scrollTo(0, 0)')
+    time.sleep(1.5)
+    step = 0
+    while True:
+        step += 1
+        page.evaluate('window.scrollBy(0, 600)')
+        time.sleep(pause)
+        pos    = page.evaluate('window.scrollY + window.innerHeight')
+        height = page.evaluate('document.body.scrollHeight')
+        if pos >= height - 100 and step > 5:
+            print(f'  Reached bottom ({step} steps).')
+            break
+        if step > 500:
+            print(f'  Scroll cap hit.')
+            break
+    time.sleep(1.5)
+    # Scroll back to top so accordion clicks start from the top
+    page.evaluate('window.scrollTo(0, 0)')
+    time.sleep(1)
+
+# ── Auto-click accordions ─────────────────────────────────────────────────────
+def expand_all_accordions(page):
     """
-    Parse the full visible text of the FanDuel page.
-    Finds patterns like:
-      'Aaron Rodgers Over 3025.5'
-      'Baker Mayfield Under 3500.5'
-    grouped by which section they appear under.
+    Click every collapsed accordion row (aria-expanded=false) to reveal
+    the Over/Under lines for each player. Repeats until none remain.
+    """
+    for round_num in range(1, 12):
+        els = page.query_selector_all('[aria-expanded="false"]')
+        if not els:
+            print(f'  ✓ All accordions expanded (finished in {round_num - 1} round(s)).')
+            break
+        print(f'  Round {round_num}: clicking {len(els)} collapsed rows...')
+        for el in els:
+            try:
+                el.scroll_into_view_if_needed()
+                el.click()
+                time.sleep(0.07)   # small delay so animations don't stack up
+            except Exception:
+                pass
+        time.sleep(1.5)   # let newly-revealed content render
+    else:
+        print('  Warning: still collapsed rows remaining after max rounds.')
+
+# ── Parser ────────────────────────────────────────────────────────────────────
+def detect_section(line_lower):
+    for stat, keywords in SEASON_SECTIONS.items():
+        if any(kw in line_lower for kw in keywords):
+            return stat
+    return None
+
+def parse_page_text(text, label=''):
+    """
+    Parse rendered page text. Looks for lines like:
+        'Aaron Rodgers Over 3025.5'
+        'Baker Mayfield Under 3500.5'
+    grouped under their stat section header.
     """
     players = {}
     lines   = [l.strip() for l in text.splitlines() if l.strip()]
-
     current_stat = None
 
     for line in lines:
         ll = line.lower()
 
-        # Detect section header
         stat = detect_section(ll)
         if stat:
             current_stat = stat
-            print(f'  Section → {stat}: "{line[:60]}"')
+            print(f'  Section → {stat}: "{line[:70]}"')
             continue
 
         if not current_stat:
             continue
 
-        # Match: "Player Name Over 1234.5" or "Player Name Under 1234.5"
         m = re.match(r'^(.+?)\s+(over|under)\s+(\d+\.?\d*)\s*$', line, re.I)
         if m:
             player_name = m.group(1).strip()
             direction   = m.group(2).lower()
             value       = float(m.group(3))
 
-            # Must look like a real NFL player
-            if not looks_like_player_fd(player_name):
+            if not looks_like_player(player_name):
                 continue
-            # Only use the Over line (handicap value; Under is the same number)
             if direction == 'over':
                 players.setdefault(player_name, {})
                 players[player_name].setdefault(current_stat, []).append(value)
@@ -107,64 +145,76 @@ def parse_page_text(text):
 
     return players
 
+# ── Main scrape function ──────────────────────────────────────────────────────
 def scrape_fanduel(page):
     print('\n=== FanDuel Season Player Props ===')
-    url = 'https://sportsbook.fanduel.com/navigation/nfl?tab=player-props'
-    print(f'  Loading {url}')
+    print(f'  Loading {FD_URL}')
 
     try:
-        page.goto(url, wait_until='domcontentloaded', timeout=60000)
+        page.goto(FD_URL, wait_until='domcontentloaded', timeout=60000)
     except Exception as e:
-        print(f'  Nav timeout (continuing): {str(e)[:60]}')
+        print(f'  Nav timeout (continuing): {str(e)[:80]}')
 
-    print('  Waiting for page to settle...')
     time.sleep(4)
 
     print()
-    print('  ============================================================')
-    print('  ACTION REQUIRED:')
-    print('  In the browser window, manually scroll through ALL sections:')
-    print('    - Regular Season Passing Yards')
-    print('    - Regular Season Rushing Yards')
-    print('    - Regular Season Receiving Yards')
-    print('    - Regular Season Touchdowns')
-    print('    - Regular Season Receptions')
-    print()
-    print('  Scroll slowly so each section fully loads.')
-    print('  When you have scrolled through everything, come back here')
-    print('  and press ENTER to capture the data.')
-    print('  ============================================================')
+    print('  ──────────────────────────────────────────────────────────')
+    print('  If FanDuel shows a CAPTCHA or location prompt, handle it')
+    print('  in the browser window now. Then press ENTER to continue.')
+    print('  (If the page looks fine, just press ENTER immediately.)')
+    print('  ──────────────────────────────────────────────────────────')
     input()
 
-    # Read all visible text from the page
+    # 1. Auto-scroll to trigger lazy loading of all prop sections
+    auto_scroll(page)
+
+    # 2. Auto-click every collapsed player accordion
+    print()
+    print('  Expanding player rows...')
+    expand_all_accordions(page)
+
+    # 3. One more scroll pass to catch anything that lazy-loaded after clicks
+    print()
+    print('  Final scroll pass...')
+    auto_scroll(page)
+
+    # 4. One more accordion pass in case new rows appeared
+    els_remaining = page.query_selector_all('[aria-expanded="false"]')
+    if els_remaining:
+        print(f'  Clicking {len(els_remaining)} newly-loaded collapsed rows...')
+        expand_all_accordions(page)
+
+    # 5. Read the full rendered page text
+    print()
     print('  Reading page text...')
     text = page.inner_text('body')
-    print(f'  Page text length: {len(text)} chars')
+    print(f'  Page text: {len(text):,} chars')
 
-    # Save raw text for debugging
     debug_path = pathlib.Path(__file__).parent.parent / 'data' / 'fanduel_page_text.txt'
     debug_path.write_text(text, encoding='utf-8')
-    print(f'  Raw text saved to data/fanduel_page_text.txt')
+    print(f'  Raw text saved → data/fanduel_page_text.txt')
 
     players = parse_page_text(text)
     print(f'\n  Players found: {len(players)}')
     return players
 
+# ── Entry point ───────────────────────────────────────────────────────────────
 def main():
-    print('Dynasty Dawgs — Season Props Scraper (DOM text reader)')
+    print('Dynasty Dawgs — FanDuel Season Props Scraper')
     print(f'Time: {datetime.now(timezone.utc).isoformat()}\n')
-
-    all_players = {}
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(
             headless=False,
-            args=['--disable-blink-features=AutomationControlled', '--window-size=1440,900'],
+            args=['--disable-blink-features=AutomationControlled',
+                  '--window-size=1440,900', '--start-maximized'],
         )
         ctx = browser.new_context(
             viewport={'width': 1440, 'height': 900},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                       '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            user_agent=(
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            ),
             locale='en-US',
             timezone_id='America/New_York',
             geolocation={'latitude': 40.7128, 'longitude': -74.0060},
@@ -176,29 +226,19 @@ def main():
 
         page = ctx.new_page()
         fd_players = scrape_fanduel(page)
-        for name, stats in fd_players.items():
-            all_players.setdefault(name, {})
-            for stat, lines in stats.items():
-                all_players[name].setdefault(stat, []).extend(lines)
-
         browser.close()
 
-    total = len(all_players)
-    print(f'\nTotal players: {total}')
-
-    if not total:
+    if not fd_players:
         print('\nNo players found.')
-        print('Check data/fanduel_page_text.txt — does it contain player prop lines?')
-        print('If so, paste the first 50 lines here and we will fix the parser.')
+        print('Check data/fanduel_page_text.txt for clues.')
         sys.exit(0)
 
-    # Build output
+    # Build and save output
     out = {}
-    for name, stats in all_players.items():
-        avg = {s: round(sum(ls)/len(ls), 1) for s, ls in stats.items()}
+    for name, stats in fd_players.items():
+        avg = {s: round(sum(ls) / len(ls), 1) for s, ls in stats.items()}
         out[name] = {**avg, 'updated': datetime.now().strftime('%Y-%m-%d')}
 
-    # Sort alphabetically (PPG computed in JS, not stored)
     sorted_out = dict(sorted(out.items()))
 
     now       = datetime.now(timezone.utc)
@@ -217,16 +257,9 @@ def main():
         'players': sorted_out,
     }, indent=2))
 
-    print('\nTop 10 players (alphabetical):')
-    for i, (name, p) in enumerate(list(sorted_out.items())[:10], 1):
-        stats_str = '  '.join(f'{k}={v}' for k, v in p.items() if k != 'updated')
-        print(f'  {i:2}. {name:<26} {stats_str}')
-
-    print(f'\nSaved → data/vegasprops.json')
-    print('\nNow run:')
-    print('  git add data/vegasprops.json')
-    print('  git commit -m "update: 2026 season player props"')
-    print('  git push')
+    print(f'\nTotal: {len(sorted_out)} players saved → data/vegasprops.json')
+    print('\nNext: run DraftKings scraper to merge DK lines in:')
+    print('  python scripts/scrape_dk_props.py')
 
 if __name__ == '__main__':
     main()
