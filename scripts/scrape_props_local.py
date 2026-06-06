@@ -14,6 +14,17 @@ from playwright.sync_api import sync_playwright
 # ── FanDuel URL ───────────────────────────────────────────────────────────────
 FD_URL = 'https://sportsbook.fanduel.com/navigation/nfl?tab=player-props'
 
+# Stat label → DOM row label (what FanDuel shows in the accordion header text)
+STAT_LABELS = {
+    'pass_yds': 'Regular Season Passing Yards',
+    'pass_tds': 'Regular Season Passing TDs',
+    'rush_yds': 'Regular Season Rushing Yards',
+    'rush_tds': 'Regular Season Rushing TDs',
+    'rec_yds':  'Regular Season Receiving Yards',
+    'rec_tds':  'Regular Season Receiving TDs',
+    'rec':      'Regular Season Receptions',
+}
+
 # ── Stat section keywords (matched against page section headers) ──────────────
 SEASON_SECTIONS = {
     'pass_yds': ['regular season passing yards', 'passing yards'],
@@ -73,32 +84,88 @@ def auto_scroll(page, pause=0.9):
             print(f'  Scroll cap hit.')
             break
     time.sleep(1.5)
-    # Scroll back to top so accordion clicks start from the top
     page.evaluate('window.scrollTo(0, 0)')
     time.sleep(1)
 
-# ── Auto-click accordions ─────────────────────────────────────────────────────
-def expand_all_accordions(page):
+# ── Find collapsed rows ───────────────────────────────────────────────────────
+def find_collapsed_rows(text):
     """
-    Click every collapsed accordion row (aria-expanded=false) to reveal
-    the Over/Under lines for each player. Repeats until none remain.
+    Parse visible page text. Return list of (stat, player_name, full_row_text)
+    for rows that have a header but no Over/Under value following them.
     """
-    for round_num in range(1, 12):
-        els = page.query_selector_all('[aria-expanded="false"]')
-        if not els:
-            print(f'  ✓ All accordions expanded (finished in {round_num - 1} round(s)).')
+    lines   = [l.strip() for l in text.splitlines() if l.strip()]
+    n       = len(lines)
+    found   = []
+
+    for i, line in enumerate(lines):
+        for stat, label in STAT_LABELS.items():
+            if label not in line or '2026-27' not in line:
+                continue
+            player = line.replace(f' {label} 2026-27', '').strip()
+            if not looks_like_player(player):
+                break
+            # Look at the next 3 lines for an Over/Under value
+            next_lines = lines[i+1 : i+4]
+            has_value  = any(
+                re.match(r'^(Over|Under)\s+[\d.]+', nl, re.I) or
+                re.match(rf'^{re.escape(player)}\s+(Over|Under)\s+[\d.]+', nl, re.I)
+                for nl in next_lines
+            )
+            if not has_value:
+                found.append((stat, player, line))
             break
-        print(f'  Round {round_num}: clicking {len(els)} collapsed rows...')
-        for el in els:
-            try:
-                el.scroll_into_view_if_needed()
-                el.click()
-                time.sleep(0.07)   # small delay so animations don't stack up
-            except Exception:
-                pass
-        time.sleep(1.5)   # let newly-revealed content render
-    else:
-        print('  Warning: still collapsed rows remaining after max rounds.')
+
+    return found
+
+# ── Click collapsed rows via JS ───────────────────────────────────────────────
+def click_rows_js(page, row_texts):
+    """
+    For each row text, find the element in the DOM whose innerText matches,
+    walk up to its cursor:pointer ancestor, and dispatch a click event.
+    Returns number of rows clicked.
+    """
+    import json as _json
+    targets_json = _json.dumps(row_texts)
+
+    n = page.evaluate(f"""
+    () => {{
+        const targets = new Set({targets_json});
+        let clicked   = 0;
+        const done    = new WeakSet();
+
+        // One pass through ALL elements — innerText of the right level will match
+        for (const el of document.querySelectorAll('*')) {{
+            if (done.has(el) || targets.size === 0) break;
+
+            const raw  = el.innerText || '';
+            const text = raw.trim().replace(/\\s+/g, ' ');
+            if (!targets.has(text)) continue;
+
+            // Walk UP from this element to find the interactive ancestor
+            let target = el;
+            while (target && target !== document.body) {{
+                const s   = getComputedStyle(target);
+                const tag = target.tagName;
+                if (tag === 'BUTTON' ||
+                    target.getAttribute('role') === 'button' ||
+                    target.getAttribute('tabindex') !== null ||
+                    s.cursor === 'pointer') {{
+                    break;
+                }}
+                target = target.parentElement;
+            }}
+
+            if (!target || target === document.body) target = el;  // fallback
+
+            target.dispatchEvent(new MouseEvent('click', {{bubbles: true, cancelable: true}}));
+            done.add(target);
+            targets.delete(text);   // only click once per row
+            clicked++;
+        }}
+        return clicked;
+    }}
+    """)
+    return n
 
 # ── Parser ────────────────────────────────────────────────────────────────────
 def detect_section(line_lower):
@@ -160,33 +227,43 @@ def scrape_fanduel(page):
     print()
     print('  ──────────────────────────────────────────────────────────')
     print('  If FanDuel shows a CAPTCHA or location prompt, handle it')
-    print('  in the browser window now. Then press ENTER to continue.')
+    print('  now.  Then press ENTER to start automated scraping.')
     print('  (If the page looks fine, just press ENTER immediately.)')
     print('  ──────────────────────────────────────────────────────────')
     input()
 
-    # 1. Auto-scroll to trigger lazy loading of all prop sections
+    # ── Pass 1: scroll to load all lazy sections ──────────────────────────────
     auto_scroll(page)
 
-    # 2. Auto-click every collapsed player accordion
-    print()
-    print('  Expanding player rows...')
-    expand_all_accordions(page)
+    # ── Pass 2: read visible text; find + click collapsed rows ────────────────
+    max_rounds = 6
+    for rnd in range(1, max_rounds + 1):
+        text     = page.inner_text('body')
+        collapsed = find_collapsed_rows(text)
 
-    # 3. One more scroll pass to catch anything that lazy-loaded after clicks
-    print()
-    print('  Final scroll pass...')
-    auto_scroll(page)
+        if not collapsed:
+            print(f'  ✓ All rows expanded after {rnd - 1} round(s).')
+            break
 
-    # 4. One more accordion pass in case new rows appeared
-    els_remaining = page.query_selector_all('[aria-expanded="false"]')
-    if els_remaining:
-        print(f'  Clicking {len(els_remaining)} newly-loaded collapsed rows...')
-        expand_all_accordions(page)
+        row_texts = [rt for _, _, rt in collapsed]
+        print(f'  Round {rnd}: {len(collapsed)} collapsed rows → clicking...')
+        n_clicked = click_rows_js(page, row_texts)
+        print(f'    JS clicked {n_clicked} element(s)')
 
-    # 5. Read the full rendered page text
+        if n_clicked == 0:
+            # Clicking isn't working — log which rows are still collapsed for debug
+            print('  ⚠ Could not click rows. Collapsed rows:')
+            for stat, player, rt in collapsed[:5]:
+                print(f'    [{stat}] {rt}')
+            break
+
+        time.sleep(2.5)   # wait for React to render expanded content
+    else:
+        print(f'  ⚠ Still {len(find_collapsed_rows(page.inner_text("body")))} collapsed after {max_rounds} rounds.')
+
+    # ── Final read ────────────────────────────────────────────────────────────
     print()
-    print('  Reading page text...')
+    print('  Reading final page text...')
     text = page.inner_text('body')
     print(f'  Page text: {len(text):,} chars')
 
@@ -195,7 +272,7 @@ def scrape_fanduel(page):
     print(f'  Raw text saved → data/fanduel_page_text.txt')
 
     players = parse_page_text(text)
-    print(f'\n  Players found: {len(players)}')
+    print(f'\n  Players captured: {len(players)}')
     return players
 
 # ── Entry point ───────────────────────────────────────────────────────────────
