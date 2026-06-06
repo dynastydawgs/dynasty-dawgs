@@ -1,0 +1,12 @@
+{
+  "name": "dynasty-dawgs-props-fetcher",
+  "version": "1.0.0",
+  "description": "Playwright-based season-long prop line fetcher for Dynasty Dawgs",
+  "private": true,
+  "scripts": {
+    "fetch": "node fetch_season_props.js"
+  },
+  "dependencies": {
+    "playwright": "^1.44.0"
+  }
+}

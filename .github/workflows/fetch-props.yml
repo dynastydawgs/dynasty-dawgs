@@ -1,8 +1,8 @@
-name: Fetch NFL Player Props
+name: Fetch NFL Season-Long Player Props
 
 on:
   schedule:
-    # Every Tuesday at 2pm UTC — DK/FD post lines Tue/Wed each week
+    # Every Tuesday at 2pm UTC — FD/DK update season lines Tue/Wed
     - cron: '0 14 * * 2'
   workflow_dispatch:   # Manual trigger from GitHub Actions tab
 
@@ -17,18 +17,22 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
+          node-version: '20'
 
-      - name: Install dependencies
-        run: pip install requests
+      - name: Install npm dependencies
+        working-directory: scripts
+        run: npm install
 
-      - name: Fetch NFL player props
-        env:
-          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-        run: python scripts/fetch_props.py
+      - name: Install Playwright Chromium browser
+        working-directory: scripts
+        run: npx playwright install chromium --with-deps
+
+      - name: Fetch season-long NFL player props (FanDuel + DraftKings)
+        working-directory: scripts
+        run: node fetch_season_props.js
 
       - name: Commit and push if data changed
         run: |
@@ -38,6 +42,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to vegasprops.json — skipping commit."
           else
-            git commit -m "chore: update NFL player props (week $(date +%V))"
+            git commit -m "chore: update NFL season player props ($(date +%Y-%m-%d))"
             git push
           fi

@@ -1,0 +1,7 @@
+# Node / Playwright (scripts dir)
+scripts/node_modules/
+scripts/package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
