@@ -117,45 +117,85 @@ def find_collapsed_rows(text):
 
     return found
 
-# ── Click collapsed rows via Playwright native click ─────────────────────────
+# ── Click collapsed rows by coordinates ──────────────────────────────────────
 def click_collapsed_rows(page, collapsed):
     """
-    Click each collapsed accordion row using Playwright's native .click(),
-    which goes through CDP and produces isTrusted=true events.
-    JavaScript's dispatchEvent produces isTrusted=false, which React ignores.
+    For each collapsed row:
+      1. Use JS to find the row container's bounding box (walk up from the
+         innerText-matched element to the first wide ancestor).
+      2. Use page.mouse.click() at the RIGHT edge of that container — where
+         the dropdown arrow (chevron SVG) sits.
+
+    page.mouse.click() produces isTrusted=true; JS dispatchEvent does not.
     """
+    import json as _json
+
+    # ── One JS call: collect bounding boxes for ALL collapsed rows ────────────
+    row_texts  = [rt for _, _, rt in collapsed]
+    # Build [[text, index], ...] for a JS Map so we can match in O(n) DOM walk
+    map_init   = _json.dumps([[rt, i] for i, rt in enumerate(row_texts)])
+    n_rows     = len(row_texts)
+    vw         = page.viewport_size['width']
+
+    boxes = page.evaluate(f"""
+    () => {{
+        const targets  = new Map({map_init});
+        const result   = new Array({n_rows}).fill(null);
+        const VW       = window.innerWidth;
+
+        for (const el of document.querySelectorAll('*')) {{
+            if (targets.size === 0) break;
+            const t = (el.innerText || '').trim().replace(/\\s+/g, ' ');
+            if (!targets.has(t)) continue;
+
+            const idx = targets.get(t);
+            targets.delete(t);
+
+            // Walk UP until we hit an element wide enough to be the row container
+            // but narrower than the full viewport (skip layout wrappers)
+            let anc   = el.parentElement;
+            let found = null;
+            while (anc && anc !== document.body) {{
+                const r = anc.getBoundingClientRect();
+                if (r.width > 250 && r.height > 0) {{
+                    found = {{ x: r.x, y: r.y, w: r.width, h: r.height }};
+                    break;
+                }}
+                anc = anc.parentElement;
+            }}
+            if (!found) {{
+                const r = el.getBoundingClientRect();
+                found = {{ x: r.x, y: r.y, w: r.width, h: r.height }};
+            }}
+            result[idx] = found;
+        }}
+        return result;
+    }}
+    """)
+
+    # ── Click each row's chevron using mouse coordinates ──────────────────────
     clicked = 0
-    skipped = 0
+    missing = 0
 
-    for stat, player, row_text in collapsed:
-        loc = None
-        try:
-            # 1. Best shot: find a <button> that contains the row text
-            loc = page.locator('button').filter(has_text=re.compile(re.escape(row_text)))
-            if loc.count() == 0:
-                # 2. Try [role="button"]
-                loc = page.locator('[role="button"]').filter(
-                    has_text=re.compile(re.escape(row_text)))
-            if loc.count() == 0:
-                # 3. Any element whose visible text is exactly this string
-                loc = page.get_by_text(row_text, exact=True)
-            if loc.count() == 0:
-                # 4. Looser: any element containing the text
-                loc = page.get_by_text(row_text, exact=False)
+    for i, (stat, player, row_text) in enumerate(collapsed):
+        box = boxes[i] if i < len(boxes) else None
+        if not box:
+            missing += 1
+            continue
 
-            if loc.count() > 0:
-                loc.first.scroll_into_view_if_needed()
-                loc.first.click(timeout=3000)
-                time.sleep(0.07)
-                clicked += 1
-            else:
-                skipped += 1
+        # Click at right edge - 25px (where the ▾ chevron lives)
+        cx = box['x'] + box['w'] - 25
+        cy = box['y'] + box['h'] / 2
 
-        except Exception as e:
-            skipped += 1
+        # Scroll so the target is in the middle of the viewport, then click
+        page.evaluate(f"window.scrollTo(0, {max(0, box['y'] - 300)})")
+        time.sleep(0.06)
+        page.mouse.click(cx, cy)
+        time.sleep(0.06)
+        clicked += 1
 
-    if skipped:
-        print(f'    ⚠ {skipped} rows had no clickable element')
+    if missing:
+        print(f'    ⚠ {missing} rows: no bounding box found')
     return clicked
 
 # ── Parser ────────────────────────────────────────────────────────────────────
