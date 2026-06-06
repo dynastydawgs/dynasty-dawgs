@@ -35,26 +35,53 @@ def make_url(subcategory, nav):
     return f'{BASE}?category=futures&subcategory={subcategory}&nav_1={nav}'
 
 # ── Parser ───────────────────────────────────────────────────────────────────
-PLAYER_RE = re.compile(r"^[A-Z][a-zA-Z''\.\-]+(?:\s+[A-Z][a-zA-Z''\.\-]+)+$")
-BAD_WORDS  = ['Over','Under','Parlay','DraftKings','Sportsbook','More Wagers',
-              'Futures','Player','Season','Regular','Super Bowl','Conference',
-              'Division','National','American','NFL','Same Game','SGP',
-              'Fast Futures','Player Milestones','Player Stats','Rookie',
-              'Player Matchups','Team Specials','Pass Yards','Rec Yards',
-              'Rush Yards','Pass Tds','Rec Tds','Rush Tds','View All',
-              'Log In','Sign Up','How To Bet','Responsible Gaming']
+PLAYER_RE = re.compile(r"^[A-Z][a-z''\.\-]+(?:\s+[A-Z][a-z''\.\-]+){1,2}$")
+
+# Stat-specific valid handicap ranges — keeps random page numbers from matching
+STAT_RANGES = {
+    'pass_yds': (1500, 6500),
+    'pass_tds': (5,    60),
+    'rush_yds': (200,  2500),
+    'rush_tds': (1,    22),
+    'rec_yds':  (200,  2000),
+    'rec_tds':  (1,    20),
+    'rec':      (10,   150),
+}
+
+# Words that appear in player names but are NOT NFL players
+BAD_WORDS = [
+    'Over','Under','Parlay','DraftKings','Sportsbook','More Wagers',
+    'Futures','Player','Season','Regular','Super Bowl','Conference',
+    'Division','National','American','Same Game','SGP','Rookie',
+    'Milestones','Matchups','Specials','View All','Log In','Sign Up',
+    'How To','Responsible','Gaming','Office','Support','Service','Center',
+    'Network','Casino','Racing','Lottery','Predictions','Pools','Social',
+    'Rewards','Betting','Spread','Moneyline','Parlay','Teaser',
+    # US states / cities that appear in DK footer links
+    'Jersey','York','Angeles','Francisco','Chicago','Vegas','Texas',
+    'Florida','Ohio','Carolina','England','Orleans','Minnesota',
+    'Seattle','Denver','Baltimore','Pittsburgh','Indianapolis',
+    'Tennessee','Arizona','Colorado','Michigan','Virginia','Iowa',
+    'Wyoming','Illinois','Louisiana','Kansas','Maryland','Oregon',
+    'Massachusetts','Connecticut','Washington','Pennsylvania',
+]
 
 def looks_like_player(s):
     s = s.strip()
+    # Must match "Firstname Lastname" or "Firstname M. Lastname" — all capitalized words
     if not PLAYER_RE.match(s): return False
-    if len(s) < 5 or len(s) > 45: return False
-    return not any(b.lower() == s.lower() or b.lower() in s.lower() for b in BAD_WORDS)
+    if len(s) < 6 or len(s) > 42: return False
+    sl = s.lower()
+    return not any(b.lower() in sl for b in BAD_WORDS)
 
-def parse_number(s):
+def parse_number(s, stat=None):
     s = s.strip().replace(',', '').replace('−', '-').replace('–', '-')
+    # Skip odds lines (always start with + or -)
+    if s.startswith('+') or s.startswith('-'): return None
     try:
         v = float(s)
-        if 0.5 <= v <= 9000: return v   # prop handicap range
+        lo, hi = STAT_RANGES.get(stat, (0.5, 9000))
+        if lo <= v <= hi: return v
     except ValueError: pass
     return None
 
@@ -86,7 +113,7 @@ def parse_ou_text(text, stat, label):
         m = re.match(r'^(.+?)\s+(over|under)\s+([\d,\.]+)\s*(?:[+\-]\d+)?$', line, re.I)
         if m and looks_like_player(m.group(1)):
             if m.group(2).lower() == 'over':
-                val = parse_number(m.group(3))
+                val = parse_number(m.group(3), stat)
                 if val:
                     players.setdefault(m.group(1).strip(), []).append(val)
                     print(f'  ✓ {m.group(1).strip()}: {stat} = {val}')
@@ -102,14 +129,14 @@ def parse_ou_text(text, stat, label):
                 nxt = lines[j]
                 # Stop if we hit another player name
                 if looks_like_player(nxt): break
-                val = parse_number(nxt)
+                val = parse_number(nxt, stat)
                 if val:
                     found_val = val
                     break
                 # "OVER 4500.5" on one line
                 m2 = re.match(r'^(?:over|o/?u|o/u)\s+([\d,\.]+)', nxt, re.I)
                 if m2:
-                    val = parse_number(m2.group(1))
+                    val = parse_number(m2.group(1), stat)
                     if val:
                         found_val = val
                         break
