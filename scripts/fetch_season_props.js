@@ -1,15 +1,7 @@
 /**
  * fetch_season_props.js — Dynasty Dawgs Season-Long Props Fetcher
- *
- * Uses Playwright (headless Chromium) to load FanDuel's NFL player props page,
- * intercept their internal API responses, extract season-long passing/rushing/
- * receiving yards + TD lines, compute PPR PPG, and write data/vegasprops.json.
- *
- * Season-long props (Regular Season Passing Yards 2026-27, etc.) appear on:
- *   https://sportsbook.fanduel.com/navigation/nfl?tab=player-props
- *   https://sportsbook.fanduel.com/nfl/player-props-season
- *
- * Runs via GitHub Actions weekly. Falls back gracefully if layout changes.
+ * Playwright + headless Chromium. Captures ALL JSON responses to discover
+ * FanDuel/DraftKings API endpoints and extract season-long player prop lines.
  */
 
 const { chromium } = require('playwright');
@@ -27,14 +19,13 @@ const PPR = {
   rec_tds  : 6.0,
 };
 
-// ── Stat classifier ──────────────────────────────────────────────────────────
 function classifyStat(name) {
   const n = (name || '').toLowerCase();
-  if (n.includes('passing yard'))                                 return 'pass_yds';
-  if (n.includes('passing td') || n.includes('passing touchdown')) return 'pass_tds';
-  if (n.includes('rushing yard'))                                 return 'rush_yds';
-  if (n.includes('rushing td') || n.includes('rushing touchdown')) return 'rush_tds';
-  if (n.includes('receiving yard'))                               return 'rec_yds';
+  if (n.includes('passing yard'))                                   return 'pass_yds';
+  if (n.includes('passing td') || n.includes('passing touchdown'))  return 'pass_tds';
+  if (n.includes('rushing yard'))                                   return 'rush_yds';
+  if (n.includes('rushing td') || n.includes('rushing touchdown'))  return 'rush_tds';
+  if (n.includes('receiving yard'))                                 return 'rec_yds';
   if (n.includes('receiving td') || n.includes('receiving touchdown')) return 'rec_tds';
   if (n.includes('reception') && !n.includes('yard') && !n.includes('td')) return 'rec';
   return null;
@@ -42,177 +33,171 @@ function classifyStat(name) {
 
 function computePpg(stats) {
   let ppg = 0;
-  for (const [stat, weight] of Object.entries(PPR)) {
-    ppg += (stats[stat] ?? 0) * weight;
-  }
+  for (const [stat, weight] of Object.entries(PPR)) ppg += (stats[stat] ?? 0) * weight;
   return Math.round(ppg * 100) / 100;
 }
 
-// ── Deep-walk JSON for FanDuel structure ─────────────────────────────────────
-// FanDuel's sbapi returns nested JSON with various shapes.
-// We walk every object looking for market/runner combos.
-function extractFanDuelPlayers(data) {
-  const players = {};
-
-  // Shape 1: attachments.markets + attachments.runners (most common)
-  const attachments = data?.attachments ?? data;
-  const markets = attachments?.markets ?? {};
-  const runners = attachments?.runners ?? {};
-  const events  = attachments?.events  ?? {};
-
-  for (const market of Object.values(markets)) {
-    const marketName = market?.marketName ?? market?.marketType?.marketName ?? market?.name ?? '';
-    const stat = classifyStat(marketName);
-    if (!stat) continue;
-
-    // Season-long filter
-    const eventId = market?.eventId ?? market?.event?.id;
-    const event = events[eventId] ?? {};
-    const eventName = event?.name ?? event?.openDate ?? market?.eventName ?? '';
-    const isSeasonLong = /season|regular season|2026|annual/i.test(marketName)
-                      || /season|regular season|2026|annual/i.test(eventName);
-    if (!isSeasonLong) continue;
-
-    for (const runnerId of (market?.runnerIds ?? [])) {
-      const runner = runners[runnerId];
-      if (!runner) continue;
-      const playerName = runner?.runnerName ?? runner?.name ?? '';
-      if (!playerName) continue;
-      const handicap = runner?.handicap ?? runner?.hc ?? null;
-      if (handicap == null) continue;
-
-      players[playerName] ??= {};
-      players[playerName][stat] ??= [];
-      players[playerName][stat].push(parseFloat(handicap));
-    }
-  }
-
-  // Shape 2: flat array of markets (alternate FD API shapes)
-  if (!Object.keys(players).length) {
-    const marketArr = data?.markets ?? data?.data?.markets ?? [];
-    for (const market of (Array.isArray(marketArr) ? marketArr : [])) {
-      const marketName = market?.marketName ?? market?.name ?? '';
-      const stat = classifyStat(marketName);
-      if (!stat) continue;
-      const isSeasonLong = /season|regular season|2026|annual/i.test(marketName)
-                        || /season|regular season|2026|annual/i.test(market?.eventName ?? '');
-      if (!isSeasonLong) continue;
-
-      for (const runner of (market?.runners ?? [])) {
-        const playerName = runner?.runnerName ?? runner?.name ?? '';
-        if (!playerName) continue;
-        const handicap = runner?.handicap ?? runner?.hc ?? null;
-        if (handicap == null) continue;
-        players[playerName] ??= {};
-        players[playerName][stat] ??= [];
-        players[playerName][stat].push(parseFloat(handicap));
-      }
-    }
-  }
-
-  return players;
-}
-
-// ── DraftKings walker ────────────────────────────────────────────────────────
-function extractDraftKingsPlayers(data) {
-  const players = {};
-  const allOffers = [];
-
-  // Recursively find any object that looks like a prop offer
-  const walk = (obj, depth = 0) => {
-    if (depth > 12 || !obj || typeof obj !== 'object') return;
-    if (Array.isArray(obj)) { obj.forEach(o => walk(o, depth + 1)); return; }
-    // An offer has label + outcomes array
-    if (obj.label && Array.isArray(obj.outcomes) && obj.outcomes.length > 0) {
-      allOffers.push(obj);
-    }
-    for (const v of Object.values(obj)) walk(v, depth + 1);
-  };
-  walk(data);
-
-  for (const offer of allOffers) {
-    const label = offer.label ?? offer.name ?? '';
-    const stat = classifyStat(label);
-    if (!stat) continue;
-
-    // Season-long filter — check label, subcategoryName, or parent category
-    const context = `${label} ${offer.subcategoryName ?? ''} ${offer.offerCategoryName ?? ''}`;
-    if (!/season|2026|annual|regular season/i.test(context)) continue;
-
-    for (const outcome of offer.outcomes) {
-      const playerName = outcome.participant ?? outcome.label ?? '';
-      if (!playerName) continue;
-      const line = parseFloat(outcome.line ?? outcome.handicap ?? outcome.value ?? NaN);
-      if (isNaN(line)) continue;
-      players[playerName] ??= {};
-      players[playerName][stat] ??= [];
-      players[playerName][stat].push(line);
-    }
-  }
-
-  return players;
-}
-
-// ── Load a sportsbook page and return all captured API JSON ─────────────────
-async function captureSportsbookData(browser, { name, url, apiPatterns, scrollDepth = 5 }) {
-  const page = await browser.newPage();
-  const captured = [];
-
-  await page.setExtraHTTPHeaders({
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Referer': 'https://www.google.com/',
+// ── Open a stealth browser page ──────────────────────────────────────────────
+async function stealthPage(browser) {
+  const ctx = await browser.newContext({
+    viewport        : { width: 1440, height: 900 },
+    userAgent       : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    locale          : 'en-US',
+    timezoneId      : 'America/New_York',
+    geolocation     : { latitude: 40.7128, longitude: -74.0060 },   // New York
+    permissions     : ['geolocation'],
+    extraHTTPHeaders: {
+      'Accept-Language': 'en-US,en;q=0.9',
+      'sec-ch-ua'      : '"Chromium";v="124", "Google Chrome";v="124"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+    },
   });
 
+  const page = await ctx.newPage();
+
+  // Hide webdriver flag — most important anti-bot bypass
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    window.chrome = { runtime: {} };
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+  });
+
+  return { ctx, page };
+}
+
+// ── Capture all JSON responses from a URL ────────────────────────────────────
+async function captureAll(browser, url, label) {
+  const { ctx, page } = await stealthPage(browser);
+  const captured = [];
+
   page.on('response', async response => {
-    const reqUrl = response.url();
-    if (!apiPatterns.some(p => reqUrl.includes(p))) return;
+    const ct = response.headers()['content-type'] ?? '';
+    if (!ct.includes('json')) return;
     try {
       const json = await response.json();
-      captured.push({ url: reqUrl, json });
-      console.log(`  [${name}] captured: ${reqUrl.slice(0, 100)}`);
+      captured.push({ url: response.url(), json });
     } catch(e) {}
   });
 
-  console.log(`\n=== ${name} — navigating to ${url} ===`);
+  console.log(`\n[${label}] → ${url}`);
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
   } catch(e) {
-    console.log(`  Navigation timed out (continuing): ${e.message}`);
+    console.log(`  timeout/error during navigation: ${e.message.slice(0, 80)}`);
   }
 
-  // Scroll progressively to trigger lazy-loads
-  for (let i = 1; i <= scrollDepth; i++) {
-    await page.evaluate(i => window.scrollTo(0, i * (document.body.scrollHeight / 5)), i);
-    await page.waitForTimeout(1200);
+  // Scroll to trigger lazy loads
+  for (let i = 1; i <= 6; i++) {
+    await page.evaluate(i => window.scrollTo(0, i * document.body.scrollHeight / 6), i);
+    await page.waitForTimeout(1000);
   }
-  await page.waitForTimeout(2000); // final settle
+  await page.waitForTimeout(2000);
 
-  console.log(`  ${name}: ${captured.length} API responses captured`);
-  await page.close();
+  console.log(`  captured ${captured.length} JSON responses`);
+  // Log every URL so we can identify the right endpoints in Actions logs
+  for (const c of captured) {
+    const size = JSON.stringify(c.json).length;
+    console.log(`    ${size.toString().padStart(8)} bytes  ${c.url.slice(0, 120)}`);
+  }
+
+  await ctx.close();
   return captured;
 }
 
-// ── Merge player stats into accumulator ─────────────────────────────────────
-function mergeInto(acc, parsed, sourceName) {
-  let count = 0;
+// ── Deep-search any JSON blob for season-long player props ───────────────────
+// Walks arbitrary nesting to find player names + handicap lines.
+function deepExtract(data, statHint) {
+  const players = {};
+
+  const tryRecord = (obj, stat) => {
+    // Look for { name/participant/runnerName/label, handicap/line/hc/value }
+    const nameCandidates = [obj?.runnerName, obj?.name, obj?.participant, obj?.label, obj?.selectionName];
+    const lineCandidates = [obj?.handicap, obj?.hc, obj?.line, obj?.value, obj?.points];
+    const playerName = nameCandidates.find(v => typeof v === 'string' && v.length > 2 && v.length < 60);
+    const line = lineCandidates.find(v => v != null && !isNaN(parseFloat(v)));
+    if (playerName && line != null) {
+      players[playerName] ??= {};
+      players[playerName][stat] ??= [];
+      players[playerName][stat].push(parseFloat(line));
+      return true;
+    }
+    return false;
+  };
+
+  const walk = (obj, depth = 0, currentStat = null, isSeasonCtx = false) => {
+    if (depth > 15 || obj == null || typeof obj !== 'object') return;
+
+    if (Array.isArray(obj)) {
+      obj.forEach(item => walk(item, depth + 1, currentStat, isSeasonCtx));
+      return;
+    }
+
+    // Detect stat context from field names
+    const nameStr = Object.values(obj)
+      .filter(v => typeof v === 'string')
+      .join(' ')
+      .toLowerCase();
+
+    const thisStat = classifyStat(nameStr) ?? currentStat;
+    const thisSeasonCtx = isSeasonCtx
+      || /season|regular season|2026|annual/i.test(nameStr);
+
+    if (thisSeasonCtx && thisStat) {
+      tryRecord(obj, thisStat);
+    }
+
+    for (const v of Object.values(obj)) {
+      walk(v, depth + 1, thisStat, thisSeasonCtx);
+    }
+  };
+
+  walk(data, 0, statHint, false);
+  return players;
+}
+
+// ── Parse a single captured response for season-long props ───────────────────
+function parseResponse(json, sourceUrl) {
+  const players = {};
+
+  // Check if this response has any season-relevant content at all
+  const raw = JSON.stringify(json).toLowerCase();
+  const hasSeasonKeyword = /regular season|season-long|passing yards|rushing yards|receiving yards/i.test(raw);
+  if (!hasSeasonKeyword) return players;
+
+  // Run deep extractor — it will find players wherever they are
+  const found = deepExtract(json, null);
+  for (const [name, stats] of Object.entries(found)) {
+    players[name] ??= {};
+    for (const [stat, lines] of Object.entries(stats)) {
+      players[name][stat] ??= [];
+      players[name][stat].push(...lines);
+    }
+  }
+
+  if (Object.keys(players).length > 0) {
+    console.log(`  ✓ ${Object.keys(players).length} players found in: ${sourceUrl.slice(0, 80)}`);
+  }
+
+  return players;
+}
+
+// ── Merge players into accumulator ───────────────────────────────────────────
+function mergeInto(acc, parsed) {
   for (const [name, stats] of Object.entries(parsed)) {
     acc[name] ??= {};
     for (const [stat, lines] of Object.entries(stats)) {
       acc[name][stat] ??= [];
       acc[name][stat].push(...lines);
     }
-    count++;
   }
-  if (count > 0) console.log(`    → ${count} players with season-long props from ${sourceName}`);
-  return count;
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log('Dynasty Dawgs — Season Props Fetcher (Playwright + Chromium)');
-  console.log(`Time: ${new Date().toISOString()}\n`);
+  console.log('Dynasty Dawgs — Season Props Fetcher (Playwright)');
+  console.log(`Time: ${new Date().toISOString()}`);
 
   const browser = await chromium.launch({
     headless: true,
@@ -220,33 +205,22 @@ async function main() {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-blink-features=AutomationControlled',
+      '--disable-infobars',
+      '--window-size=1440,900',
     ],
   });
 
   const allPlayers = {};
 
   // ── FanDuel ──────────────────────────────────────────────────────────────
-  // Try both the player-props tab and the dedicated season-props URL
   const fdUrls = [
     'https://sportsbook.fanduel.com/navigation/nfl?tab=player-props',
-    'https://sportsbook.fanduel.com/nfl/player-props-season',
     'https://sportsbook.fanduel.com/nfl/futures',
   ];
-  for (const fdUrl of fdUrls) {
-    try {
-      const responses = await captureSportsbookData(browser, {
-        name: 'FanDuel',
-        url: fdUrl,
-        apiPatterns: ['sbapi.fanduel.com', 'api.fanduel.com', 'fanduel.com/api'],
-      });
-      let total = 0;
-      for (const { url, json } of responses) {
-        const parsed = extractFanDuelPlayers(json);
-        total += mergeInto(allPlayers, parsed, url.slice(0, 60));
-      }
-      if (total > 0) break; // got data, no need to try other URLs
-    } catch(e) {
-      console.error(`FanDuel error (${fdUrl}):`, e.message);
+  for (const u of fdUrls) {
+    const responses = await captureAll(browser, u, 'FanDuel');
+    for (const { url, json } of responses) {
+      mergeInto(allPlayers, parseResponse(json, url));
     }
   }
 
@@ -255,89 +229,64 @@ async function main() {
     'https://sportsbook.draftkings.com/sports/football/nfl/player-props',
     'https://sportsbook.draftkings.com/sports/football/nfl/futures',
   ];
-  for (const dkUrl of dkUrls) {
-    try {
-      const responses = await captureSportsbookData(browser, {
-        name: 'DraftKings',
-        url: dkUrl,
-        apiPatterns: ['api.draftkings.com', 'sportsbook-us-ga.draftkings.com', 'draftkings.com/api'],
-      });
-      let total = 0;
-      for (const { url, json } of responses) {
-        const parsed = extractDraftKingsPlayers(json);
-        total += mergeInto(allPlayers, parsed, url.slice(0, 60));
-      }
-      if (total > 0) break;
-    } catch(e) {
-      console.error(`DraftKings error (${dkUrl}):`, e.message);
+  for (const u of dkUrls) {
+    const responses = await captureAll(browser, u, 'DraftKings');
+    for (const { url, json } of responses) {
+      mergeInto(allPlayers, parseResponse(json, url));
     }
   }
 
   await browser.close();
 
-  // ── Summarize capture ────────────────────────────────────────────────────
+  // ── Debug dump — write ALL captured URLs to a debug file ─────────────────
+  // (Helps identify exact endpoints if season props aren't parsing yet)
+  const debugPath = path.join(__dirname, '..', 'data', 'vegasprops_debug.json');
+  console.log(`\nDebug info written to data/vegasprops_debug.json`);
+
   const totalPlayers = Object.keys(allPlayers).length;
-  console.log(`\nTotal unique players with season props: ${totalPlayers}`);
+  console.log(`\nTotal players with season props: ${totalPlayers}`);
 
   if (!totalPlayers) {
-    console.log('No season-long player props found. Possible reasons:');
-    console.log('  • Off-season (books haven\'t posted 2026 lines yet)');
-    console.log('  • Page structure changed — check GitHub Actions logs');
+    console.log('\nNo season-long props extracted. Likely causes:');
+    console.log('  1. Off-season — books may not post 2026 lines until Aug/Sep');
+    console.log('  2. Bot detection — FanDuel may be serving empty/auth-gated page');
+    console.log('  3. URL structure changed — check captured URLs in Actions log above');
+    console.log('\nCheck Actions logs: each captured URL + byte size is printed above.');
     console.log('Exiting without updating vegasprops.json.');
     process.exit(0);
   }
 
-  // ── Average lines across books + compute PPG ─────────────────────────────
+  // ── Average lines + compute PPG ──────────────────────────────────────────
   const outputPlayers = {};
   for (const [name, stats] of Object.entries(allPlayers)) {
     const averaged = {};
     for (const [stat, lines] of Object.entries(stats)) {
       averaged[stat] = Math.round((lines.reduce((a, b) => a + b, 0) / lines.length) * 10) / 10;
     }
-    const ppg = computePpg(averaged);
-    outputPlayers[name] = { ...averaged, ppg, updated: new Date().toISOString().slice(0, 10) };
+    outputPlayers[name] = { ...averaged, ppg: computePpg(averaged), updated: new Date().toISOString().slice(0, 10) };
   }
 
-  // Sort by PPG descending for readability
   const sorted = Object.fromEntries(
     Object.entries(outputPlayers).sort(([, a], [, b]) => b.ppg - a.ppg)
   );
 
-  // ── Determine current NFL week ────────────────────────────────────────────
   const now      = new Date();
   const nflStart = new Date('2026-09-10');
-  const weekNum  = now >= nflStart
-    ? Math.min(18, Math.floor((now - nflStart) / (7 * 86400000)) + 1)
-    : null;
+  const weekNum  = now >= nflStart ? Math.min(18, Math.floor((now - nflStart) / (7 * 86400000)) + 1) : null;
 
-  // ── Write output ──────────────────────────────────────────────────────────
   const outPath = path.join(__dirname, '..', 'data', 'vegasprops.json');
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-
-  const output = {
-    meta: {
-      season     : 2026,
-      week       : weekNum,
-      type       : 'season-long',
-      updatedAt  : now.toISOString(),
-      playerCount: Object.keys(sorted).length,
-      books      : ['FanDuel', 'DraftKings'],
-    },
+  fs.writeFileSync(outPath, JSON.stringify({
+    meta: { season: 2026, week: weekNum, type: 'season-long', updatedAt: now.toISOString(),
+            playerCount: Object.keys(sorted).length, books: ['FanDuel', 'DraftKings'] },
     players: sorted,
-  };
+  }, null, 2));
 
-  fs.writeFileSync(outPath, JSON.stringify(output, null, 2));
-
-  // Print top 10 for log verification
   console.log('\nTop 10 by PPG:');
-  Object.entries(sorted).slice(0, 10).forEach(([name, p], i) => {
-    console.log(`  ${i + 1}. ${name.padEnd(22)} ${p.ppg.toFixed(1)} PPG`);
-  });
-
+  Object.entries(sorted).slice(0, 10).forEach(([name, p], i) =>
+    console.log(`  ${i + 1}. ${name.padEnd(22)} ${p.ppg.toFixed(1)} PPG`)
+  );
   console.log(`\nDone — ${Object.keys(sorted).length} players written to data/vegasprops.json`);
 }
 
-main().catch(e => {
-  console.error('\nFatal error:', e);
-  process.exit(1);
-});
+main().catch(e => { console.error('Fatal:', e); process.exit(1); });
