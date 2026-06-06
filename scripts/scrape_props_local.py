@@ -117,55 +117,46 @@ def find_collapsed_rows(text):
 
     return found
 
-# ── Click collapsed rows via JS ───────────────────────────────────────────────
-def click_rows_js(page, row_texts):
+# ── Click collapsed rows via Playwright native click ─────────────────────────
+def click_collapsed_rows(page, collapsed):
     """
-    For each row text, find the element in the DOM whose innerText matches,
-    walk up to its cursor:pointer ancestor, and dispatch a click event.
-    Returns number of rows clicked.
+    Click each collapsed accordion row using Playwright's native .click(),
+    which goes through CDP and produces isTrusted=true events.
+    JavaScript's dispatchEvent produces isTrusted=false, which React ignores.
     """
-    import json as _json
-    targets_json = _json.dumps(row_texts)
+    clicked = 0
+    skipped = 0
 
-    n = page.evaluate(f"""
-    () => {{
-        const targets = new Set({targets_json});
-        let clicked   = 0;
-        const done    = new WeakSet();
+    for stat, player, row_text in collapsed:
+        loc = None
+        try:
+            # 1. Best shot: find a <button> that contains the row text
+            loc = page.locator('button').filter(has_text=re.compile(re.escape(row_text)))
+            if loc.count() == 0:
+                # 2. Try [role="button"]
+                loc = page.locator('[role="button"]').filter(
+                    has_text=re.compile(re.escape(row_text)))
+            if loc.count() == 0:
+                # 3. Any element whose visible text is exactly this string
+                loc = page.get_by_text(row_text, exact=True)
+            if loc.count() == 0:
+                # 4. Looser: any element containing the text
+                loc = page.get_by_text(row_text, exact=False)
 
-        // One pass through ALL elements — innerText of the right level will match
-        for (const el of document.querySelectorAll('*')) {{
-            if (done.has(el) || targets.size === 0) break;
+            if loc.count() > 0:
+                loc.first.scroll_into_view_if_needed()
+                loc.first.click(timeout=3000)
+                time.sleep(0.07)
+                clicked += 1
+            else:
+                skipped += 1
 
-            const raw  = el.innerText || '';
-            const text = raw.trim().replace(/\\s+/g, ' ');
-            if (!targets.has(text)) continue;
+        except Exception as e:
+            skipped += 1
 
-            // Walk UP from this element to find the interactive ancestor
-            let target = el;
-            while (target && target !== document.body) {{
-                const s   = getComputedStyle(target);
-                const tag = target.tagName;
-                if (tag === 'BUTTON' ||
-                    target.getAttribute('role') === 'button' ||
-                    target.getAttribute('tabindex') !== null ||
-                    s.cursor === 'pointer') {{
-                    break;
-                }}
-                target = target.parentElement;
-            }}
-
-            if (!target || target === document.body) target = el;  // fallback
-
-            target.dispatchEvent(new MouseEvent('click', {{bubbles: true, cancelable: true}}));
-            done.add(target);
-            targets.delete(text);   // only click once per row
-            clicked++;
-        }}
-        return clicked;
-    }}
-    """)
-    return n
+    if skipped:
+        print(f'    ⚠ {skipped} rows had no clickable element')
+    return clicked
 
 # ── Parser ────────────────────────────────────────────────────────────────────
 def detect_section(line_lower):
@@ -236,30 +227,29 @@ def scrape_fanduel(page):
     auto_scroll(page)
 
     # ── Pass 2: read visible text; find + click collapsed rows ────────────────
-    max_rounds = 6
+    max_rounds = 5
     for rnd in range(1, max_rounds + 1):
-        text     = page.inner_text('body')
+        text      = page.inner_text('body')
         collapsed = find_collapsed_rows(text)
 
         if not collapsed:
             print(f'  ✓ All rows expanded after {rnd - 1} round(s).')
             break
 
-        row_texts = [rt for _, _, rt in collapsed]
         print(f'  Round {rnd}: {len(collapsed)} collapsed rows → clicking...')
-        n_clicked = click_rows_js(page, row_texts)
-        print(f'    JS clicked {n_clicked} element(s)')
+        n_clicked = click_collapsed_rows(page, collapsed)
+        print(f'    Clicked {n_clicked} row(s)')
 
         if n_clicked == 0:
-            # Clicking isn't working — log which rows are still collapsed for debug
-            print('  ⚠ Could not click rows. Collapsed rows:')
+            print('  ⚠ Could not click any rows. First 5 still collapsed:')
             for stat, player, rt in collapsed[:5]:
                 print(f'    [{stat}] {rt}')
             break
 
-        time.sleep(2.5)   # wait for React to render expanded content
+        time.sleep(3.5)   # wait for React re-render + any animation
     else:
-        print(f'  ⚠ Still {len(find_collapsed_rows(page.inner_text("body")))} collapsed after {max_rounds} rounds.')
+        remaining = find_collapsed_rows(page.inner_text('body'))
+        print(f'  ⚠ {len(remaining)} rows still collapsed after {max_rounds} rounds.')
 
     # ── Final read ────────────────────────────────────────────────────────────
     print()
