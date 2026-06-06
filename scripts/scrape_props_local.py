@@ -27,15 +27,41 @@ SEASON_SECTIONS = {
     'rec':      ['regular season receptions', 'receptions'],
 }
 
-def compute_ppg(stats):
-    # Stats are season totals — divide by 17 to get per-game rate, then apply PPR weights
-    return round(sum(stats.get(k, 0) / 17 * w for k, w in PPR.items()), 2)
-
 def detect_section(line_lower):
     for stat, keywords in SEASON_SECTIONS.items():
         if any(kw in line_lower for kw in keywords):
             return stat
     return None
+
+# Words that indicate a non-player entry (footer locations, nav labels, etc.)
+BAD_WORDS_FD = [
+    'office', 'jersey', 'boston', 'hoboken', 'london', 'soho',
+    'sportsbook', 'fanduel', 'parlay', 'gaming', 'responsible',
+    'casino', 'racing', 'support', 'service', 'center', 'network',
+    'lottery', 'rewards', 'predictions', 'pools', 'social',
+    'betslip', 'wager', 'moneyline', 'futures', 'teaser',
+    'division', 'conference', 'national', 'american', 'super bowl',
+    'sign up', 'log in', 'how to', 'view all', 'more bets',
+]
+
+def looks_like_player_fd(name):
+    """Return True only if name looks like an NFL player (Firstname Lastname)."""
+    name = name.strip()
+    if len(name) < 5 or len(name) > 42:
+        return False
+    # Must have at least two words, each starting with a capital letter
+    parts = name.split()
+    if len(parts) < 2:
+        return False
+    if not all(p[0].isupper() for p in parts if p):
+        return False
+    nl = name.lower()
+    if any(bw in nl for bw in BAD_WORDS_FD):
+        return False
+    # Reject if any word is ALL-CAPS (nav/header text like "NFL", "PPG", etc.)
+    if any(p.isupper() and len(p) > 2 for p in parts):
+        return False
+    return True
 
 def parse_page_text(text):
     """
@@ -70,10 +96,10 @@ def parse_page_text(text):
             direction   = m.group(2).lower()
             value       = float(m.group(3))
 
-            # Skip entries that look like team names or garbage
-            if len(player_name) < 4 or len(player_name) > 50:
+            # Must look like a real NFL player
+            if not looks_like_player_fd(player_name):
                 continue
-            # Only use the Over line (it's the handicap value; Under is the same number)
+            # Only use the Over line (handicap value; Under is the same number)
             if direction == 'over':
                 players.setdefault(player_name, {})
                 players[player_name].setdefault(current_stat, []).append(value)
@@ -170,10 +196,10 @@ def main():
     out = {}
     for name, stats in all_players.items():
         avg = {s: round(sum(ls)/len(ls), 1) for s, ls in stats.items()}
-        out[name] = {**avg, 'ppg': compute_ppg(avg),
-                     'updated': datetime.now().strftime('%Y-%m-%d')}
+        out[name] = {**avg, 'updated': datetime.now().strftime('%Y-%m-%d')}
 
-    sorted_out = dict(sorted(out.items(), key=lambda x: x[1]['ppg'], reverse=True))
+    # Sort alphabetically (PPG computed in JS, not stored)
+    sorted_out = dict(sorted(out.items()))
 
     now       = datetime.now(timezone.utc)
     nfl_start = datetime(2026, 9, 10, tzinfo=timezone.utc)
@@ -191,9 +217,10 @@ def main():
         'players': sorted_out,
     }, indent=2))
 
-    print('\nTop 10 by PPG:')
+    print('\nTop 10 players (alphabetical):')
     for i, (name, p) in enumerate(list(sorted_out.items())[:10], 1):
-        print(f'  {i:2}. {name:<24} {p["ppg"]:.1f} PPG')
+        stats_str = '  '.join(f'{k}={v}' for k, v in p.items() if k != 'updated')
+        print(f'  {i:2}. {name:<26} {stats_str}')
 
     print(f'\nSaved → data/vegasprops.json')
     print('\nNow run:')

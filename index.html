@@ -14239,8 +14239,13 @@ function getVegasPpg(pid) {
   const name = sleeperPlayers?.[pid]?.full_name;
   if (!name) return null;
   const entry = vegasProps[name];
-  if (!entry?.ppg) return null;
-  return entry.ppg;
+  if (!entry) return null;
+  // Compute PPG from raw season totals stored in JSON (÷17 = per-game rate)
+  const PPR_W = { pass_yds:0.04, pass_tds:4.0, rush_yds:0.1, rush_tds:6.0,
+                  rec:1.0, rec_yds:0.1, rec_tds:6.0 };
+  let ppg = 0;
+  for (const [stat, w] of Object.entries(PPR_W)) ppg += ((entry[stat] ?? 0) / 17) * w;
+  return ppg > 0 ? Math.round(ppg * 10) / 10 : null;
 }
 
 // getVegasEntry(pid) — returns full Vegas prop entry for a player, or null.

@@ -11,12 +11,8 @@ import json, re, sys, time, pathlib
 from datetime import datetime, timezone
 from playwright.sync_api import sync_playwright
 
-# ── PPR scoring ──────────────────────────────────────────────────────────────
-PPR = dict(pass_yds=0.04, pass_tds=4.0, rush_yds=0.1, rush_tds=6.0,
-           rec=1.0, rec_yds=0.1, rec_tds=6.0)
-
-def compute_ppg(stats):
-    return round(sum(stats.get(k, 0) / 17 * w for k, w in PPR.items()), 2)
+# Stat keys — PPG is computed in JavaScript from these raw season totals
+STATS = ['pass_yds', 'pass_tds', 'rush_yds', 'rush_tds', 'rec', 'rec_yds', 'rec_tds']
 
 # ── Pages to scrape (O/U only — clean handicap lines) ───────────────────────
 DK_PAGES = [
@@ -236,7 +232,7 @@ def main():
         dk = dk_data.get(name, {})
         entry = {}
 
-        for stat in PPR:
+        for stat in STATS:
             vals = []
             if fd.get(stat) is not None and isinstance(fd[stat], (int, float)):
                 vals.append(fd[stat])
@@ -246,11 +242,11 @@ def main():
                 entry[stat] = round(sum(vals) / len(vals), 1)
 
         if entry:
-            entry['ppg']     = compute_ppg(entry)
             entry['updated'] = datetime.now().strftime('%Y-%m-%d')
             merged[name]     = entry
 
-    sorted_out = dict(sorted(merged.items(), key=lambda x: x[1].get('ppg', 0), reverse=True))
+    # Sort alphabetically — PPG is computed in JavaScript, not stored
+    sorted_out = dict(sorted(merged.items()))
 
     # ── Save ──────────────────────────────────────────────────────────────────
     now       = datetime.now(timezone.utc)
@@ -278,11 +274,12 @@ def main():
     print(f'  FD + DK:  {both} players (lines averaged)')
     print(f'  Total:    {len(sorted_out)} players')
     print()
-    print('Top 10 by PPG:')
+    print('Top 10 players (alphabetical):')
     for i, (name, p) in enumerate(list(sorted_out.items())[:10], 1):
         src = ('FD+DK' if name in existing and name in dk_data
                else 'FD only' if name in existing else 'DK only')
-        print(f'  {i:2}. {name:<24} {p["ppg"]:.1f} PPG  [{src}]')
+        stats_str = '  '.join(f'{k}={v}' for k, v in p.items() if k != 'updated')
+        print(f'  {i:2}. {name:<26} [{src}]  {stats_str}')
 
     print(f'\nSaved → data/vegasprops.json')
     print('\nNext:')
