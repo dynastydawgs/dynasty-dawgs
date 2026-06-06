@@ -151,18 +151,19 @@ def click_collapsed_rows(page, collapsed):
             const idx = targets.get(t);
             targets.delete(t);
 
-            // Walk UP until we hit an element wide enough to be the row container
-            // but narrower than the full viewport (skip layout wrappers)
+            // Walk UP to find the actual row container — needs to be at least
+            // 50% of the viewport wide so we don't stop at a narrow text span.
             let anc   = el.parentElement;
             let found = null;
             while (anc && anc !== document.body) {{
                 const r = anc.getBoundingClientRect();
-                if (r.width > 250 && r.height > 0) {{
+                if (r.width >= VW * 0.5 && r.height > 0) {{
                     found = {{ x: r.x, y: r.y, w: r.width, h: r.height }};
                     break;
                 }}
                 anc = anc.parentElement;
             }}
+            // Fallback: use the element itself if no wide ancestor found
             if (!found) {{
                 const r = el.getBoundingClientRect();
                 found = {{ x: r.x, y: r.y, w: r.width, h: r.height }};
@@ -183,15 +184,20 @@ def click_collapsed_rows(page, collapsed):
             missing += 1
             continue
 
-        # Click at right edge - 25px (where the ▾ chevron lives)
-        cx = box['x'] + box['w'] - 25
-        cy = box['y'] + box['h'] / 2
+        # Scroll so the row is 300px from the top of the viewport.
+        # box['y'] is the viewport-relative y recorded when the page was at
+        # scrollY=0 (i.e., it equals the document-relative y at that moment).
+        scroll_y = max(0, box['y'] - 300)
+        page.evaluate(f"window.scrollTo(0, {scroll_y})")
+        time.sleep(0.12)   # wait for smooth-scroll to finish
 
-        # Scroll so the target is in the middle of the viewport, then click
-        page.evaluate(f"window.scrollTo(0, {max(0, box['y'] - 300)})")
-        time.sleep(0.06)
+        # After scrolling, the element's new viewport-y = original_y - scroll_y
+        viewport_y = box['y'] - scroll_y
+        cy = viewport_y + box['h'] / 2        # vertical centre of the row
+        cx = box['x'] + box['w'] - 30         # 30px from right edge = chevron
+
         page.mouse.click(cx, cy)
-        time.sleep(0.06)
+        time.sleep(0.08)
         clicked += 1
 
     if missing:
