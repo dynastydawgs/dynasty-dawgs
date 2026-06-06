@@ -858,6 +858,29 @@
     color: var(--text-dim); border-bottom: 1px solid var(--border);
   }
 
+  /* Projection source tabs (Model vs Vegas) */
+  .pp-proj-tab-nav { display:flex; gap:4px; padding:10px 20px 0; }
+  .pp-proj-tab-btn {
+    font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:0.12em;
+    text-transform:uppercase; background:transparent; border:1px solid rgba(255,255,255,0.1);
+    border-bottom:none; border-radius:5px 5px 0 0; padding:6px 14px; cursor:pointer;
+    color:rgba(255,255,255,0.35); position:relative; bottom:-1px; transition:all 0.15s;
+  }
+  .pp-proj-tab-btn.active { color:#fff; background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.22); }
+  .pp-proj-tab-btn.vegas-tab.active { color:#fbbf24; border-color:rgba(251,191,36,0.4); background:rgba(251,191,36,0.06); }
+  .pp-proj-tab-panel { display:none; }
+  .pp-proj-tab-panel.active { display:block; }
+  .pp-vegas-lines {
+    display:flex; flex-wrap:wrap; gap:6px; padding:8px 12px 6px;
+    background:rgba(251,191,36,0.05); border-bottom:1px solid rgba(251,191,36,0.12);
+    margin-bottom:2px;
+  }
+  .pp-vegas-line-chip {
+    font-family:var(--mono); font-size:9px; color:rgba(255,255,255,0.5);
+    background:rgba(255,255,255,0.05); border-radius:4px; padding:3px 8px;
+  }
+  .pp-vegas-line-chip b { color:#fbbf24; font-weight:700; }
+
   /* TEP TOGGLE BAR — shown on TE profiles */
   .pp-tep-bar {
     display: flex; align-items: center; gap: 6px;
@@ -10804,24 +10827,64 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     const trendsEl = document.getElementById('pp-trends-content');
     if (trendsEl && careerChartHtml) trendsEl.innerHTML = careerChartHtml;
 
-    // Vegas props badge — shown when DK/FD prop data is active for this player
-    const _vegasEntry = getVegasEntry(pid);
-    const vegasBadgeHtml = _vegasEntry ? `
-      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:6px 10px;background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.22);border-radius:6px;">
-        <span style="font-size:10px;">🎰</span>
-        <span style="font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.1em;color:#fbbf24;">VEGAS-INFORMED</span>
-        <span style="font-size:9px;color:rgba(255,255,255,0.45);margin-left:2px;">DraftKings · FanDuel · ${_vegasEntry.updated ?? ''}</span>
-        ${_vegasEntry.pass_yds  ? `<span style="font-size:9px;color:rgba(255,255,255,0.55);margin-left:auto;">${_vegasEntry.pass_yds} pass yds</span>` : ''}
-        ${_vegasEntry.rush_yds  ? `<span style="font-size:9px;color:rgba(255,255,255,0.55);">${_vegasEntry.rush_yds} rush yds</span>` : ''}
-        ${_vegasEntry.rec_yds   ? `<span style="font-size:9px;color:rgba(255,255,255,0.55);">${_vegasEntry.rec_yds} rec yds</span>` : ''}
+    // ── Vegas projection variants ─────────────────────────────────────────
+    const _vegasEntry   = getVegasEntry(pid);
+    const _vegasPpgRaw  = _vegasEntry?.ppg ?? null;
+    const hasVegas      = !!(_vegasPpgRaw && _vegasPpgRaw > 0);
+
+    // Compute Vegas-blended floor/median/ceil (70% Vegas line, 30% model)
+    const _modelMpg       = medianPpr / g;
+    const _vegasBlendMpg  = hasVegas ? (_vegasPpgRaw * 0.70 + _modelMpg * 0.30) : _modelMpg;
+    const _vegasScale     = hasVegas ? _vegasBlendMpg / _modelMpg : 1;
+    const vegasMedianPpr  = hasVegas ? Math.round(_vegasBlendMpg * g) : medianPpr;
+    const vegasFloorPpr   = hasVegas ? Math.max(10, Math.round(floorPpr * _vegasScale)) : floorPpr;
+    const vegasCeilPpr    = hasVegas ? Math.round(ceilPpr * _vegasScale) : ceilPpr;
+
+    // TEP-adjusted display values for Vegas tab
+    const vDispMedPpr   = _tepAdj > 0 ? vegasMedianPpr + Math.round(vegasMedianPpr * _tepAdj) : vegasMedianPpr;
+    const vDispFloorPpr = _tepAdj > 0 ? vegasFloorPpr  + Math.round(vegasFloorPpr  * _tepAdj) : vegasFloorPpr;
+    const vDispCeilPpr  = _tepAdj > 0 ? vegasCeilPpr   + Math.round(vegasCeilPpr   * _tepAdj) : vegasCeilPpr;
+    const vDispMPpg     = (vDispMedPpr   / g).toFixed(1);
+    const vDispFPpg     = (vDispFloorPpr / g).toFixed(1);
+    const vDispCPpg     = (vDispCeilPpr  / g).toFixed(1);
+
+    // Vegas raw lines strip for display
+    const vegasLinesHtml = hasVegas ? `
+      <div class="pp-vegas-lines">
+        <span class="pp-vegas-line-chip">🎰 DraftKings · FanDuel · ${_vegasEntry.updated ?? 'this week'}</span>
+        ${_vegasEntry.pass_yds ? `<span class="pp-vegas-line-chip"><b>${_vegasEntry.pass_yds}</b> pass yds</span>` : ''}
+        ${_vegasEntry.rush_yds ? `<span class="pp-vegas-line-chip"><b>${_vegasEntry.rush_yds}</b> rush yds</span>` : ''}
+        ${_vegasEntry.rec_yds  ? `<span class="pp-vegas-line-chip"><b>${_vegasEntry.rec_yds}</b> rec yds</span>` : ''}
+        ${_vegasEntry.pass_tds ? `<span class="pp-vegas-line-chip"><b>${_vegasEntry.pass_tds}</b> pass TDs</span>` : ''}
+        ${_vegasEntry.rush_tds ? `<span class="pp-vegas-line-chip"><b>${_vegasEntry.rush_tds}</b> rush TDs</span>` : ''}
+        ${_vegasEntry.rec_tds  ? `<span class="pp-vegas-line-chip"><b>${_vegasEntry.rec_tds}</b> rec TDs</span>` : ''}
+        ${_vegasEntry.rec      ? `<span class="pp-vegas-line-chip"><b>${_vegasEntry.rec}</b> rec</span>` : ''}
       </div>` : '';
 
-    projEl.innerHTML = tepBar + vegasBadgeHtml + `
-      <div class="pp-outcomes">
-        ${card('bear', dispFloorPpr, dispFPpg, projStats(floorPpr,  pos, rbActuals), descs[0])}
-        ${card('base', dispMedPpr,   dispMPpg, projStats(medianPpr, pos, rbActuals), descs[1])}
-        ${card('bull', dispCeilPpr,  dispCPpg, projStats(ceilPpr,   pos, rbActuals), descs[2])}
+    // Tab nav — only shown when Vegas data exists
+    const projTabNav = hasVegas ? `
+      <div class="pp-proj-tab-nav">
+        <button class="pp-proj-tab-btn active" id="ppptab-model-${pid}" onclick="switchProjSourceTab('${pid}','model')">BASE MODEL</button>
+        <button class="pp-proj-tab-btn vegas-tab" id="ppptab-vegas-${pid}" onclick="switchProjSourceTab('${pid}','vegas')">🎰 VEGAS</button>
+      </div>` : '';
+
+    projEl.innerHTML = tepBar + projTabNav + `
+      <div class="pp-proj-tab-panel active" id="ppppanel-model-${pid}">
+        <div class="pp-outcomes">
+          ${card('bear', dispFloorPpr, dispFPpg, projStats(floorPpr,  pos, rbActuals), descs[0])}
+          ${card('base', dispMedPpr,   dispMPpg, projStats(medianPpr, pos, rbActuals), descs[1])}
+          ${card('bull', dispCeilPpr,  dispCPpg, projStats(ceilPpr,   pos, rbActuals), descs[2])}
+        </div>
       </div>
+      ${hasVegas ? `
+      <div class="pp-proj-tab-panel" id="ppppanel-vegas-${pid}">
+        ${vegasLinesHtml}
+        <div class="pp-outcomes">
+          ${card('bear', vDispFloorPpr, vDispFPpg, projStats(vegasFloorPpr,  pos, rbActuals), descs[0])}
+          ${card('base', vDispMedPpr,   vDispMPpg, projStats(vegasMedianPpr, pos, rbActuals), descs[1])}
+          ${card('bull', vDispCeilPpr,  vDispCPpg, projStats(vegasCeilPpr,   pos, rbActuals), descs[2])}
+        </div>
+      </div>` : ''}
       <div class="pp-factors">
         <div class="pp-factor">
           <div class="pp-factor-lbl">Career Stage</div>
@@ -12993,6 +13056,26 @@ function msFilter(q) {
 }
 
 // Profile tabs (Overview / Historic Comps / Similar Players) —
+// switchProjSourceTab — toggle between BASE MODEL and VEGAS projection tabs
+function switchProjSourceTab(pid, tab) {
+  const modelPanel = document.getElementById(`ppppanel-model-${pid}`);
+  const vegasPanel = document.getElementById(`ppppanel-vegas-${pid}`);
+  const modelBtn   = document.getElementById(`ppptab-model-${pid}`);
+  const vegasBtn   = document.getElementById(`ppptab-vegas-${pid}`);
+  if (!modelPanel || !vegasPanel) return;
+  if (tab === 'vegas') {
+    modelPanel.classList.remove('active');
+    vegasPanel.classList.add('active');
+    modelBtn?.classList.remove('active');
+    vegasBtn?.classList.add('active');
+  } else {
+    vegasPanel.classList.remove('active');
+    modelPanel.classList.add('active');
+    vegasBtn?.classList.remove('active');
+    modelBtn?.classList.add('active');
+  }
+}
+
 function switchPpTab(tab, btn) {
   const card = btn.closest('.pp-card');
   if (!card) return;
