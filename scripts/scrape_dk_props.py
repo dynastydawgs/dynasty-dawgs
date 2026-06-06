@@ -223,7 +223,7 @@ def main():
         for i, (stat, subcategory, nav, label) in enumerate(DK_PAGES, 1):
             players = scrape_page(page, stat, subcategory, nav, label, i, len(DK_PAGES))
             for name, val in players.items():
-            dk_data.setdefault(name, {}).setdefault(stat, []).append(val)
+                dk_data.setdefault(name, {}).setdefault(stat, []).append(val)
 
         browser.close()
 
