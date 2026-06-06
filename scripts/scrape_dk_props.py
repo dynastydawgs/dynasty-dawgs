@@ -87,69 +87,51 @@ def parse_number(s, stat=None):
 
 def parse_ou_text(text, stat, label):
     """
-    DraftKings O/U page format (typical):
-        Player Name
-        OVER  4500.5
-        -115
-        UNDER  4500.5
-        -105
-    OR:
-        Player Name
-        4500.5
-        -115
-        4500.5
-        -105
-    OR inline:
-        Player Name  Over  4500.5
+    DraftKings O/U format (confirmed):
+        NFL 2026/27 - Tyler Shough
+        Sun Sep 13th 11:00 AM
+        NFL 2026/27 - Tyler Shough Regular Season Passing Yards
+        Over 3649.5
+        −110
+        Under 3649.5
+        −110
+
+    Strategy: extract player name from 'NFL 2026/27 - Name ...' lines,
+    capture handicap from 'Over X.X' lines. No guessing needed.
     """
     players = {}
     lines   = [l.strip() for l in text.splitlines() if l.strip()]
 
-    i = 0
-    while i < len(lines):
-        line = lines[i]
+    current_player = None
 
-        # Inline: "Player Name Over 1234.5"
-        m = re.match(r'^(.+?)\s+(over|under)\s+([\d,\.]+)\s*(?:[+\-]\d+)?$', line, re.I)
-        if m and looks_like_player(m.group(1)):
-            if m.group(2).lower() == 'over':
-                val = parse_number(m.group(3), stat)
-                if val:
-                    players.setdefault(m.group(1).strip(), []).append(val)
-                    print(f'  ✓ {m.group(1).strip()}: {stat} = {val}')
-            i += 1
+    for line in lines:
+        # ── Detect player from "NFL 2026/27 - Name [Regular Season ...]" ──
+        m = re.match(r'^NFL\s+2026/27\s*[-–]\s*(.+)$', line, re.I)
+        if m:
+            raw = m.group(1).strip()
+            # Strip trailing stat description ("Regular Season Passing Yards" etc.)
+            name = re.sub(r'\s+Regular Season\b.*$', '', raw, flags=re.I).strip()
+            name = re.sub(r'\s+(Passing|Rushing|Receiving)\b.*$', '', name, flags=re.I).strip()
+            # Valid if no digits and reasonable length
+            if 3 < len(name) < 50 and not re.search(r'\d', name):
+                current_player = name
             continue
 
-        # Player name on its own line — scan ahead for handicap
-        if looks_like_player(line):
-            player = line.strip()
-            # Scan next ~8 lines for a handicap number
-            found_val = None
-            for j in range(i+1, min(i+9, len(lines))):
-                nxt = lines[j]
-                # Stop if we hit another player name
-                if looks_like_player(nxt): break
-                val = parse_number(nxt, stat)
-                if val:
-                    found_val = val
-                    break
-                # "OVER 4500.5" on one line
-                m2 = re.match(r'^(?:over|o/?u|o/u)\s+([\d,\.]+)', nxt, re.I)
-                if m2:
-                    val = parse_number(m2.group(1), stat)
-                    if val:
-                        found_val = val
-                        break
-            if found_val:
-                players.setdefault(player, []).append(found_val)
-                print(f'  ✓ {player}: {stat} = {found_val}')
-            i += 1
+        # ── Capture handicap from "Over X.X" line ──
+        m2 = re.match(r'^Over\s+([\d,\.]+)', line, re.I)
+        if m2 and current_player:
+            val = parse_number(m2.group(1), stat)
+            if val:
+                if current_player not in players:   # take first Over line per player
+                    players[current_player] = val
+                    print(f'  ✓ {current_player}: {stat} = {val}')
             continue
 
-        i += 1
+        # ── Reset player context on blank / date / nav lines ──
+        if re.match(r'^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s', line):
+            pass   # date line — keep current_player
 
-    # Average duplicates
-    return {name: round(sum(ls)/len(ls), 1) for name, ls in players.items() if ls}
+    return players
 
 def auto_scroll(page, total_scrolls=30, pause=1.2):
     """Scroll slowly from top to bottom, triggering lazy loads."""
@@ -237,7 +219,7 @@ def main():
         for i, (stat, subcategory, nav, label) in enumerate(DK_PAGES, 1):
             players = scrape_page(page, stat, subcategory, nav, label, i, len(DK_PAGES))
             for name, val in players.items():
-                dk_data.setdefault(name, {}).setdefault(stat, []).append(val)
+            dk_data.setdefault(name, {}).setdefault(stat, []).append(val)
 
         browser.close()
 
