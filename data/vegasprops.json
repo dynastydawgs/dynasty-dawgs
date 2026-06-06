@@ -2,10 +2,470 @@
   "meta": {
     "season": 2026,
     "week": null,
-    "updatedAt": null,
-    "playerCount": 0,
-    "updatedCount": 0,
-    "books": ["DraftKings", "FanDuel"]
+    "type": "season-long",
+    "updatedAt": "2026-06-06T21:21:41.724999+00:00",
+    "playerCount": 82,
+    "books": [
+      "FanDuel"
+    ]
   },
-  "players": {}
+  "players": {
+    "Josh Allen": {
+      "pass_yds": 3575.5,
+      "rush_yds": 500.5,
+      "pass_tds": 24.5,
+      "rush_tds": 10.5,
+      "ppg": 354.07,
+      "updated": "2026-06-06"
+    },
+    "Drake Maye": {
+      "pass_yds": 3800.5,
+      "rush_yds": 400.5,
+      "pass_tds": 25.5,
+      "rush_tds": 3.5,
+      "ppg": 315.07,
+      "updated": "2026-06-06"
+    },
+    "Lamar Jackson": {
+      "pass_yds": 3200.5,
+      "rush_yds": 575.5,
+      "pass_tds": 24.5,
+      "rush_tds": 3.5,
+      "ppg": 304.57,
+      "updated": "2026-06-06"
+    },
+    "Jalen Hurts": {
+      "pass_yds": 3150.5,
+      "rush_yds": 400.5,
+      "pass_tds": 22.5,
+      "rush_tds": 7.5,
+      "ppg": 301.07,
+      "updated": "2026-06-06"
+    },
+    "Jared Goff": {
+      "pass_yds": 4050.5,
+      "pass_tds": 29.5,
+      "ppg": 280.02,
+      "updated": "2026-06-06"
+    },
+    "Matthew Stafford": {
+      "pass_yds": 3925.5,
+      "pass_tds": 29.5,
+      "ppg": 275.02,
+      "updated": "2026-06-06"
+    },
+    "Dak Prescott": {
+      "pass_yds": 4050.5,
+      "pass_tds": 27.5,
+      "ppg": 272.02,
+      "updated": "2026-06-06"
+    },
+    "Jaxson Dart": {
+      "pass_yds": 2950.5,
+      "rush_yds": 425.5,
+      "pass_tds": 19.5,
+      "rush_tds": 4.5,
+      "ppg": 265.57,
+      "updated": "2026-06-06"
+    },
+    "Brock Purdy": {
+      "pass_yds": 3650.5,
+      "pass_tds": 27.5,
+      "ppg": 256.02,
+      "updated": "2026-06-06"
+    },
+    "Trevor Lawrence": {
+      "pass_yds": 3725.5,
+      "pass_tds": 25.5,
+      "ppg": 251.02,
+      "updated": "2026-06-06"
+    },
+    "Justin Herbert": {
+      "pass_yds": 3600.5,
+      "pass_tds": 25.5,
+      "ppg": 246.02,
+      "updated": "2026-06-06"
+    },
+    "Baker Mayfield": {
+      "pass_yds": 3500.5,
+      "pass_tds": 25.5,
+      "ppg": 242.02,
+      "updated": "2026-06-06"
+    },
+    "Sam Darnold": {
+      "pass_yds": 3700.5,
+      "pass_tds": 23.5,
+      "ppg": 242.02,
+      "updated": "2026-06-06"
+    },
+    "Caleb Williams": {
+      "pass_yds": 3575.5,
+      "pass_tds": 24.5,
+      "ppg": 241.02,
+      "updated": "2026-06-06"
+    },
+    "Jordan Love": {
+      "pass_yds": 3525.5,
+      "pass_tds": 24.5,
+      "ppg": 239.02,
+      "updated": "2026-06-06"
+    },
+    "C.J. Stroud": {
+      "pass_yds": 3550.5,
+      "pass_tds": 22.5,
+      "ppg": 232.02,
+      "updated": "2026-06-06"
+    },
+    "Tyler Shough": {
+      "pass_yds": 3600.5,
+      "pass_tds": 19.5,
+      "ppg": 222.02,
+      "updated": "2026-06-06"
+    },
+    "Jayden Daniels": {
+      "pass_yds": 3200.5,
+      "pass_tds": 20.5,
+      "ppg": 210.02,
+      "updated": "2026-06-06"
+    },
+    "Derrick Henry": {
+      "rush_yds": 1250.5,
+      "rush_tds": 13.5,
+      "ppg": 206.05,
+      "updated": "2026-06-06"
+    },
+    "Cam Ward": {
+      "pass_yds": 3200.5,
+      "pass_tds": 19.5,
+      "ppg": 206.02,
+      "updated": "2026-06-06"
+    },
+    "Bryce Young": {
+      "pass_yds": 3000.5,
+      "pass_tds": 20.5,
+      "ppg": 202.02,
+      "updated": "2026-06-06"
+    },
+    "Jonathan Taylor": {
+      "rush_yds": 1250.5,
+      "rush_tds": 11.5,
+      "ppg": 194.05,
+      "updated": "2026-06-06"
+    },
+    "Jahmyr Gibbs": {
+      "rush_yds": 1175.5,
+      "rush_tds": 11.5,
+      "ppg": 186.55,
+      "updated": "2026-06-06"
+    },
+    "James Cook": {
+      "rush_yds": 1225.5,
+      "rush_tds": 10.5,
+      "ppg": 185.55,
+      "updated": "2026-06-06"
+    },
+    "Bijan Robinson": {
+      "rush_yds": 1175.5,
+      "rush_tds": 10.5,
+      "ppg": 180.55,
+      "updated": "2026-06-06"
+    },
+    "Javonte Williams": {
+      "rush_yds": 975.5,
+      "rush_tds": 9.5,
+      "ppg": 154.55,
+      "updated": "2026-06-06"
+    },
+    "Saquon Barkley": {
+      "rush_yds": 1075.5,
+      "rush_tds": 7.5,
+      "ppg": 152.55,
+      "updated": "2026-06-06"
+    },
+    "Fernando Mendoza": {
+      "pass_yds": 2350.5,
+      "pass_tds": 12.5,
+      "ppg": 144.02,
+      "updated": "2026-06-06"
+    },
+    "Christian McCaffrey": {
+      "rush_yds": 925.5,
+      "rush_tds": 8.5,
+      "ppg": 143.55,
+      "updated": "2026-06-06"
+    },
+    "Ashton Jeanty": {
+      "rush_yds": 950.5,
+      "rush_tds": 7.5,
+      "ppg": 140.05,
+      "updated": "2026-06-06"
+    },
+    "Puka Nacua": {
+      "rec_yds": 1375.5,
+      "ppg": 137.55,
+      "updated": "2026-06-06"
+    },
+    "Omarion Hampton": {
+      "rush_yds": 900.5,
+      "rush_tds": 7.5,
+      "ppg": 135.05,
+      "updated": "2026-06-06"
+    },
+    "Ja'Marr Chase": {
+      "rec_yds": 1350.5,
+      "ppg": 135.05,
+      "updated": "2026-06-06"
+    },
+    "Jaxon Smith-Njigba": {
+      "rec_yds": 1350.5,
+      "ppg": 135.05,
+      "updated": "2026-06-06"
+    },
+    "Joe Burrow": {
+      "pass_tds": 32.5,
+      "ppg": 130.0,
+      "updated": "2026-06-06"
+    },
+    "David Montgomery": {
+      "rush_yds": 800.5,
+      "rush_tds": 7.5,
+      "ppg": 125.05,
+      "updated": "2026-06-06"
+    },
+    "Breece Hall": {
+      "rush_yds": 900.5,
+      "rush_tds": 5.5,
+      "ppg": 123.05,
+      "updated": "2026-06-06"
+    },
+    "Amon-Ra St. Brown": {
+      "rec_yds": 1225.5,
+      "ppg": 122.55,
+      "updated": "2026-06-06"
+    },
+    "CeeDee Lamb": {
+      "rec_yds": 1225.5,
+      "ppg": 122.55,
+      "updated": "2026-06-06"
+    },
+    "Aaron Rodgers": {
+      "pass_yds": 3025.5,
+      "ppg": 121.02,
+      "updated": "2026-06-06"
+    },
+    "Jeremiyah Love": {
+      "rush_yds": 875.5,
+      "rush_tds": 5.5,
+      "ppg": 120.55,
+      "updated": "2026-06-06"
+    },
+    "Chase Brown": {
+      "rush_yds": 825.5,
+      "rush_tds": 5.5,
+      "ppg": 115.55,
+      "updated": "2026-06-06"
+    },
+    "Justin Jefferson": {
+      "rec_yds": 1150.5,
+      "ppg": 115.05,
+      "updated": "2026-06-06"
+    },
+    "D'Andre Swift": {
+      "rush_yds": 800.5,
+      "rush_tds": 5.5,
+      "ppg": 113.05,
+      "updated": "2026-06-06"
+    },
+    "Tony Pollard": {
+      "rush_yds": 800.5,
+      "rush_tds": 5.5,
+      "ppg": 113.05,
+      "updated": "2026-06-06"
+    },
+    "A.J. Brown": {
+      "rec_yds": 1100.5,
+      "ppg": 110.05,
+      "updated": "2026-06-06"
+    },
+    "Drake London": {
+      "rec_yds": 1100.5,
+      "ppg": 110.05,
+      "updated": "2026-06-06"
+    },
+    "Chris Olave": {
+      "rec_yds": 1050.5,
+      "ppg": 105.05,
+      "updated": "2026-06-06"
+    },
+    "George Pickens": {
+      "rec_yds": 1050.5,
+      "ppg": 105.05,
+      "updated": "2026-06-06"
+    },
+    "Nico Collins": {
+      "rec_yds": 1050.5,
+      "ppg": 105.05,
+      "updated": "2026-06-06"
+    },
+    "Trey McBride": {
+      "rec_yds": 1025.5,
+      "ppg": 102.55,
+      "updated": "2026-06-06"
+    },
+    "De'Von Achane": {
+      "rush_yds": 1000.5,
+      "ppg": 100.05,
+      "updated": "2026-06-06"
+    },
+    "Zay Flowers": {
+      "rec_yds": 1000.5,
+      "ppg": 100.05,
+      "updated": "2026-06-06"
+    },
+    "Garrett Wilson": {
+      "rec_yds": 975.5,
+      "ppg": 97.55,
+      "updated": "2026-06-06"
+    },
+    "Kenneth Walker": {
+      "rush_yds": 925.5,
+      "ppg": 92.55,
+      "updated": "2026-06-06"
+    },
+    "Alec Pierce": {
+      "rec_yds": 925.5,
+      "ppg": 92.55,
+      "updated": "2026-06-06"
+    },
+    "Jameson Williams": {
+      "rec_yds": 925.5,
+      "ppg": 92.55,
+      "updated": "2026-06-06"
+    },
+    "Tetairoa McMillan": {
+      "rec_yds": 925.5,
+      "ppg": 92.55,
+      "updated": "2026-06-06"
+    },
+    "Brock Bowers": {
+      "rec_yds": 875.5,
+      "ppg": 87.55,
+      "updated": "2026-06-06"
+    },
+    "Emeka Egbuka": {
+      "rec_yds": 875.5,
+      "ppg": 87.55,
+      "updated": "2026-06-06"
+    },
+    "Tee Higgins": {
+      "rec_yds": 875.5,
+      "ppg": 87.55,
+      "updated": "2026-06-06"
+    },
+    "Jaylen Waddle": {
+      "rec_yds": 850.5,
+      "ppg": 85.05,
+      "updated": "2026-06-06"
+    },
+    "Ladd McConkey": {
+      "rec_yds": 850.5,
+      "ppg": 85.05,
+      "updated": "2026-06-06"
+    },
+    "Marvin Harrison Jr.": {
+      "rec_yds": 825.5,
+      "ppg": 82.55,
+      "updated": "2026-06-06"
+    },
+    "Davante Adams": {
+      "rec_yds": 800.5,
+      "ppg": 80.05,
+      "updated": "2026-06-06"
+    },
+    "Jordyn Tyson": {
+      "rec_yds": 800.5,
+      "ppg": 80.05,
+      "updated": "2026-06-06"
+    },
+    "Luther Burden III": {
+      "rec_yds": 800.5,
+      "ppg": 80.05,
+      "updated": "2026-06-06"
+    },
+    "Rome Odunze": {
+      "rec_yds": 800.5,
+      "ppg": 80.05,
+      "updated": "2026-06-06"
+    },
+    "Carnell Tate": {
+      "rec_yds": 775.5,
+      "ppg": 77.55,
+      "updated": "2026-06-06"
+    },
+    "Christian Watson": {
+      "rec_yds": 775.5,
+      "ppg": 77.55,
+      "updated": "2026-06-06"
+    },
+    "Colston Loveland": {
+      "rec_yds": 750.5,
+      "ppg": 75.05,
+      "updated": "2026-06-06"
+    },
+    "Tyler Warren": {
+      "rec_yds": 750.5,
+      "ppg": 75.05,
+      "updated": "2026-06-06"
+    },
+    "Kyle Pitts": {
+      "rec_yds": 725.5,
+      "ppg": 72.55,
+      "updated": "2026-06-06"
+    },
+    "Travis Kelce": {
+      "rec_yds": 675.5,
+      "ppg": 67.55,
+      "updated": "2026-06-06"
+    },
+    "Makai Lemon": {
+      "rec_yds": 650.5,
+      "ppg": 65.05,
+      "updated": "2026-06-06"
+    },
+    "KC Concepcion": {
+      "rec_yds": 600.5,
+      "ppg": 60.05,
+      "updated": "2026-06-06"
+    },
+    "Omar Cooper Jr.": {
+      "rec_yds": 525.5,
+      "ppg": 52.55,
+      "updated": "2026-06-06"
+    },
+    "Kenyon Sadiq": {
+      "rec_yds": 450.5,
+      "ppg": 45.05,
+      "updated": "2026-06-06"
+    },
+    "Kenneth Walker III": {
+      "rush_tds": 7.5,
+      "ppg": 45.0,
+      "updated": "2026-06-06"
+    },
+    "Rhamondre Stevenson": {
+      "rush_tds": 5.5,
+      "ppg": 33.0,
+      "updated": "2026-06-06"
+    },
+    "Travis Etienne": {
+      "rush_tds": 5.5,
+      "ppg": 33.0,
+      "updated": "2026-06-06"
+    },
+    "TreVeyon Henderson": {
+      "rush_tds": 5.5,
+      "ppg": 33.0,
+      "updated": "2026-06-06"
+    }
+  }
 }
