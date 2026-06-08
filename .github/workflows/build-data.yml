@@ -37,5 +37,6 @@ jobs:
             echo "No changes detected in data files — skipping commit."
           else
             git commit -m "chore: rebuild static data [$(date -u '+%Y-%m-%d')]"
+            git pull --rebase origin main
             git push
           fi

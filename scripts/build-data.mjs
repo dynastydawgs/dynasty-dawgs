@@ -497,7 +497,7 @@ async function main() {
   let ryoePlayers = 0;
   try {
     const NGS_URL = 'https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.csv.gz';
-    const ngsRows = await fetchGzipCSV(NGS_URL);
+    const ngsRows = await fetchGzipCSVRetry(NGS_URL);
     const ngsYear = String(recentYr);
     for (const row of ngsRows) {
       if (row.season !== ngsYear || row.week !== '0') continue;
@@ -552,8 +552,8 @@ async function main() {
     // ── Bridge: players.csv  →  gsis_id → sleeper_id ────────────────────────
     const gsisBridge = {};
     try {
-      const res = await fetch('https://github.com/nflverse/nflverse-data/releases/download/players/players.csv');
-      if (res.ok) {
+      const res = await fetchWithRetry('https://github.com/nflverse/nflverse-data/releases/download/players/players.csv');
+      if (res?.ok) {
         const lines = (await res.text()).split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
         for (const line of lines.slice(1)) {
