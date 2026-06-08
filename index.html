@@ -14270,7 +14270,7 @@ function _rbBackfieldOpportunity(pid, _prefetchOnly = false) {
 // Matches by full_name from sleeperPlayers. Active only when vegasProps has data.
 function getVegasPpg(pid) {
   if (!vegasProps || !Object.keys(vegasProps).length) return null;
-  const name = sleeperPlayers?.[pid]?.full_name;
+  const name = sleeperPlayers?.[pid]?.name;
   if (!name) return null;
   const entry = vegasProps[name];
   if (!entry) return null;
@@ -14285,7 +14285,7 @@ function getVegasPpg(pid) {
 // getVegasEntry(pid) — returns full Vegas prop entry for a player, or null.
 function getVegasEntry(pid) {
   if (!vegasProps || !Object.keys(vegasProps).length) return null;
-  const name = sleeperPlayers?.[pid]?.full_name;
+  const name = sleeperPlayers?.[pid]?.name;
   if (!name) return null;
   return vegasProps[name] ?? null;
 }
