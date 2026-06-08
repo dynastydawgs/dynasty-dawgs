@@ -880,6 +880,35 @@
   }
   .pp-vegas-line-chip b { color:#fbbf24; font-weight:700; }
 
+  /* VEGAS GAMES ADJUSTMENT SLIDER */
+  .pp-vegas-games-bar {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 16px 7px; background:rgba(233,168,38,0.04);
+    border-bottom:1px solid rgba(233,168,38,0.12);
+  }
+  .pp-vgb-label {
+    font-family:var(--mono); font-size:10px; color:rgba(255,255,255,0.45);
+    white-space:nowrap; min-width:80px;
+  }
+  .pp-vgb-slider {
+    flex:1; max-width:160px; height:4px; cursor:pointer;
+    -webkit-appearance:none; appearance:none;
+    background:rgba(233,168,38,0.25); border-radius:2px; outline:none;
+  }
+  .pp-vgb-slider::-webkit-slider-thumb {
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background:#e9a826; cursor:pointer; box-shadow:0 0 6px rgba(233,168,38,0.5);
+  }
+  .pp-vgb-slider::-moz-range-thumb {
+    width:14px; height:14px; border-radius:50%; border:none;
+    background:#e9a826; cursor:pointer; box-shadow:0 0 6px rgba(233,168,38,0.5);
+  }
+  .pp-vgb-info {
+    font-family:var(--mono); font-size:11px; color:rgba(233,168,38,0.85);
+    white-space:nowrap;
+  }
+  .pp-vgb-info em { color:rgba(255,255,255,0.35); font-style:normal; font-size:10px; }
+
   /* TEP TOGGLE BAR — shown on TE profiles */
   .pp-tep-bar {
     display: flex; align-items: center; gap: 6px;
@@ -9024,8 +9053,21 @@ function projStats(ppr, pos, actuals = null) {
   return `${ppr} PPR pts`;
 }
 
+// Vegas games-played adjustment.
+// Vegas season-long props are priced as expected value and bake in injury probability
+// (~15/17 games assumed for skill positions). This multiplier scales the raw Vegas lines
+// back up to a "full-games" projection. Default = 1.0 (no adjustment = Vegas baseline).
+window._vegasGamesAdj  = window._vegasGamesAdj ?? 1.0;   // preserve if already set
+window._lastRunProjectionArgs = window._lastRunProjectionArgs ?? null;
+window._setVegasGames = function(games) {
+  window._vegasGamesAdj = games / 15;
+  const el = document.getElementById('pp-vgb-val');
+  if (el) el.textContent = games;
+  if (window._lastRunProjectionArgs) runProjection(...window._lastRunProjectionArgs);
+};
+
 // Vegas-aware stat line for projection cards.
-// Rule: if Vegas has a line for a stat → use it (scaled for bear/bull).
+// Rule: if Vegas has a line for a stat → use it (scaled for bear/bull + games adj).
 //       if Vegas doesn't have it → use the model's output for that scenario.
 // modelPpr = model-only PPR for this exact scenario (floorPpr/medianPpr/ceilPpr).
 // vegasBasePpr = Vegas-blended BASE PPR (the denominator for scaling Vegas stats).
@@ -9033,7 +9075,17 @@ function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelPpr) {
   if (!vegasEntry || !(vegasBasePpr > 0)) return projStats(modelPpr ?? ppr, pos, actuals);
 
   const scale = ppr / vegasBasePpr;   // 1.0 on BASE, <1 bear, >1 bull
-  const V  = vegasEntry;
+  const _adj = window._vegasGamesAdj ?? 1;
+  const V  = _adj === 1 ? vegasEntry : {
+    ...vegasEntry,
+    rush_yds: vegasEntry.rush_yds != null ? vegasEntry.rush_yds * _adj : null,
+    rush_tds: vegasEntry.rush_tds != null ? vegasEntry.rush_tds * _adj : null,
+    rec:      vegasEntry.rec      != null ? vegasEntry.rec      * _adj : null,
+    rec_yds:  vegasEntry.rec_yds  != null ? vegasEntry.rec_yds  * _adj : null,
+    rec_tds:  vegasEntry.rec_tds  != null ? vegasEntry.rec_tds  * _adj : null,
+    pass_yds: vegasEntry.pass_yds != null ? vegasEntry.pass_yds * _adj : null,
+    pass_tds: vegasEntry.pass_tds != null ? vegasEntry.pass_tds * _adj : null,
+  };
   const mP = modelPpr ?? ppr;         // model PPR for this scenario
 
   if (pos === 'RB') {
@@ -9098,7 +9150,17 @@ function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelPpr) {
 // Used to derive accurate display PPR totals that match the displayed stat line.
 function vegasStatPpr(vegasEntry, modelPpr, pos, actuals) {
   if (!vegasEntry) return modelPpr;
-  const V  = vegasEntry;
+  const _adj = window._vegasGamesAdj ?? 1;
+  const V  = _adj === 1 ? vegasEntry : {
+    ...vegasEntry,
+    rush_yds: vegasEntry.rush_yds != null ? vegasEntry.rush_yds * _adj : null,
+    rush_tds: vegasEntry.rush_tds != null ? vegasEntry.rush_tds * _adj : null,
+    rec:      vegasEntry.rec      != null ? vegasEntry.rec      * _adj : null,
+    rec_yds:  vegasEntry.rec_yds  != null ? vegasEntry.rec_yds  * _adj : null,
+    rec_tds:  vegasEntry.rec_tds  != null ? vegasEntry.rec_tds  * _adj : null,
+    pass_yds: vegasEntry.pass_yds != null ? vegasEntry.pass_yds * _adj : null,
+    pass_tds: vegasEntry.pass_tds != null ? vegasEntry.pass_tds * _adj : null,
+  };
   const mP = modelPpr;
 
   if (pos === 'RB') {
@@ -9522,7 +9584,11 @@ function resetProjPpgPromise() {
 //         Called for every player profile (headless=false) and during pre-warm (headless=true).
 //         Produces floor / base / ceiling PPG and the full projection card HTML.
 async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLabel, draftContext, statSummary, physicalSummary, fcVal, college, nflTeam, livePprPts, liveGamesPlayed, statSeason, liveTouches = 0, liveRec = 0, headless = false) {
-  if (!headless) resetProjPpgPromise();
+  if (!headless) {
+    resetProjPpgPromise();
+    // Save args so the Vegas games slider can re-trigger the projection.
+    window._lastRunProjectionArgs = [pid, name, pos, age, yearsExp, careerStage, draftLabel, draftContext, statSummary, physicalSummary, fcVal, college, nflTeam, livePprPts, liveGamesPlayed, statSeason, liveTouches, liveRec, false];
+  }
   // headless=true: use a mock DOM node so all projEl.innerHTML assignments are silent no-ops.
   // The full math still runs and results are saved to projectionCache.
   const projEl = headless
@@ -11126,7 +11192,15 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     // ── Populate Vegas top-level tab panel ────────────────────────────────
     if (!headless && vegasEl) {
       if (hasVegas) {
-        vegasEl.innerHTML = tepBar + vegasLinesHtml + `
+        const _gamesVal = Math.round((window._vegasGamesAdj ?? 1) * 15);
+        const _gamesSlider = `
+          <div class="pp-vegas-games-bar">
+            <span class="pp-vgb-label">Availability adj.</span>
+            <input type="range" class="pp-vgb-slider" min="10" max="17" step="1" value="${_gamesVal}"
+              oninput="document.getElementById('pp-vgb-val').textContent=this.value;window._setVegasGames(+this.value)">
+            <span class="pp-vgb-info"><span id="pp-vgb-val">${_gamesVal}</span>/17 games <em>· Vegas baseline ≈ 15</em></span>
+          </div>`;
+        vegasEl.innerHTML = _gamesSlider + tepBar + vegasLinesHtml + `
           <div class="pp-outcomes">
             ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, rbActuals, _vegasEntry, vegasMedianPpr, floorPpr),  descs[0])}
             ${card('base', vDispMedPpr,   vDispMPpg, vegasProjStats(vegasMedianPpr, pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[1])}
