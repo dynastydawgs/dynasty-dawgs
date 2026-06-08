@@ -3,82 +3,61 @@
     "season": 2026,
     "week": null,
     "type": "season-long",
-    "updatedAt": "2026-06-06T21:47:10.255744+00:00",
-    "playerCount": 100,
+    "updatedAt": "2026-06-06T22:43:13.811681+00:00",
+    "playerCount": 77,
     "books": [
-      "FanDuel",
-      "DraftKings"
+      "FanDuel"
     ]
   },
   "players": {
     "Aaron Rodgers": {
-      "pass_yds": 3112.5,
-      "pass_tds": 21.5,
+      "pass_yds": 3025.5,
       "updated": "2026-06-06"
     },
     "Alec Pierce": {
-      "rec_yds": 912.5,
+      "rec_yds": 925.5,
       "updated": "2026-06-06"
     },
     "Amon-Ra St. Brown": {
-      "rec_tds": 9.5,
-      "rec_yds": 1237.5,
+      "rec_yds": 1225.5,
       "updated": "2026-06-06"
     },
     "Ashton Jeanty": {
-      "rush_yds": 987.5,
+      "rush_yds": 950.5,
       "rush_tds": 7.5,
       "updated": "2026-06-06"
     },
     "Baker Mayfield": {
-      "pass_yds": 3550.0,
+      "pass_yds": 3500.5,
       "pass_tds": 25.5,
       "updated": "2026-06-06"
     },
-    "Bhayshul Tuten": {
-      "rush_yds": 699.5,
-      "updated": "2026-06-06"
-    },
     "Bijan Robinson": {
-      "rush_yds": 1175.0,
-      "rush_tds": 9.5,
-      "updated": "2026-06-06"
-    },
-    "Blake Corum": {
-      "rush_yds": 674.5,
-      "updated": "2026-06-06"
-    },
-    "Bo Nix": {
-      "pass_yds": 3499.5,
-      "pass_tds": 24.5,
+      "rush_yds": 1175.5,
+      "rush_tds": 10.5,
       "updated": "2026-06-06"
     },
     "Breece Hall": {
-      "rush_yds": 900.0,
+      "rush_yds": 900.5,
       "rush_tds": 5.5,
       "updated": "2026-06-06"
     },
-    "Brian Thomas Jr.": {
-      "rec_yds": 699.5,
-      "updated": "2026-06-06"
-    },
     "Brock Bowers": {
-      "rec_tds": 7.5,
-      "rec_yds": 887.5,
+      "rec_yds": 875.5,
       "updated": "2026-06-06"
     },
     "Brock Purdy": {
-      "pass_yds": 3725.0,
+      "pass_yds": 3650.5,
       "pass_tds": 27.5,
       "updated": "2026-06-06"
     },
     "Bryce Young": {
-      "pass_yds": 3037.5,
+      "pass_yds": 3000.5,
       "pass_tds": 20.5,
       "updated": "2026-06-06"
     },
     "Caleb Williams": {
-      "pass_yds": 3600.0,
+      "pass_yds": 3575.5,
       "pass_tds": 24.5,
       "updated": "2026-06-06"
     },
@@ -87,247 +66,184 @@
       "pass_tds": 19.5,
       "updated": "2026-06-06"
     },
-    "Cameron Ward": {
-      "pass_yds": 3299.5,
-      "pass_tds": 18.5,
-      "updated": "2026-06-06"
-    },
     "Carnell Tate": {
-      "rec_yds": 775.0,
+      "rec_yds": 775.5,
       "updated": "2026-06-06"
     },
     "CeeDee Lamb": {
-      "rec_tds": 7.5,
-      "rec_yds": 1212.5,
+      "rec_yds": 1225.5,
       "updated": "2026-06-06"
     },
     "Chase Brown": {
-      "rush_yds": 825.0,
+      "rush_yds": 825.5,
       "rush_tds": 5.5,
       "updated": "2026-06-06"
     },
     "Chris Olave": {
-      "rec_tds": 5.5,
-      "rec_yds": 1037.5,
+      "rec_yds": 1050.5,
       "updated": "2026-06-06"
     },
     "Christian McCaffrey": {
-      "rush_yds": 950.0,
+      "rush_yds": 925.5,
       "rush_tds": 8.5,
       "updated": "2026-06-06"
     },
     "Christian Watson": {
-      "rec_yds": 787.5,
+      "rec_yds": 775.5,
       "updated": "2026-06-06"
     },
     "Colston Loveland": {
-      "rec_yds": 750.0,
-      "updated": "2026-06-06"
-    },
-    "Courtland Sutton": {
-      "rec_yds": 799.5,
+      "rec_yds": 750.5,
       "updated": "2026-06-06"
     },
     "D'Andre Swift": {
-      "rush_yds": 800.0,
+      "rush_yds": 800.5,
       "rush_tds": 5.5,
       "updated": "2026-06-06"
     },
-    "DJ Moore": {
-      "rec_yds": 799.5,
-      "updated": "2026-06-06"
-    },
-    "DK Metcalf": {
-      "rec_yds": 824.5,
-      "updated": "2026-06-06"
-    },
     "Dak Prescott": {
-      "pass_yds": 4025.0,
+      "pass_yds": 4050.5,
       "pass_tds": 27.5,
       "updated": "2026-06-06"
     },
-    "Dallas Goedert": {
-      "rec_yds": 574.5,
-      "updated": "2026-06-06"
-    },
-    "Dalton Kincaid": {
-      "rec_yds": 549.5,
-      "updated": "2026-06-06"
-    },
     "Davante Adams": {
-      "rec_tds": 9.5,
-      "rec_yds": 787.5,
+      "rec_yds": 800.5,
       "updated": "2026-06-06"
     },
     "David Montgomery": {
-      "rush_yds": 787.5,
+      "rush_yds": 800.5,
       "rush_tds": 7.5,
       "updated": "2026-06-06"
     },
     "De'Von Achane": {
-      "rush_yds": 1000.0,
-      "updated": "2026-06-06"
-    },
-    "DeVonta Smith": {
-      "rec_yds": 1049.5,
+      "rush_yds": 1000.5,
       "updated": "2026-06-06"
     },
     "Derrick Henry": {
-      "rush_yds": 1262.5,
-      "rush_tds": 13.0,
+      "rush_yds": 1250.5,
+      "rush_tds": 13.5,
       "updated": "2026-06-06"
     },
     "Drake Maye": {
-      "rush_yds": 412.5,
-      "pass_yds": 3800.0,
+      "pass_yds": 3800.5,
+      "rush_yds": 400.5,
+      "pass_tds": 25.5,
       "rush_tds": 3.5,
-      "pass_tds": 26.0,
       "updated": "2026-06-06"
     },
     "Emeka Egbuka": {
-      "rec_yds": 875.0,
+      "rec_yds": 875.5,
       "updated": "2026-06-06"
     },
     "Fernando Mendoza": {
-      "pass_yds": 2425.0,
+      "pass_yds": 2350.5,
       "pass_tds": 12.5,
       "updated": "2026-06-06"
     },
     "Garrett Wilson": {
-      "rec_yds": 987.5,
+      "rec_yds": 975.5,
       "updated": "2026-06-06"
     },
     "George Pickens": {
-      "rec_tds": 6.5,
-      "rec_yds": 1025.0,
+      "rec_yds": 1050.5,
       "updated": "2026-06-06"
     },
     "Ja'Marr Chase": {
-      "rec_tds": 10.5,
-      "rec": 150.0,
-      "rec_yds": 1337.5,
+      "rec_yds": 1350.5,
       "updated": "2026-06-06"
     },
     "Jahmyr Gibbs": {
-      "rush_yds": 1212.5,
-      "rush_tds": 12.0,
-      "updated": "2026-06-06"
-    },
-    "Jake Ferguson": {
-      "rec_yds": 524.5,
+      "rush_yds": 1175.5,
+      "rush_tds": 11.5,
       "updated": "2026-06-06"
     },
     "Jalen Hurts": {
-      "rush_yds": 400.0,
-      "pass_yds": 3200.0,
-      "rush_tds": 8.0,
+      "pass_yds": 3150.5,
+      "rush_yds": 400.5,
       "pass_tds": 22.5,
+      "rush_tds": 7.5,
       "updated": "2026-06-06"
     },
     "James Cook": {
-      "rush_yds": 1237.5,
+      "rush_yds": 1225.5,
       "rush_tds": 10.5,
       "updated": "2026-06-06"
     },
     "Jameson Williams": {
-      "rec_yds": 912.5,
+      "rec_yds": 925.5,
       "updated": "2026-06-06"
     },
     "Jared Goff": {
-      "pass_yds": 4075.0,
+      "pass_yds": 4050.5,
       "pass_tds": 29.5,
       "updated": "2026-06-06"
     },
     "Javonte Williams": {
-      "rush_yds": 987.5,
+      "rush_yds": 975.5,
       "rush_tds": 9.5,
       "updated": "2026-06-06"
     },
     "Jaxon Smith-Njigba": {
-      "rec_tds": 8.5,
-      "rec": 150.0,
-      "rec_yds": 1337.5,
+      "rec_yds": 1350.5,
       "updated": "2026-06-06"
     },
     "Jaxson Dart": {
-      "rush_yds": 437.5,
-      "pass_yds": 3050.5,
-      "rush_tds": 4.5,
+      "pass_yds": 2950.5,
+      "rush_yds": 425.5,
       "pass_tds": 19.5,
+      "rush_tds": 4.5,
       "updated": "2026-06-06"
     },
     "Jayden Daniels": {
-      "rush_yds": 549.5,
-      "pass_yds": 3225.0,
-      "pass_tds": 21.0,
-      "updated": "2026-06-06"
-    },
-    "Jayden Reed": {
-      "rec_yds": 649.5,
+      "pass_yds": 3200.5,
+      "pass_tds": 20.5,
       "updated": "2026-06-06"
     },
     "Jaylen Waddle": {
-      "rec_yds": 862.5,
+      "rec_yds": 850.5,
       "updated": "2026-06-06"
     },
     "Jeremiyah Love": {
-      "rush_yds": 887.5,
+      "rush_yds": 875.5,
       "rush_tds": 5.5,
       "updated": "2026-06-06"
     },
     "Joe Burrow": {
-      "pass_yds": 3999.5,
       "pass_tds": 32.5,
       "updated": "2026-06-06"
     },
     "Jonathan Taylor": {
-      "rush_yds": 1250.0,
+      "rush_yds": 1250.5,
       "rush_tds": 11.5,
       "updated": "2026-06-06"
     },
-    "Jordan Addison": {
-      "rec_yds": 674.5,
-      "updated": "2026-06-06"
-    },
     "Jordan Love": {
-      "pass_yds": 3537.5,
+      "pass_yds": 3525.5,
       "pass_tds": 24.5,
       "updated": "2026-06-06"
     },
     "Jordyn Tyson": {
-      "rec_yds": 787.5,
+      "rec_yds": 800.5,
       "updated": "2026-06-06"
     },
     "Josh Allen": {
-      "rush_yds": 500.0,
-      "pass_yds": 3562.5,
-      "rush_tds": 11.0,
+      "pass_yds": 3575.5,
+      "rush_yds": 500.5,
       "pass_tds": 24.5,
-      "updated": "2026-06-06"
-    },
-    "Josh Downs": {
-      "rec_yds": 649.5,
+      "rush_tds": 10.5,
       "updated": "2026-06-06"
     },
     "Justin Herbert": {
-      "pass_yds": 3587.5,
-      "pass_tds": 25.0,
+      "pass_yds": 3600.5,
+      "pass_tds": 25.5,
       "updated": "2026-06-06"
     },
     "Justin Jefferson": {
-      "rec_tds": 6.5,
-      "rec_yds": 1150.0,
+      "rec_yds": 1150.5,
       "updated": "2026-06-06"
     },
     "KC Concepcion": {
-      "rec_yds": 612.5,
-      "updated": "2026-06-06"
-    },
-    "Kansas City": {
-      "rush_tds": 14.5,
-      "rec_tds": 14.5,
-      "pass_tds": 14.5,
-      "rec": 14.5,
+      "rec_yds": 600.5,
       "updated": "2026-06-06"
     },
     "Kenneth Walker": {
@@ -338,78 +254,49 @@
       "rec_yds": 450.5,
       "updated": "2026-06-06"
     },
-    "Khalil Shakir": {
-      "rec_yds": 674.5,
-      "updated": "2026-06-06"
-    },
     "Kyle Pitts": {
-      "rec_yds": 750.0,
-      "updated": "2026-06-06"
-    },
-    "Kyren Williams": {
-      "rush_yds": 999.5,
-      "rush_tds": 9.5,
+      "rec_yds": 725.5,
       "updated": "2026-06-06"
     },
     "Ladd McConkey": {
-      "rec_yds": 850.0,
+      "rec_yds": 850.5,
       "updated": "2026-06-06"
     },
     "Lamar Jackson": {
-      "rush_yds": 575.0,
-      "pass_yds": 3225.0,
-      "rush_tds": 3.5,
+      "pass_yds": 3200.5,
+      "rush_yds": 575.5,
       "pass_tds": 24.5,
+      "rush_tds": 3.5,
       "updated": "2026-06-06"
     },
     "Makai Lemon": {
-      "rec_yds": 650.0,
-      "updated": "2026-06-06"
-    },
-    "Malik Willis": {
-      "pass_yds": 3050.5,
-      "pass_tds": 15.5,
-      "updated": "2026-06-06"
-    },
-    "Mark Andrews": {
-      "rec_yds": 524.5,
+      "rec_yds": 650.5,
       "updated": "2026-06-06"
     },
     "Marvin Harrison Jr.": {
-      "rec_yds": 825.0,
+      "rec_yds": 825.5,
       "updated": "2026-06-06"
     },
     "Matthew Stafford": {
-      "pass_yds": 3962.5,
-      "pass_tds": 30.0,
-      "updated": "2026-06-06"
-    },
-    "Michael Pittman Jr.": {
-      "rec_yds": 774.5,
-      "updated": "2026-06-06"
-    },
-    "Mike Evans": {
-      "rec_yds": 899.5,
+      "pass_yds": 3925.5,
+      "pass_tds": 29.5,
       "updated": "2026-06-06"
     },
     "Nico Collins": {
-      "rec_tds": 6.5,
-      "rec_yds": 1062.5,
+      "rec_yds": 1050.5,
       "updated": "2026-06-06"
     },
     "Omar Cooper Jr.": {
-      "rec_yds": 537.5,
+      "rec_yds": 525.5,
       "updated": "2026-06-06"
     },
     "Omarion Hampton": {
-      "rush_yds": 925.0,
+      "rush_yds": 900.5,
       "rush_tds": 7.5,
       "updated": "2026-06-06"
     },
     "Puka Nacua": {
-      "rec_tds": 7.5,
-      "rec": 140.0,
-      "rec_yds": 1350.0,
+      "rec_yds": 1375.5,
       "updated": "2026-06-06"
     },
     "Rhamondre Stevenson": {
@@ -417,35 +304,29 @@
       "updated": "2026-06-06"
     },
     "Rome Odunze": {
-      "rec_yds": 800.0,
+      "rec_yds": 800.5,
       "updated": "2026-06-06"
     },
     "Sam Darnold": {
-      "pass_yds": 3725.0,
+      "pass_yds": 3700.5,
       "pass_tds": 23.5,
       "updated": "2026-06-06"
     },
     "Saquon Barkley": {
-      "rush_yds": 1087.5,
+      "rush_yds": 1075.5,
       "rush_tds": 7.5,
       "updated": "2026-06-06"
     },
     "Tee Higgins": {
-      "rec_tds": 8.5,
-      "rec_yds": 875.0,
-      "updated": "2026-06-06"
-    },
-    "Terry McLaurin": {
-      "rec_yds": 949.5,
+      "rec_yds": 875.5,
       "updated": "2026-06-06"
     },
     "Tetairoa McMillan": {
-      "rec_tds": 6.5,
-      "rec_yds": 937.5,
+      "rec_yds": 925.5,
       "updated": "2026-06-06"
     },
     "Tony Pollard": {
-      "rush_yds": 800.0,
+      "rush_yds": 800.5,
       "rush_tds": 5.5,
       "updated": "2026-06-06"
     },
@@ -454,8 +335,7 @@
       "updated": "2026-06-06"
     },
     "Travis Kelce": {
-      "rec_tds": 4.5,
-      "rec_yds": 675.0,
+      "rec_yds": 675.5,
       "updated": "2026-06-06"
     },
     "TreVeyon Henderson": {
@@ -463,26 +343,25 @@
       "updated": "2026-06-06"
     },
     "Trevor Lawrence": {
-      "pass_yds": 3737.5,
+      "pass_yds": 3725.5,
       "pass_tds": 25.5,
       "updated": "2026-06-06"
     },
     "Trey McBride": {
-      "rec_tds": 6.5,
-      "rec_yds": 1012.5,
+      "rec_yds": 1025.5,
       "updated": "2026-06-06"
     },
     "Tyler Shough": {
-      "pass_yds": 3625.0,
-      "pass_tds": 20.0,
+      "pass_yds": 3600.5,
+      "pass_tds": 19.5,
       "updated": "2026-06-06"
     },
     "Tyler Warren": {
-      "rec_yds": 737.5,
+      "rec_yds": 750.5,
       "updated": "2026-06-06"
     },
     "Zay Flowers": {
-      "rec_yds": 987.5,
+      "rec_yds": 1000.5,
       "updated": "2026-06-06"
     }
   }

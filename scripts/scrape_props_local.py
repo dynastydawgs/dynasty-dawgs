@@ -38,7 +38,7 @@ SEASON_SECTIONS = {
 
 # ── Garbage filter ────────────────────────────────────────────────────────────
 BAD_WORDS_FD = [
-    'office', 'jersey', 'boston', 'hoboken', 'london', 'soho',
+    'office', 'jersey', 'boston', 'hoboken', 'soho',
     'sportsbook', 'fanduel', 'parlay', 'gaming', 'responsible',
     'casino', 'racing', 'support', 'service', 'center', 'network',
     'lottery', 'rewards', 'predictions', 'pools', 'social',
@@ -46,6 +46,9 @@ BAD_WORDS_FD = [
     'division', 'conference', 'national', 'american', 'super bowl',
     'sign up', 'log in', 'how to', 'view all', 'more bets',
 ]
+
+# Roman numeral suffixes and common name abbreviations are NOT nav words
+_ALLOWED_CAPS = {'II', 'III', 'IV', 'VI', 'VII', 'VIII', 'IX', 'SR', 'JR'}
 
 def looks_like_player(name):
     name = name.strip()
@@ -59,8 +62,10 @@ def looks_like_player(name):
     nl = name.lower()
     if any(bw in nl for bw in BAD_WORDS_FD):
         return False
-    # Reject all-caps nav words (NFL, PPG, etc.)
-    if any(p.isupper() and len(p) > 2 for p in parts):
+    # Reject all-caps nav words (NFL, PPG, etc.) but allow Roman numerals
+    # and abbreviations like "A.J." (isalpha() is False for those).
+    if any(p.isupper() and len(p) > 2 and p.isalpha() and p not in _ALLOWED_CAPS
+           for p in parts):
         return False
     return True
 
@@ -117,91 +122,48 @@ def find_collapsed_rows(text):
 
     return found
 
-# ── Click collapsed rows by coordinates ──────────────────────────────────────
+# ── Click collapsed rows ──────────────────────────────────────────────────────
 def click_collapsed_rows(page, collapsed):
     """
-    For each collapsed row:
-      1. Use JS to find the row container's bounding box (walk up from the
-         innerText-matched element to the first wide ancestor).
-      2. Use page.mouse.click() at the RIGHT edge of that container — where
-         the dropdown arrow (chevron SVG) sits.
+    From DOM diagnostic: FanDuel accordion structure is:
+      <li>                               ← one player row
+        <div role="button" tabindex="0"> ← THE TOGGLE (click this)
+          ... player name text + chevron SVG ...
+        </div>
+      </li>
 
-    page.mouse.click() produces isTrusted=true; JS dispatchEvent does not.
+    Strategy:
+      1. Find the <li> whose innerText matches the player row text.
+      2. Find the [role="button"] descendant inside that <li>.
+      3. Click it with Playwright's native .click() → isTrusted=true.
     """
-    import json as _json
-
-    # ── One JS call: collect bounding boxes for ALL collapsed rows ────────────
-    row_texts  = [rt for _, _, rt in collapsed]
-    # Build [[text, index], ...] for a JS Map so we can match in O(n) DOM walk
-    map_init   = _json.dumps([[rt, i] for i, rt in enumerate(row_texts)])
-    n_rows     = len(row_texts)
-    vw         = page.viewport_size['width']
-
-    boxes = page.evaluate(f"""
-    () => {{
-        const targets  = new Map({map_init});
-        const result   = new Array({n_rows}).fill(null);
-        const VW       = window.innerWidth;
-
-        for (const el of document.querySelectorAll('*')) {{
-            if (targets.size === 0) break;
-            const t = (el.innerText || '').trim().replace(/\\s+/g, ' ');
-            if (!targets.has(t)) continue;
-
-            const idx = targets.get(t);
-            targets.delete(t);
-
-            // Walk UP to find the actual row container — needs to be at least
-            // 50% of the viewport wide so we don't stop at a narrow text span.
-            let anc   = el.parentElement;
-            let found = null;
-            while (anc && anc !== document.body) {{
-                const r = anc.getBoundingClientRect();
-                if (r.width >= VW * 0.5 && r.height > 0) {{
-                    found = {{ x: r.x, y: r.y, w: r.width, h: r.height }};
-                    break;
-                }}
-                anc = anc.parentElement;
-            }}
-            // Fallback: use the element itself if no wide ancestor found
-            if (!found) {{
-                const r = el.getBoundingClientRect();
-                found = {{ x: r.x, y: r.y, w: r.width, h: r.height }};
-            }}
-            result[idx] = found;
-        }}
-        return result;
-    }}
-    """)
-
-    # ── Click each row's chevron using mouse coordinates ──────────────────────
     clicked = 0
-    missing = 0
+    skipped = 0
 
-    for i, (stat, player, row_text) in enumerate(collapsed):
-        box = boxes[i] if i < len(boxes) else None
-        if not box:
-            missing += 1
-            continue
+    for stat, player, row_text in collapsed:
+        try:
+            # Find the <li> containing exactly this row's text
+            li_loc = page.locator('li').filter(
+                has_text=re.compile(re.escape(row_text))
+            )
+            if li_loc.count() == 0:
+                skipped += 1
+                continue
 
-        # Scroll so the row is 300px from the top of the viewport.
-        # box['y'] is the viewport-relative y recorded when the page was at
-        # scrollY=0 (i.e., it equals the document-relative y at that moment).
-        scroll_y = max(0, box['y'] - 300)
-        page.evaluate(f"window.scrollTo(0, {scroll_y})")
-        time.sleep(0.12)   # wait for smooth-scroll to finish
+            # The toggle button is [role="button"] inside the <li>
+            btn_loc = li_loc.first.locator('[role="button"]')
+            target  = btn_loc.first if btn_loc.count() > 0 else li_loc.first
 
-        # After scrolling, the element's new viewport-y = original_y - scroll_y
-        viewport_y = box['y'] - scroll_y
-        cy = viewport_y + box['h'] / 2        # vertical centre of the row
-        cx = box['x'] + box['w'] - 30         # 30px from right edge = chevron
+            target.scroll_into_view_if_needed()
+            target.click(timeout=3000)
+            time.sleep(0.1)
+            clicked += 1
 
-        page.mouse.click(cx, cy)
-        time.sleep(0.08)
-        clicked += 1
+        except Exception:
+            skipped += 1
 
-    if missing:
-        print(f'    ⚠ {missing} rows: no bounding box found')
+    if skipped:
+        print(f'    ⚠ {skipped} rows had no matching element')
     return clicked
 
 # ── Parser ────────────────────────────────────────────────────────────────────
