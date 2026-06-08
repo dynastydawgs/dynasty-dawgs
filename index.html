@@ -9025,38 +9025,73 @@ function projStats(ppr, pos, actuals = null) {
 }
 
 // Vegas-aware stat line for projection cards.
-// For RBs: anchors rush stats directly to Vegas raw lines (rounded), rec stats
-// anchored to model BASE PPR so Vegas BASE rec = model BASE rec (since FD/DK
-// rarely publish rec/rec_yds for RBs). Bear/bull scale proportionally from the
-// Vegas BASE using ppr/vegasBasePpr. Falls back to projStats for other positions.
-function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelBasePpr) {
-  if (pos !== 'RB' || !vegasEntry || !(vegasBasePpr > 0)) return projStats(ppr, pos, actuals);
+// Rule: if Vegas has a line for a stat → use it (scaled for bear/bull).
+//       if Vegas doesn't have it → use the model's output for that scenario.
+// modelPpr = model-only PPR for this exact scenario (floorPpr/medianPpr/ceilPpr).
+// vegasBasePpr = Vegas-blended BASE PPR (the denominator for scaling Vegas stats).
+function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelPpr) {
+  if (!vegasEntry || !(vegasBasePpr > 0)) return projStats(modelPpr ?? ppr, pos, actuals);
 
-  const scale = ppr / vegasBasePpr;
+  const scale = ppr / vegasBasePpr;   // 1.0 on BASE, <1 bear, >1 bull
+  const V  = vegasEntry;
+  const mP = modelPpr ?? ppr;         // model PPR for this scenario
 
-  // Rush: anchor BASE to Vegas lines; bear/bull scale from that anchor
-  const baseRushYds = vegasEntry.rush_yds != null ? Math.round(vegasEntry.rush_yds) : Math.round(vegasBasePpr * 3.85);
-  const baseRushTds = vegasEntry.rush_tds != null ? Math.round(vegasEntry.rush_tds) : Math.round(vegasBasePpr * 0.034);
-  const rushYds = Math.max(0, Math.round(baseRushYds * scale));
-  const rushTds = Math.max(0, Math.round(baseRushTds * scale));
+  if (pos === 'RB') {
+    // Rush: Vegas anchor if available, else model formula for this scenario
+    const rushYds = V.rush_yds != null
+      ? Math.max(0, Math.round(V.rush_yds * scale))
+      : Math.round(mP * 3.85);
+    const rushTds = V.rush_tds != null
+      ? Math.max(0, Math.round(V.rush_tds * scale))
+      : Math.round(mP * 0.034);
 
-  // Rec: anchor to model BASE PPR so the Vegas BASE card rec stats match the
-  // model BASE card — then scale bear/bull from that same anchor.
-  const recRef = modelBasePpr > 0 ? modelBasePpr : vegasBasePpr;
-  let baseRec;
-  if (actuals && actuals.rec > 0 && actuals.ppr > 0) {
-    const recPerGame = actuals.rec / Math.max(1, actuals.games);
-    const anchored   = Math.round(recPerGame * 17 * (recRef / actuals.ppr));
-    const defaultRec = Math.round(recRef * 0.185);
-    baseRec = Math.round(anchored * 0.85 + defaultRec * 0.15);
-  } else {
-    baseRec = Math.round(recRef * 0.185);
+    // Rec count: Vegas anchor if available, else model formula
+    let projRec;
+    if (V.rec != null) {
+      projRec = Math.max(0, Math.round(V.rec * scale));
+    } else if (actuals && actuals.rec > 0 && actuals.ppr > 0) {
+      const recPerGame = actuals.rec / Math.max(1, actuals.games);
+      const anchored   = Math.round(recPerGame * 17 * (mP / actuals.ppr));
+      const defaultRec = Math.round(mP * 0.185);
+      projRec = Math.round(anchored * 0.85 + defaultRec * 0.15);
+    } else {
+      projRec = Math.round(mP * 0.185);
+    }
+
+    const recYds = V.rec_yds != null
+      ? Math.max(0, Math.round(V.rec_yds * scale))
+      : Math.round(projRec * 8.0);
+    const recTds = V.rec_tds != null
+      ? Math.max(0, Math.round(V.rec_tds * scale))
+      : Math.round(mP * 0.013);
+
+    return `${rushYds.toLocaleString()} rush yds | ${rushTds} rush TDs | ${projRec} rec | ${recYds.toLocaleString()} rec yds | ${recTds} rec TDs`;
   }
-  const projRec = Math.max(0, Math.round(baseRec * scale));
-  const recYds  = Math.round(projRec * 8.0);
-  const recTds  = Math.max(0, Math.round(recRef * 0.013 * scale));
 
-  return `${rushYds.toLocaleString()} rush yds | ${rushTds} rush TDs | ${projRec} rec | ${recYds.toLocaleString()} rec yds | ${recTds} rec TDs`;
+  if (pos === 'WR') {
+    const rec    = V.rec     != null ? Math.max(0, Math.round(V.rec     * scale)) : Math.round(mP * 0.333);
+    const recYds = V.rec_yds != null ? Math.max(0, Math.round(V.rec_yds * scale)) : Math.round(mP * 4.67);
+    const recTds = V.rec_tds != null ? Math.max(0, Math.round(V.rec_tds * scale)) : Math.round(mP * 0.033);
+    const tgts   = Math.round(rec * 1.55);
+    return `${rec} rec / ${tgts} tgt | ${recYds.toLocaleString()} yds | ${recTds} TDs`;
+  }
+
+  if (pos === 'TE') {
+    const rec    = V.rec     != null ? Math.max(0, Math.round(V.rec     * scale)) : Math.round(mP * 0.365);
+    const recYds = V.rec_yds != null ? Math.max(0, Math.round(V.rec_yds * scale)) : Math.round(mP * 4.1);
+    const recTds = V.rec_tds != null ? Math.max(0, Math.round(V.rec_tds * scale)) : Math.round(mP * 0.037);
+    return `${rec} rec | ${recYds.toLocaleString()} yds | ${recTds} TDs`;
+  }
+
+  if (pos === 'QB') {
+    const passYds = V.pass_yds != null ? Math.max(0, Math.round(V.pass_yds * scale)) : Math.round(mP * 11.75);
+    const passTds = V.pass_tds != null ? Math.max(0, Math.round(V.pass_tds * scale)) : Math.round(mP * 0.090);
+    const rushYds = V.rush_yds != null ? Math.max(0, Math.round(V.rush_yds * scale)) : Math.round(mP * 1.0);
+    const rushTds = V.rush_tds != null ? Math.max(0, Math.round(V.rush_tds * scale)) : Math.round(mP * 0.012);
+    return `${passYds.toLocaleString()} pass yds | ${passTds} pass TDs | ${rushYds} rush yds | ${rushTds} rush TDs`;
+  }
+
+  return projStats(mP, pos, actuals);
 }
 
 // § 14i  Build database
@@ -10933,9 +10968,9 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       <div class="pp-proj-tab-panel" id="ppppanel-vegas-${pid}">
         ${vegasLinesHtml}
         <div class="pp-outcomes">
-          ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[0])}
+          ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, rbActuals, _vegasEntry, vegasMedianPpr, floorPpr),  descs[0])}
           ${card('base', vDispMedPpr,   vDispMPpg, vegasProjStats(vegasMedianPpr, pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[1])}
-          ${card('bull', vDispCeilPpr,  vDispCPpg, vegasProjStats(vegasCeilPpr,   pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[2])}
+          ${card('bull', vDispCeilPpr,  vDispCPpg, vegasProjStats(vegasCeilPpr,   pos, rbActuals, _vegasEntry, vegasMedianPpr, ceilPpr),   descs[2])}
         </div>
       </div>` : ''}
       <div class="pp-factors">
@@ -11033,9 +11068,9 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       if (hasVegas) {
         vegasEl.innerHTML = tepBar + vegasLinesHtml + `
           <div class="pp-outcomes">
-            ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[0])}
+            ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, rbActuals, _vegasEntry, vegasMedianPpr, floorPpr),  descs[0])}
             ${card('base', vDispMedPpr,   vDispMPpg, vegasProjStats(vegasMedianPpr, pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[1])}
-            ${card('bull', vDispCeilPpr,  vDispCPpg, vegasProjStats(vegasCeilPpr,   pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[2])}
+            ${card('bull', vDispCeilPpr,  vDispCPpg, vegasProjStats(vegasCeilPpr,   pos, rbActuals, _vegasEntry, vegasMedianPpr, ceilPpr),   descs[2])}
           </div>
           <div class="pp-model-note">// Vegas blend: 70% market lines · 30% model — ${projSeasonYear()} season</div>`;
       } else {
