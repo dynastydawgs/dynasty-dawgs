@@ -9094,6 +9094,60 @@ function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelPpr) {
   return projStats(mP, pos, actuals);
 }
 
+// Compute PPR total from the same stat choices vegasProjStats makes for the BASE scenario.
+// Used to derive accurate display PPR totals that match the displayed stat line.
+function vegasStatPpr(vegasEntry, modelPpr, pos, actuals) {
+  if (!vegasEntry) return modelPpr;
+  const V  = vegasEntry;
+  const mP = modelPpr;
+
+  if (pos === 'RB') {
+    const rushYds = V.rush_yds != null ? Math.max(0, V.rush_yds) : mP * 3.85;
+    const rushTds = V.rush_tds != null ? Math.max(0, V.rush_tds) : mP * 0.034;
+
+    let projRec;
+    if (V.rec != null) {
+      projRec = Math.max(0, V.rec);
+    } else if (actuals && actuals.rec > 0 && actuals.ppr > 0) {
+      const recPerGame = actuals.rec / Math.max(1, actuals.games);
+      const anchored   = recPerGame * 17 * (mP / actuals.ppr);
+      const defaultRec = mP * 0.185;
+      projRec = anchored * 0.85 + defaultRec * 0.15;
+    } else {
+      projRec = mP * 0.185;
+    }
+
+    const recYds = V.rec_yds != null ? Math.max(0, V.rec_yds) : projRec * 8.0;
+    const recTds = V.rec_tds != null ? Math.max(0, V.rec_tds) : mP * 0.013;
+
+    return rushYds * 0.1 + rushTds * 6 + projRec * 1 + recYds * 0.1 + recTds * 6;
+  }
+
+  if (pos === 'WR') {
+    const rec    = V.rec     != null ? Math.max(0, V.rec)     : mP * 0.333;
+    const recYds = V.rec_yds != null ? Math.max(0, V.rec_yds) : mP * 4.67;
+    const recTds = V.rec_tds != null ? Math.max(0, V.rec_tds) : mP * 0.033;
+    return rec * 1 + recYds * 0.1 + recTds * 6;
+  }
+
+  if (pos === 'TE') {
+    const rec    = V.rec     != null ? Math.max(0, V.rec)     : mP * 0.365;
+    const recYds = V.rec_yds != null ? Math.max(0, V.rec_yds) : mP * 4.1;
+    const recTds = V.rec_tds != null ? Math.max(0, V.rec_tds) : mP * 0.037;
+    return rec * 1 + recYds * 0.1 + recTds * 6;
+  }
+
+  if (pos === 'QB') {
+    const passYds = V.pass_yds != null ? Math.max(0, V.pass_yds) : mP * 11.75;
+    const passTds = V.pass_tds != null ? Math.max(0, V.pass_tds) : mP * 0.090;
+    const rushYds = V.rush_yds != null ? Math.max(0, V.rush_yds) : mP * 1.0;
+    const rushTds = V.rush_tds != null ? Math.max(0, V.rush_tds) : mP * 0.012;
+    return passYds * 0.04 + passTds * 4 + rushYds * 0.1 + rushTds * 6;
+  }
+
+  return modelPpr;
+}
+
 // § 14i  Build database
 // Fallback path when data/ JSON files aren't available. Fetches all seasons from Sleeper,
 // builds compDB + careerDB from scratch, then caches to localStorage.
@@ -10928,10 +10982,16 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     const vegasFloorPpr   = hasVegas ? Math.max(10, Math.round(floorPpr * _vegasScale)) : floorPpr;
     const vegasCeilPpr    = hasVegas ? Math.round(ceilPpr * _vegasScale) : ceilPpr;
 
-    // TEP-adjusted display values for Vegas tab
-    const vDispMedPpr   = _tepAdj > 0 ? vegasMedianPpr + Math.round(vegasMedianPpr * _tepAdj) : vegasMedianPpr;
-    const vDispFloorPpr = _tepAdj > 0 ? vegasFloorPpr  + Math.round(vegasFloorPpr  * _tepAdj) : vegasFloorPpr;
-    const vDispCeilPpr  = _tepAdj > 0 ? vegasCeilPpr   + Math.round(vegasCeilPpr   * _tepAdj) : vegasCeilPpr;
+    // Derive Vegas display PPR from the actual stat line (so card total matches displayed stats).
+    // Step 1: compute base PPR from the raw Vegas lines (same logic as vegasProjStats BASE case).
+    // Step 2: scale bear/bull proportionally to the Vegas floor/ceil ratios.
+    // Step 3: apply TEP bonus on top.
+    const _vStatBase    = hasVegas ? vegasStatPpr(_vegasEntry, medianPpr, pos, rbActuals) : medianPpr;
+    const _vStatFloor   = hasVegas && vegasMedianPpr > 0 ? _vStatBase * (vegasFloorPpr  / vegasMedianPpr) : _vStatBase;
+    const _vStatCeil    = hasVegas && vegasMedianPpr > 0 ? _vStatBase * (vegasCeilPpr   / vegasMedianPpr) : _vStatBase;
+    const vDispMedPpr   = Math.round(_tepAdj > 0 ? _vStatBase  * (1 + _tepAdj) : _vStatBase);
+    const vDispFloorPpr = Math.round(_tepAdj > 0 ? _vStatFloor * (1 + _tepAdj) : _vStatFloor);
+    const vDispCeilPpr  = Math.round(_tepAdj > 0 ? _vStatCeil  * (1 + _tepAdj) : _vStatCeil);
     const vDispMPpg     = (vDispMedPpr   / g).toFixed(1);
     const vDispFPpg     = (vDispFloorPpr / g).toFixed(1);
     const vDispCPpg     = (vDispCeilPpr  / g).toFixed(1);
