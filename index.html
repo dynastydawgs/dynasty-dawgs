@@ -9048,7 +9048,10 @@ function projStats(ppr, pos, actuals = null) {
     if (actuals?.rushYdsPg > 0) {
       const baseRushYds = actuals.rushYdsPg * 17;
       const pprRatio    = actuals.ownPpr > 0 ? ppr / actuals.ownPpr : 1;
-      rushYds = Math.max(50, Math.round(baseRushYds * Math.pow(pprRatio, 0.5)));
+      // Cap rush yards at 40% of PPR-implied ceiling (prevents partial-season inflation).
+      // √pprRatio = partial regression so bear/bull don't swing rush totals dramatically.
+      const rawRushYds = baseRushYds * Math.pow(pprRatio, 0.5);
+      rushYds = Math.max(50, Math.min(Math.round(rawRushYds), Math.round(ppr * 4.0)));
     } else {
       rushYds = Math.round(ppr * 1.5);  // improved default (~400 rush yds for a 270 PPR starter)
     }
@@ -9066,10 +9069,10 @@ function projStats(ppr, pos, actuals = null) {
       rushTds = Math.max(1, Math.round(rushYds / 90));
     }
 
-    // ── Pass stats: back-calculate from remaining PPR so total stays consistent ──
+    // ── Pass stats: back-calculate from remaining PPR so total always sums correctly ──
     // passYds × (0.04 + 0.090/11.75 × 4) = passYds × 0.07064 = passPts
     const rushPts = rushYds * 0.1 + rushTds * 6;
-    const passPts = Math.max(ppr * 0.55, ppr - rushPts); // floor: passing always ≥ 55% of total
+    const passPts = Math.max(0, ppr - rushPts); // no artificial floor — trust the cap above
     const passYds = Math.round(passPts / 0.07064);
     const passTds = Math.round(passYds * 0.090 / 11.75);
 
@@ -9209,8 +9212,10 @@ function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelPpr) {
   if (pos === 'QB') {
     // Rush yards/TDs: Vegas line when available; else fall back to same historical-anchoring
     // logic as projStats (actuals.rushYdsPg from careerDB, or touches×6.5 proxy).
+    const _ownPpr = actuals?.ownPpr || mP;
+    const _pprRatio = Math.pow(mP / _ownPpr, 0.5);
     const _baseRushYds = actuals?.rushYdsPg > 0
-      ? Math.max(50, Math.round(actuals.rushYdsPg * 17 * Math.pow(mP / Math.max(1, actuals.ownPpr ?? mP), 0.5)))
+      ? Math.max(50, Math.min(Math.round(actuals.rushYdsPg * 17 * _pprRatio), Math.round(mP * 4.0)))
       : Math.round(mP * 1.5);
     const rushYds = V.rush_yds != null ? Math.max(0, Math.round(V.rush_yds * scale)) : Math.round(_baseRushYds * scale);
 
@@ -9218,14 +9223,14 @@ function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelPpr) {
     if (V.rush_tds != null) {
       rushTds = Math.max(0, Math.round(V.rush_tds * scale));
     } else if (actuals?.rushTdsPg != null) {
-      rushTds = Math.max(1, Math.round(actuals.rushTdsPg * 17 * Math.pow(mP / Math.max(1, actuals.ownPpr ?? mP), 0.5) * scale));
+      rushTds = Math.max(1, Math.round(actuals.rushTdsPg * 17 * _pprRatio * scale));
     } else {
       rushTds = Math.max(1, Math.round(rushYds / 90));
     }
 
-    // Pass stats: back-calculate from remaining PPR so components stay sum-consistent
+    // Pass stats: back-calculate from remaining PPR so components sum correctly
     const rushPts = rushYds * 0.1 + rushTds * 6;
-    const passPts = Math.max(mP * 0.55, mP - rushPts);
+    const passPts = Math.max(0, mP - rushPts);
     const passYds = V.pass_yds != null ? Math.max(0, Math.round(V.pass_yds * scale)) : Math.round(passPts / 0.07064);
     const passTds = V.pass_tds != null ? Math.max(0, Math.round(V.pass_tds * scale)) : Math.round(passYds * 0.090 / 11.75);
 
@@ -9289,16 +9294,18 @@ function vegasStatPpr(vegasEntry, modelPpr, pos, actuals) {
   }
 
   if (pos === 'QB') {
+    const _ownPpr2  = actuals?.ownPpr || mP;
+    const _pprRatio2 = Math.pow(mP / _ownPpr2, 0.5);
     const _baseRushYds = actuals?.rushYdsPg > 0
-      ? Math.max(50, actuals.rushYdsPg * 17 * Math.pow(mP / Math.max(1, actuals.ownPpr ?? mP), 0.5))
+      ? Math.max(50, Math.min(actuals.rushYdsPg * 17 * _pprRatio2, mP * 4.0))
       : mP * 1.5;
     const rushYds = V.rush_yds != null ? Math.max(0, V.rush_yds) : _baseRushYds;
     const rushTds = V.rush_tds != null ? Math.max(0, V.rush_tds)
       : actuals?.rushTdsPg != null
-        ? Math.max(1, actuals.rushTdsPg * 17 * Math.pow(mP / Math.max(1, actuals.ownPpr ?? mP), 0.5))
+        ? Math.max(1, actuals.rushTdsPg * 17 * _pprRatio2)
         : Math.max(1, rushYds / 90);
     const rushPts = rushYds * 0.1 + rushTds * 6;
-    const passPts = Math.max(mP * 0.55, mP - rushPts);
+    const passPts = Math.max(0, mP - rushPts);
     const passYds = V.pass_yds != null ? Math.max(0, V.pass_yds) : passPts / 0.07064;
     const passTds = V.pass_tds != null ? Math.max(0, V.pass_tds) : passYds * 0.090 / 11.75;
     return passYds * 0.04 + passTds * 4 + rushYds * 0.1 + rushTds * 6;
@@ -11038,7 +11045,10 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       const rushTdsPg = (lastTd != null && prevTd != null)
         ? lastTd * 0.70 + prevTd * 0.30
         : (lastTd ?? null);
-      return { rushYdsPg, rushTdsPg, ownPpr: last.ppr };
+      // Normalize to 17-game pace so partial seasons (injury, in-season) don't inflate pprRatio.
+      // A QB with 7 games / 117 PPR → ownPpr = 284, not 117.
+      const ownPpr = Math.round(last.ppr / Math.max(1, last.games) * 17);
+      return { rushYdsPg, rushTdsPg, ownPpr };
     })();
 
     // Unified actuals passed to projStats / vegasProjStats for all positions.
