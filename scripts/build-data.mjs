@@ -74,6 +74,33 @@ function parseCSVLine(line) {
   fields.push(field);
   return fields;
 }
+// Retry wrapper for flaky GitHub CDN (handles 429/5xx — tries up to 3 times with back-off)
+async function fetchWithRetry(url, attempts = 3, baseDelayMs = 2500) {
+  for (let i = 0; i < attempts; i++) {
+    const res = await fetch(url).catch(e => { throw e; });
+    if (res.ok) return res;
+    if (i < attempts - 1 && [429, 500, 502, 503, 504].includes(res.status)) {
+      const wait = baseDelayMs * (i + 1);
+      console.warn(`\n  ⚠️  HTTP ${res.status} for ${url.split('/').pop()} — retrying in ${wait / 1000}s (attempt ${i + 2}/${attempts})`);
+      await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+    return res; // final attempt or non-retryable status
+  }
+}
+
+async function fetchGzipCSVRetry(url, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try { return await fetchGzipCSV(url); } catch(e) {
+      if (i < attempts - 1 && /50[234]|429/.test(e.message)) {
+        const wait = 2500 * (i + 1);
+        console.warn(`\n  ⚠️  ${e.message.slice(0, 60)} — retrying in ${wait / 1000}s`);
+        await new Promise(r => setTimeout(r, wait));
+      } else throw e;
+    }
+  }
+}
+
 async function fetchGzipCSV(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
@@ -724,10 +751,10 @@ async function main() {
     const wrRoutesByGsis       = {};        // gsis_id → { routesRun, tgts, recYds, routeCounts, gameIds }
     const thirdDownMap         = new Map(); // game_id → Set<play_id (int)> for REG 3rd-down plays
     try {
-      const pbpRes = await fetch(
+      const pbpRes = await fetchWithRetry(
         `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${recentYr}.csv`
       );
-      if (!pbpRes.ok) {
+      if (!pbpRes?.ok) {
         console.warn(`  ⚠️  PBP fetch returned HTTP ${pbpRes.status} for play_by_play_${recentYr}.csv`);
       } else {
         const lines = (await pbpRes.text()).split('\n').filter(l => l.trim());
@@ -1153,7 +1180,7 @@ async function main() {
     // Mirrors Step 5d (RB RYOE): combined multi-year ngs_receiving.csv.gz, filter by season + week 0.
     let ngsCount = 0;
     try {
-      const ngsRows = await fetchGzipCSV(
+      const ngsRows = await fetchGzipCSVRetry(
         'https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv.gz'
       );
       const ngsYear = String(recentYr);
@@ -1438,16 +1465,17 @@ async function main() {
     // all seasons from 1999 to present. We filter to season < 2015 at parse time
     // so 2015+ rows (covered by Sleeper careerDB) are skipped immediately.
     // Fallback: if the combined file fails, try per-year .csv.gz for 2009-2014.
-    const nflverseSeasonStats = {};  // gsis_id → { [year]: { ppr, games } }
+    const nflverseSeasonStats  = {};  // gsis_id → { [year]: { ppr, games } }
+    const nflverseWeeklyStats  = {};  // gsis_id → { season → [[week, pts], ...] }
     let _histWeeks = 0;
     let _usedCombined = false;
 
     try {
       progress(99, 'Fetching combined player_stats.csv (1999-2014)…');
-      const res = await fetch(
+      const res = await fetchWithRetry(
         'https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats.csv'
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res?.ok) throw new Error(`HTTP ${res?.status ?? 'network error'}`);
       const lines = (await res.text()).split('\n').filter(l => l.trim());
       const hdrs = parseCSVLine(lines[0]);
       const gi   = h => hdrs.indexOf(h);
@@ -1456,9 +1484,6 @@ async function main() {
         'receptions','receiving_yards','receiving_tds','receiving_fumbles_lost',
         'rushing_yards','rushing_tds','rushing_fumbles_lost',
       ].map(gi);
-
-      // nflverseWeeklyStats: gsis → { season → [[week, pts], ...] }
-      const nflverseWeeklyStats = {};
 
       for (const line of lines.slice(1)) {
         const v = parseCSVLine(line);
@@ -1510,8 +1535,6 @@ async function main() {
 
     // Fallback: per-year .csv.gz (2009-2014 only, pre-2009 silently 404)
     if (!_usedCombined) {
-      // Declare weekly stats here for fallback path consistency
-      if (typeof nflverseWeeklyStats === 'undefined') var nflverseWeeklyStats = {};
       for (let yr = 2009; yr <= 2014; yr++) {
         try {
           const rows = await fetchGzipCSV(
