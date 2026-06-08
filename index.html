@@ -1016,6 +1016,9 @@
   .pp-tab.active.t-adv     { color: var(--orange); background: rgba(245,158,66,0.10); border-color: rgba(245,158,66,0.3);  box-shadow: 0 0 16px rgba(245,158,66,0.22); }
   .pp-tab.active.t-trends  { color: var(--blue);    background: rgba(56,196,232,0.10);  border-color: rgba(56,196,232,0.3);  box-shadow: 0 0 16px rgba(56,196,232,0.22);  }
   .pp-tab.active.t-outlook { color: #a78bfa;        background: rgba(168,139,250,0.10); border-color: rgba(168,139,250,0.3); box-shadow: 0 0 16px rgba(168,139,250,0.22); }
+  .pp-tab.t-vegas           { color: rgba(233,168,38,0.6); }
+  .pp-tab:hover.t-vegas     { color: var(--accent); background: rgba(233,168,38,0.08);  box-shadow: 0 0 14px rgba(233,168,38,0.18); }
+  .pp-tab.active.t-vegas    { color: var(--accent); background: rgba(233,168,38,0.10); border-color: rgba(233,168,38,0.3);  box-shadow: 0 0 16px rgba(233,168,38,0.22); }
   .pp-tab-panel { padding: 16px 20px 0; }
   .pp-tab-divider {
     height: 1px; background: var(--border); margin: 0 20px 0;
@@ -8311,6 +8314,7 @@ async function loadPlayerProfile(pid) {
           </div>
           <div class="pp-tabs">
             <button class="pp-tab t-proj active" onclick="switchPpTab('proj',this)">Projections</button>
+            <button class="pp-tab t-vegas"   onclick="switchPpTab('vegas',this)">Vegas</button>
             <button class="pp-tab t-comps"   onclick="switchPpTab('comps',this)">Comps</button>
             <button class="pp-tab t-adv"     onclick="switchPpTab('adv',this)">Advanced</button>
             <button class="pp-tab t-outlook" onclick="switchPpTab('outlook',this)">Outlook</button>
@@ -8323,6 +8327,13 @@ async function loadPlayerProfile(pid) {
         <div class="pp-tab-panel" id="pp-tab-proj">
           <div id="pp-proj-content">
             <div class="pp-generating"><span class="spinner"></span>Running projection model…</div>
+          </div>
+        </div>
+
+        <!-- TAB: Vegas Projections -->
+        <div class="pp-tab-panel" id="pp-tab-vegas" style="display:none;">
+          <div id="pp-vegas-content">
+            <div class="pp-generating"><span class="spinner"></span>Loading Vegas projections…</div>
           </div>
         </div>
 
@@ -9393,6 +9404,9 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
   const projEl = headless
     ? { innerHTML: '' }
     : document.getElementById('pp-proj-content');
+  const vegasEl = headless
+    ? { innerHTML: '' }
+    : document.getElementById('pp-vegas-content');
   if (!headless && !projEl) return;
 
   // Show DB build progress inline if needed
@@ -10828,7 +10842,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
 
     // ── Vegas projection variants ─────────────────────────────────────────
     const _vegasEntry   = getVegasEntry(pid);
-    const _vegasPpgRaw  = _vegasEntry?.ppg ?? null;
+    const _vegasPpgRaw  = getVegasPpg(pid);
     const hasVegas      = !!(_vegasPpgRaw && _vegasPpgRaw > 0);
 
     // Compute Vegas-blended floor/median/ceil (70% Vegas line, 30% model)
@@ -10973,6 +10987,21 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
         })()}
       </div>
       <div class="pp-model-note">// ${modelNote}</div>`;
+
+    // ── Populate Vegas top-level tab panel ────────────────────────────────
+    if (!headless && vegasEl) {
+      if (hasVegas) {
+        vegasEl.innerHTML = tepBar + vegasLinesHtml + `
+          <div class="pp-outcomes">
+            ${card('bear', vDispFloorPpr, vDispFPpg, projStats(vegasFloorPpr,  pos, rbActuals), descs[0])}
+            ${card('base', vDispMedPpr,   vDispMPpg, projStats(vegasMedianPpr, pos, rbActuals), descs[1])}
+            ${card('bull', vDispCeilPpr,  vDispCPpg, projStats(vegasCeilPpr,   pos, rbActuals), descs[2])}
+          </div>
+          <div class="pp-model-note">// Vegas blend: 70% market lines · 30% model — ${projSeasonYear()} season</div>`;
+      } else {
+        vegasEl.innerHTML = `<div class="pp-generating" style="color:var(--text-muted);padding:20px 0;">No Vegas lines on file for this player yet. Run the scraper to pull fresh lines.</div>`;
+      }
+    }
 
   } catch(e) {
     projEl.innerHTML = `<div class="pp-generating" style="color:var(--red)">Projection error: ${e.message}</div>`;
@@ -13088,6 +13117,7 @@ function switchPpTab(tab, btn) {
   if (labelText) {
     const labels = {
       proj:    `${projSeasonYear()} Season Outlook — PPR`,
+      vegas:   `${projSeasonYear()} Vegas Projections — PPR`,
       comps:   `${projSeasonYear()} Similarity Scores`,
       adv:      'Advanced Stats — 2025',
       outlook:  `${projSeasonYear()} Outlook — Current Team`,
