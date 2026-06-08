@@ -909,6 +909,40 @@
   }
   .pp-vgb-info em { color:rgba(255,255,255,0.35); font-style:normal; font-size:10px; }
 
+  /* BACKFIELD SHARE SLIDER (Projections tab, RBs only) */
+  .pp-bos-share-bar {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 16px 7px; background:rgba(59,130,246,0.04);
+    border-top:1px solid rgba(59,130,246,0.12);
+  }
+  .pp-bsb-label {
+    font-family:var(--mono); font-size:10px; color:rgba(255,255,255,0.45);
+    white-space:nowrap; min-width:80px;
+  }
+  .pp-bsb-slider {
+    flex:1; max-width:160px; height:4px; cursor:pointer;
+    -webkit-appearance:none; appearance:none;
+    background:rgba(59,130,246,0.3); border-radius:2px; outline:none;
+  }
+  .pp-bsb-slider::-webkit-slider-thumb {
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background:#3b82f6; cursor:pointer; box-shadow:0 0 6px rgba(59,130,246,0.5);
+  }
+  .pp-bsb-slider::-moz-range-thumb {
+    width:14px; height:14px; border-radius:50%; border:none;
+    background:#3b82f6; cursor:pointer; box-shadow:0 0 6px rgba(59,130,246,0.5);
+  }
+  .pp-bsb-info {
+    font-family:var(--mono); font-size:11px; color:rgba(255,255,255,0.7);
+    white-space:nowrap;
+  }
+  .pp-bsb-info em { color:rgba(255,255,255,0.35); font-style:normal; font-size:10px; }
+  .pp-bsb-reset {
+    background:none; border:1px solid rgba(59,130,246,0.3); border-radius:3px;
+    color:var(--blue); font-size:12px; padding:1px 6px; cursor:pointer; line-height:1.4;
+  }
+  .pp-bsb-reset:hover { background:rgba(59,130,246,0.12); }
+
   /* TEP TOGGLE BAR — shown on TE profiles */
   .pp-tep-bar {
     display: flex; align-items: center; gap: 6px;
@@ -9066,6 +9100,16 @@ window._setVegasGames = function(games) {
   if (window._lastRunProjectionArgs) runProjection(...window._lastRunProjectionArgs);
 };
 
+// Backfield share override — user drags slider to adjust projected carry/target share.
+// null = no override (use model as-is). Stored value is a %, e.g. 52 = "52% share".
+window._bosShareOverride = window._bosShareOverride ?? null;
+window._setBosShare = function(share) {
+  window._bosShareOverride = share;
+  const el = document.getElementById('pp-bsb-val');
+  if (el) el.textContent = share;
+  if (window._lastRunProjectionArgs) runProjection(...window._lastRunProjectionArgs);
+};
+
 // Vegas-aware stat line for projection cards.
 // Rule: if Vegas has a line for a stat → use it (scaled for bear/bull + games adj).
 //       if Vegas doesn't have it → use the model's output for that scenario.
@@ -9586,7 +9630,11 @@ function resetProjPpgPromise() {
 async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLabel, draftContext, statSummary, physicalSummary, fcVal, college, nflTeam, livePprPts, liveGamesPlayed, statSeason, liveTouches = 0, liveRec = 0, headless = false) {
   if (!headless) {
     resetProjPpgPromise();
-    // Save args so the Vegas games slider can re-trigger the projection.
+    // Reset per-player overrides when switching to a new player.
+    if (window._lastRunProjectionArgs?.[0] !== pid) {
+      window._bosShareOverride = null;
+    }
+    // Save args so the Vegas/BOS sliders can re-trigger the projection.
     window._lastRunProjectionArgs = [pid, name, pos, age, yearsExp, careerStage, draftLabel, draftContext, statSummary, physicalSummary, fcVal, college, nflTeam, livePprPts, liveGamesPlayed, statSeason, liveTouches, liveRec, false];
   }
   // headless=true: use a mock DOM node so all projEl.innerHTML assignments are silent no-ops.
@@ -10604,6 +10652,26 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       }
     }
 
+    // ── Backfield Opportunity Score (computed here so override can affect floor/median/ceil) ──
+    // bos is also referenced below for the display boxes and efficiency card.
+    const bos = (pos === 'RB' && Object.keys(advstatsDB).length && Object.keys(depthDB).length)
+      ? _rbBackfieldOpportunity(pid) : null;
+
+    // ── Backfield share override (user-controlled slider) ─────────────────────
+    // Scale floor/median/ceil proportionally when the user has overridden the
+    // projected share. Bear gets half the signal, bull gets 3/4 — same damping
+    // as computeBaseProjection's bosMult block.
+    if (pos === 'RB' && window._bosShareOverride != null && bos?.myProjShare > 0) {
+      const _bosMult  = window._bosShareOverride / bos.myProjShare;
+      const _bearMult = 1 + (_bosMult - 1) * 0.5;
+      const _bullMult = 1 + (_bosMult - 1) * 0.75;
+      floorPpr  = Math.max(10, Math.round(floorPpr  * _bearMult));
+      medianPpr = Math.round(medianPpr * _bosMult);
+      ceilPpr   = Math.round(ceilPpr   * _bullMult);
+      floorPpr  = Math.min(floorPpr,  medianPpr - 10);
+      ceilPpr   = Math.max(ceilPpr,   medianPpr + 10);
+    }
+
     // ── PPG ──
     // Use typGames (17) for display so projected PPG is directly comparable to actual PPG
     // (both normalized to a full 17-game season basis).
@@ -10717,9 +10785,8 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     </div>`;
 
     // Backfield Opportunity Score box (RB only)
-    // bos is hoisted to outer scope so the efficiency card IIFE can also reference it.
-    const bos = (pos === 'RB' && Object.keys(advstatsDB).length && Object.keys(depthDB).length)
-      ? _rbBackfieldOpportunity(pid) : null;
+    // bos was computed earlier (before PPG) so the share override could apply.
+    // Still available here for the display box and efficiency card.
     const bosBox = (() => {
       if (pos !== 'RB') return '';
       if (!Object.keys(advstatsDB).length || !Object.keys(depthDB).length) return `
@@ -11187,6 +11254,21 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           </div>`;
         })()}
       </div>
+      ${pos === 'RB' && bos?.myProjShare > 0 ? (() => {
+        const _curShare = Math.round(window._bosShareOverride ?? bos.myProjShare);
+        const _modelShare = bos.myProjShare.toFixed(0);
+        const _isOverridden = window._bosShareOverride != null;
+        const _resetBtn = _isOverridden
+          ? `<button class="pp-bsb-reset" onclick="window._bosShareOverride=null;window._setBosShare(${Math.round(bos.myProjShare)})" title="Reset to model default">↺</button>`
+          : '';
+        return `<div class="pp-bos-share-bar">
+          <span class="pp-bsb-label">Backfield share</span>
+          <input type="range" class="pp-bsb-slider" min="10" max="85" step="1" value="${_curShare}"
+            oninput="document.getElementById('pp-bsb-val').textContent=this.value;window._setBosShare(+this.value)">
+          <span class="pp-bsb-info"><span id="pp-bsb-val" style="${_isOverridden?'color:var(--blue);font-weight:600;':''}">${_curShare}%</span> share <em>· model: ${_modelShare}%</em></span>
+          ${_resetBtn}
+        </div>`;
+      })() : ''}
       <div class="pp-model-note">// ${modelNote}</div>`;
 
     // ── Populate Vegas top-level tab panel ────────────────────────────────
