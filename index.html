@@ -9041,11 +9041,38 @@ function agingMultiplier(pos, age) {
 function projStats(ppr, pos, actuals = null) {
   // Pipe-delimited — card splits on | so thousands-comma in numbers is safe
   if (pos === 'QB') {
-    // verify: passYds*.04 + passTds*4 + rushYds*.1 + rushTds*6 ≈ ppr
-    const passYds = Math.round(ppr * 11.75);
-    const passTds = Math.round(ppr * 0.090);
-    const rushYds = Math.round(ppr * 1.0);
-    const rushTds = Math.round(ppr * 0.012);
+    // ── Rush yards: anchor to career rate when available ─────────────────────
+    // actuals.rushYdsPg = historical rush yards per game (from careerDB rush_yd or touches×6.5 proxy).
+    // Scale by PPR ratio with ^0.5 partial regression so bear/bull don't swing rush totals wildly.
+    let rushYds;
+    if (actuals?.rushYdsPg > 0) {
+      const baseRushYds = actuals.rushYdsPg * 17;
+      const pprRatio    = actuals.ownPpr > 0 ? ppr / actuals.ownPpr : 1;
+      rushYds = Math.max(50, Math.round(baseRushYds * Math.pow(pprRatio, 0.5)));
+    } else {
+      rushYds = Math.round(ppr * 1.5);  // improved default (~400 rush yds for a 270 PPR starter)
+    }
+
+    // ── Rush TDs: anchor to career rate when available; else derive from rush yards ──
+    // rushTdsPg is only populated after the build script stores rush_td in careerDB.
+    // Interim fallback: ~1 TD per 90 rush yards (reasonable for most QBs; overestimates
+    // open-field runners like Lamar, underestimates GL vultures like Allen/Hurts — fixed
+    // once historical TD data flows through).
+    let rushTds;
+    if (actuals?.rushTdsPg != null) {
+      const pprRatio = actuals.ownPpr > 0 ? ppr / actuals.ownPpr : 1;
+      rushTds = Math.max(1, Math.round(actuals.rushTdsPg * 17 * Math.pow(pprRatio, 0.5)));
+    } else {
+      rushTds = Math.max(1, Math.round(rushYds / 90));
+    }
+
+    // ── Pass stats: back-calculate from remaining PPR so total stays consistent ──
+    // passYds × (0.04 + 0.090/11.75 × 4) = passYds × 0.07064 = passPts
+    const rushPts = rushYds * 0.1 + rushTds * 6;
+    const passPts = Math.max(ppr * 0.55, ppr - rushPts); // floor: passing always ≥ 55% of total
+    const passYds = Math.round(passPts / 0.07064);
+    const passTds = Math.round(passYds * 0.090 / 11.75);
+
     return `${passYds.toLocaleString()} pass yds | ${passTds} pass TDs | ${rushYds} rush yds | ${rushTds} rush TDs`;
   }
   if (pos === 'RB') {
@@ -9180,10 +9207,28 @@ function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelPpr) {
   }
 
   if (pos === 'QB') {
-    const passYds = V.pass_yds != null ? Math.max(0, Math.round(V.pass_yds * scale)) : Math.round(mP * 11.75);
-    const passTds = V.pass_tds != null ? Math.max(0, Math.round(V.pass_tds * scale)) : Math.round(mP * 0.090);
-    const rushYds = V.rush_yds != null ? Math.max(0, Math.round(V.rush_yds * scale)) : Math.round(mP * 1.0);
-    const rushTds = V.rush_tds != null ? Math.max(0, Math.round(V.rush_tds * scale)) : Math.round(mP * 0.012);
+    // Rush yards/TDs: Vegas line when available; else fall back to same historical-anchoring
+    // logic as projStats (actuals.rushYdsPg from careerDB, or touches×6.5 proxy).
+    const _baseRushYds = actuals?.rushYdsPg > 0
+      ? Math.max(50, Math.round(actuals.rushYdsPg * 17 * Math.pow(mP / Math.max(1, actuals.ownPpr ?? mP), 0.5)))
+      : Math.round(mP * 1.5);
+    const rushYds = V.rush_yds != null ? Math.max(0, Math.round(V.rush_yds * scale)) : Math.round(_baseRushYds * scale);
+
+    let rushTds;
+    if (V.rush_tds != null) {
+      rushTds = Math.max(0, Math.round(V.rush_tds * scale));
+    } else if (actuals?.rushTdsPg != null) {
+      rushTds = Math.max(1, Math.round(actuals.rushTdsPg * 17 * Math.pow(mP / Math.max(1, actuals.ownPpr ?? mP), 0.5) * scale));
+    } else {
+      rushTds = Math.max(1, Math.round(rushYds / 90));
+    }
+
+    // Pass stats: back-calculate from remaining PPR so components stay sum-consistent
+    const rushPts = rushYds * 0.1 + rushTds * 6;
+    const passPts = Math.max(mP * 0.55, mP - rushPts);
+    const passYds = V.pass_yds != null ? Math.max(0, Math.round(V.pass_yds * scale)) : Math.round(passPts / 0.07064);
+    const passTds = V.pass_tds != null ? Math.max(0, Math.round(V.pass_tds * scale)) : Math.round(passYds * 0.090 / 11.75);
+
     return `${passYds.toLocaleString()} pass yds | ${passTds} pass TDs | ${rushYds} rush yds | ${rushTds} rush TDs`;
   }
 
@@ -9244,10 +9289,18 @@ function vegasStatPpr(vegasEntry, modelPpr, pos, actuals) {
   }
 
   if (pos === 'QB') {
-    const passYds = V.pass_yds != null ? Math.max(0, V.pass_yds) : mP * 11.75;
-    const passTds = V.pass_tds != null ? Math.max(0, V.pass_tds) : mP * 0.090;
-    const rushYds = V.rush_yds != null ? Math.max(0, V.rush_yds) : mP * 1.0;
-    const rushTds = V.rush_tds != null ? Math.max(0, V.rush_tds) : mP * 0.012;
+    const _baseRushYds = actuals?.rushYdsPg > 0
+      ? Math.max(50, actuals.rushYdsPg * 17 * Math.pow(mP / Math.max(1, actuals.ownPpr ?? mP), 0.5))
+      : mP * 1.5;
+    const rushYds = V.rush_yds != null ? Math.max(0, V.rush_yds) : _baseRushYds;
+    const rushTds = V.rush_tds != null ? Math.max(0, V.rush_tds)
+      : actuals?.rushTdsPg != null
+        ? Math.max(1, actuals.rushTdsPg * 17 * Math.pow(mP / Math.max(1, actuals.ownPpr ?? mP), 0.5))
+        : Math.max(1, rushYds / 90);
+    const rushPts = rushYds * 0.1 + rushTds * 6;
+    const passPts = Math.max(mP * 0.55, mP - rushPts);
+    const passYds = V.pass_yds != null ? Math.max(0, V.pass_yds) : passPts / 0.07064;
+    const passTds = V.pass_tds != null ? Math.max(0, V.pass_tds) : passYds * 0.090 / 11.75;
     return passYds * 0.04 + passTds * 4 + rushYds * 0.1 + rushTds * 6;
   }
 
@@ -9292,7 +9345,9 @@ async function buildDatabase(onProgress) {
 
       if (!rawCareers[pid]) rawCareers[pid] = [];
       const touches = Math.round(+(stats.rush_att ?? 0) + +(stats.rec ?? 0));
-      rawCareers[pid].push({ season: yr, ppr: Math.round(ppr*10)/10, games, touches });
+      const rush_yd = Math.round(+(stats.rush_yd  ?? 0));
+      const rush_td = Math.round(+(stats.rush_td  ?? 0));
+      rawCareers[pid].push({ season: yr, ppr: Math.round(ppr*10)/10, games, touches, rush_yd, rush_td });
     }
   }
 
@@ -10961,6 +11016,34 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       ? { rec: liveRec, ppr: livePprPts, games: liveGamesPlayed }
       : null;
 
+    // QB rushing actuals — anchors rush yards (and TDs once build script populates rush_td).
+    // rushYdsPg: uses careerDB rush_yd field if available; falls back to touches×6.5 (touches
+    //   ≈ rush_att for QBs since they have ~0 receptions). 70/30 weighted toward most recent season.
+    // rushTdsPg: only present after build script update (careerDB now stores rush_td).
+    const qbActuals = (() => {
+      if (pos !== 'QB') return null;
+      const qualSzns = ownSeasons.filter(s => (s.games ?? 0) >= 4);
+      if (!qualSzns.length) return null;
+      const last = qualSzns.at(-1);
+      const prev = qualSzns.at(-2);
+      const ryPg = s => s.rush_yd != null
+        ? s.rush_yd / Math.max(1, s.games)
+        : (s.touches ?? 0) / Math.max(1, s.games) * 6.5;
+      const rushYdsPg = prev
+        ? ryPg(last) * 0.70 + ryPg(prev) * 0.30
+        : ryPg(last);
+      if (rushYdsPg < 0.5) return null;  // effectively no rushing — skip anchor
+      const tdPg = s => s.rush_td != null ? s.rush_td / Math.max(1, s.games) : null;
+      const lastTd = tdPg(last), prevTd = prev ? tdPg(prev) : null;
+      const rushTdsPg = (lastTd != null && prevTd != null)
+        ? lastTd * 0.70 + prevTd * 0.30
+        : (lastTd ?? null);
+      return { rushYdsPg, rushTdsPg, ownPpr: last.ppr };
+    })();
+
+    // Unified actuals passed to projStats / vegasProjStats for all positions.
+    const statsActuals = pos === 'QB' ? qbActuals : rbActuals;
+
     // TEP toggle bar — shown only for TEs so they can override the bonus
     const tepBar = pos === 'TE' ? `
       <div class="pp-tep-bar">
@@ -11119,7 +11202,7 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     // Step 1: compute base PPR from the raw Vegas lines (same logic as vegasProjStats BASE case).
     // Step 2: scale bear/bull proportionally to the Vegas floor/ceil ratios.
     // Step 3: apply TEP bonus on top.
-    const _vStatBase    = hasVegas ? vegasStatPpr(_vegasEntry, medianPpr, pos, rbActuals) : medianPpr;
+    const _vStatBase    = hasVegas ? vegasStatPpr(_vegasEntry, medianPpr, pos, statsActuals) : medianPpr;
     const _vStatFloor   = hasVegas && vegasMedianPpr > 0 ? _vStatBase * (vegasFloorPpr  / vegasMedianPpr) : _vStatBase;
     const _vStatCeil    = hasVegas && vegasMedianPpr > 0 ? _vStatBase * (vegasCeilPpr   / vegasMedianPpr) : _vStatBase;
     const vDispMedPpr   = Math.round(_tepAdj > 0 ? _vStatBase  * (1 + _tepAdj) : _vStatBase);
@@ -11152,18 +11235,18 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
     projEl.innerHTML = tepBar + projTabNav + `
       <div class="pp-proj-tab-panel active" id="ppppanel-model-${pid}">
         <div class="pp-outcomes">
-          ${card('bear', dispFloorPpr, dispFPpg, projStats(floorPpr,  pos, rbActuals), descs[0])}
-          ${card('base', dispMedPpr,   dispMPpg, projStats(medianPpr, pos, rbActuals), descs[1])}
-          ${card('bull', dispCeilPpr,  dispCPpg, projStats(ceilPpr,   pos, rbActuals), descs[2])}
+          ${card('bear', dispFloorPpr, dispFPpg, projStats(floorPpr,  pos, statsActuals), descs[0])}
+          ${card('base', dispMedPpr,   dispMPpg, projStats(medianPpr, pos, statsActuals), descs[1])}
+          ${card('bull', dispCeilPpr,  dispCPpg, projStats(ceilPpr,   pos, statsActuals), descs[2])}
         </div>
       </div>
       ${hasVegas ? `
       <div class="pp-proj-tab-panel" id="ppppanel-vegas-${pid}">
         ${vegasLinesHtml}
         <div class="pp-outcomes">
-          ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, rbActuals, _vegasEntry, vegasMedianPpr, floorPpr),  descs[0])}
-          ${card('base', vDispMedPpr,   vDispMPpg, vegasProjStats(vegasMedianPpr, pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[1])}
-          ${card('bull', vDispCeilPpr,  vDispCPpg, vegasProjStats(vegasCeilPpr,   pos, rbActuals, _vegasEntry, vegasMedianPpr, ceilPpr),   descs[2])}
+          ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, statsActuals, _vegasEntry, vegasMedianPpr, floorPpr),  descs[0])}
+          ${card('base', vDispMedPpr,   vDispMPpg, vegasProjStats(vegasMedianPpr, pos, statsActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[1])}
+          ${card('bull', vDispCeilPpr,  vDispCPpg, vegasProjStats(vegasCeilPpr,   pos, statsActuals, _vegasEntry, vegasMedianPpr, ceilPpr),   descs[2])}
         </div>
       </div>` : ''}
       <div class="pp-factors">
@@ -11284,9 +11367,9 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
           </div>`;
         vegasEl.innerHTML = _gamesSlider + tepBar + vegasLinesHtml + `
           <div class="pp-outcomes">
-            ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, rbActuals, _vegasEntry, vegasMedianPpr, floorPpr),  descs[0])}
-            ${card('base', vDispMedPpr,   vDispMPpg, vegasProjStats(vegasMedianPpr, pos, rbActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[1])}
-            ${card('bull', vDispCeilPpr,  vDispCPpg, vegasProjStats(vegasCeilPpr,   pos, rbActuals, _vegasEntry, vegasMedianPpr, ceilPpr),   descs[2])}
+            ${card('bear', vDispFloorPpr, vDispFPpg, vegasProjStats(vegasFloorPpr,  pos, statsActuals, _vegasEntry, vegasMedianPpr, floorPpr),  descs[0])}
+            ${card('base', vDispMedPpr,   vDispMPpg, vegasProjStats(vegasMedianPpr, pos, statsActuals, _vegasEntry, vegasMedianPpr, medianPpr), descs[1])}
+            ${card('bull', vDispCeilPpr,  vDispCPpg, vegasProjStats(vegasCeilPpr,   pos, statsActuals, _vegasEntry, vegasMedianPpr, ceilPpr),   descs[2])}
           </div>
           <div class="pp-model-note">// Vegas blend: 70% market lines · 30% model — ${projSeasonYear()} season</div>`;
       } else {

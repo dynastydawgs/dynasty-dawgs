@@ -172,8 +172,10 @@ async function main() {
       if (ppr < 15 || games < 5) continue;
       if (pos && !pidToPos[pid]) pidToPos[pid] = pos;
       if (!rawCareers[pid]) rawCareers[pid] = [];
-      const touches = Math.round(+(stats.rush_att ?? 0) + +(stats.rec ?? 0));
-      rawCareers[pid].push({ season: yr, ppr: Math.round(ppr * 10) / 10, games, touches });
+      const touches  = Math.round(+(stats.rush_att ?? 0) + +(stats.rec ?? 0));
+      const rush_yd  = Math.round(+(stats.rush_yd  ?? 0));
+      const rush_td  = Math.round(+(stats.rush_td  ?? 0));
+      rawCareers[pid].push({ season: yr, ppr: Math.round(ppr * 10) / 10, games, touches, rush_yd, rush_td });
     }
   }
 
