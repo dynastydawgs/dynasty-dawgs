@@ -9427,6 +9427,11 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       const el = document.getElementById('db-progress');
       if (el) el.innerHTML = msg + '<br><small style="color:var(--text-dim);">Saved locally — instant next time.</small>';
     });
+    // Ensure vegasprops.json (and other optional files) are loaded before using vegasProps.
+    // When the DB comes from localStorage cache, _loadOptionalDataFiles() is called without
+    // await in ensureDB — so vegasProps can still be {} here. Awaiting is safe: it's a no-op
+    // once the promise resolves, and only costs ~1 extra tick when already done.
+    await _loadOptionalDataFiles();
 
     // ── Season Surge — fetch weekly splits for all career stages ─────────────
     // Rookies/sophomores: current or most-recent season weekly data.
