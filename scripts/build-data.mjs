@@ -74,31 +74,42 @@ function parseCSVLine(line) {
   fields.push(field);
   return fields;
 }
-// Retry wrapper for flaky GitHub CDN (handles 429/5xx — tries up to 3 times with back-off)
-async function fetchWithRetry(url, attempts = 3, baseDelayMs = 2500) {
+// Retry wrapper for flaky GitHub CDN (handles 429/5xx).
+// Delays: 5s, 10s, 20s, 40s — gives CDN time to recover from a rate-limit window.
+async function fetchWithRetry(url, attempts = 5, baseDelayMs = 5000) {
   for (let i = 0; i < attempts; i++) {
     const res = await fetch(url).catch(e => { throw e; });
     if (res.ok) return res;
     if (i < attempts - 1 && [429, 500, 502, 503, 504].includes(res.status)) {
-      const wait = baseDelayMs * (i + 1);
+      const wait = baseDelayMs * Math.pow(2, i);   // 5s, 10s, 20s, 40s
       console.warn(`\n  ⚠️  HTTP ${res.status} for ${url.split('/').pop()} — retrying in ${wait / 1000}s (attempt ${i + 2}/${attempts})`);
       await new Promise(r => setTimeout(r, wait));
       continue;
     }
-    return res; // final attempt or non-retryable status
+    return res;
   }
 }
 
-async function fetchGzipCSVRetry(url, attempts = 3) {
+async function fetchGzipCSVRetry(url, attempts = 5) {
   for (let i = 0; i < attempts; i++) {
     try { return await fetchGzipCSV(url); } catch(e) {
       if (i < attempts - 1 && /50[234]|429/.test(e.message)) {
-        const wait = 2500 * (i + 1);
-        console.warn(`\n  ⚠️  ${e.message.slice(0, 60)} — retrying in ${wait / 1000}s`);
+        const wait = 5000 * Math.pow(2, i);        // 5s, 10s, 20s, 40s
+        console.warn(`\n  ⚠️  ${e.message.slice(0, 60)} — retrying in ${wait / 1000}s (attempt ${i + 2}/${attempts})`);
         await new Promise(r => setTimeout(r, wait));
       } else throw e;
     }
   }
+}
+
+// Cache for players.csv text — fetched once, reused across stat-team + advstats steps.
+let _playersCsvText = null;
+async function fetchPlayersCsv() {
+  if (_playersCsvText) return _playersCsvText;
+  const res = await fetchWithRetry('https://github.com/nflverse/nflverse-data/releases/download/players/players.csv');
+  if (!res?.ok) throw new Error(`HTTP ${res?.status ?? 'network error'} fetching players.csv`);
+  _playersCsvText = await res.text();
+  return _playersCsvText;
 }
 
 async function fetchGzipCSV(url) {
@@ -552,9 +563,9 @@ async function main() {
     // ── Bridge: players.csv  →  gsis_id → sleeper_id ────────────────────────
     const gsisBridge = {};
     try {
-      const res = await fetchWithRetry('https://github.com/nflverse/nflverse-data/releases/download/players/players.csv');
-      if (res?.ok) {
-        const lines = (await res.text()).split('\n').filter(l => l.trim());
+      const csvText = await fetchPlayersCsv();
+      {
+        const lines = csvText.split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
         for (const line of lines.slice(1)) {
           const vals = parseCSVLine(line);
@@ -659,11 +670,9 @@ async function main() {
     const pfrToGsis       = {};  // pfr_id   → gsis_id (for snap_counts bridge)
     const gsisToSleeperId = {};  // gsis_id  → sleeper_id (for Sleeper wt/ht lookup, local to advstats)
     try {
-      const res = await fetch(
-        'https://github.com/nflverse/nflverse-data/releases/download/players/players.csv'
-      );
-      if (res.ok) {
-        const lines = (await res.text()).split('\n').filter(l => l.trim());
+      const csvText = await fetchPlayersCsv();
+      {
+        const lines = csvText.split('\n').filter(l => l.trim());
         const hdrs  = parseCSVLine(lines[0]);
         const [gI, dI, pI, pfrI, sidI] = ['gsis_id', 'display_name', 'position', 'pfr_id', 'sleeper_id'].map(h => hdrs.indexOf(h));
         // Extra columns for historicaldb
