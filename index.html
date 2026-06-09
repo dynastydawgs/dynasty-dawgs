@@ -9041,38 +9041,34 @@ function agingMultiplier(pos, age) {
 function projStats(ppr, pos, actuals = null) {
   // Pipe-delimited — card splits on | so thousands-comma in numbers is safe
   if (pos === 'QB') {
-    // ── Rush yards: anchor to career rate when available ─────────────────────
-    // actuals.rushYdsPg = historical rush yards per game (from careerDB rush_yd or touches×6.5 proxy).
-    // Scale by PPR ratio with ^0.5 partial regression so bear/bull don't swing rush totals wildly.
-    let rushYds;
-    if (actuals?.rushYdsPg > 0) {
-      const baseRushYds = actuals.rushYdsPg * 17;
-      const pprRatio    = actuals.ownPpr > 0 ? ppr / actuals.ownPpr : 1;
-      // Cap rush yards at 40% of PPR-implied ceiling (prevents partial-season inflation).
-      // √pprRatio = partial regression so bear/bull don't swing rush totals dramatically.
-      const rawRushYds = baseRushYds * Math.pow(pprRatio, 0.5);
-      rushYds = Math.max(50, Math.min(Math.round(rawRushYds), Math.round(ppr * 4.0)));
-    } else {
-      rushYds = Math.round(ppr * 1.5);  // improved default (~400 rush yds for a 270 PPR starter)
-    }
+    // ── Rush yards: fraction-of-PPR approach ────────────────────────────────
+    // rushFrac = (rush_yds × 0.1) / season_ppr — stable across season lengths and PPR levels.
+    // projRushYds = ppr × rushFrac × 10
+    // This guarantees pass stats always receive proportionally correct PPR budget.
+    // Example: Daniels 2024 → rushFrac ≈ 0.237 → 297 × 0.237 × 10 ≈ 703 rush yds (not 949).
+    const rushFrac = actuals?.rushFrac ?? 0.15;   // 0.15 default ≈ ~400 rush yds for a 270 PPR starter
+    const rushYds  = Math.max(50, Math.round(ppr * rushFrac * 10));
 
-    // ── Rush TDs: anchor to career rate when available; else derive from rush yards ──
-    // rushTdsPg is only populated after the build script stores rush_td in careerDB.
-    // Interim fallback: ~1 TD per 90 rush yards (reasonable for most QBs; overestimates
-    // open-field runners like Lamar, underestimates GL vultures like Allen/Hurts — fixed
-    // once historical TD data flows through).
+    // ── Rush TDs: conservative ratio to prevent TD inflation ────────────────
+    // /120 ≈ 1 TD per 120 rush yds (Daniels 2024: 864 yds / 6 TDs = 144 yds/TD ✓).
+    // /90 was too aggressive and produced 10–11 rush TDs for mobile QBs.
+    // Once build script populates rush_td in careerDB, rushTdsPg enables exact anchoring.
     let rushTds;
-    if (actuals?.rushTdsPg != null) {
-      const pprRatio = actuals.ownPpr > 0 ? ppr / actuals.ownPpr : 1;
-      rushTds = Math.max(1, Math.round(actuals.rushTdsPg * 17 * Math.pow(pprRatio, 0.5)));
+    if (actuals?.rushTdsPg > 0) {
+      // Anchored: TD/yard ratio from historical data → scales with rush yards automatically.
+      // Fires only once build script populates rush_td in careerDB (rushTdsPg == 0 pre-build).
+      const histRushYds = actuals.rushFrac > 0 ? actuals.rushFrac * 10 * 270 : 270; // proxy for historical rush yds
+      const tdPerYd     = (actuals.rushTdsPg * 17) / Math.max(histRushYds, 50);
+      rushTds = Math.max(1, Math.round(rushYds * tdPerYd));
     } else {
-      rushTds = Math.max(1, Math.round(rushYds / 90));
+      // Fallback /120: ~1 TD per 120 rush yds (Daniels 2024: 864 yds / 6 TDs = 144 ✓).
+      rushTds = Math.max(1, Math.round(rushYds / 120));
     }
 
-    // ── Pass stats: back-calculate from remaining PPR so total always sums correctly ──
-    // passYds × (0.04 + 0.090/11.75 × 4) = passYds × 0.07064 = passPts
+    // ── Pass stats: back-calculate from remaining PPR ───────────────────────
+    // passYds × 0.07064 = passPts   (derivation: 0.04 + 0.090/11.75 × 4)
     const rushPts = rushYds * 0.1 + rushTds * 6;
-    const passPts = Math.max(0, ppr - rushPts); // no artificial floor — trust the cap above
+    const passPts = Math.max(0, ppr - rushPts);
     const passYds = Math.round(passPts / 0.07064);
     const passTds = Math.round(passYds * 0.090 / 11.75);
 
@@ -9210,25 +9206,24 @@ function vegasProjStats(ppr, pos, actuals, vegasEntry, vegasBasePpr, modelPpr) {
   }
 
   if (pos === 'QB') {
-    // Rush yards/TDs: Vegas line when available; else fall back to same historical-anchoring
-    // logic as projStats (actuals.rushYdsPg from careerDB, or touches×6.5 proxy).
-    const _ownPpr = actuals?.ownPpr || mP;
-    const _pprRatio = Math.pow(mP / _ownPpr, 0.5);
-    const _baseRushYds = actuals?.rushYdsPg > 0
-      ? Math.max(50, Math.min(Math.round(actuals.rushYdsPg * 17 * _pprRatio), Math.round(mP * 4.0)))
-      : Math.round(mP * 1.5);
+    // Rush yards: fraction-of-PPR (same as projStats) so pass always gets proportional budget.
+    // When Vegas provides rush_yds use it; otherwise derive from rushFrac × mP.
+    const rushFrac      = actuals?.rushFrac ?? 0.15;
+    const _baseRushYds  = Math.max(50, Math.round(mP * rushFrac * 10));
     const rushYds = V.rush_yds != null ? Math.max(0, Math.round(V.rush_yds * scale)) : Math.round(_baseRushYds * scale);
 
     let rushTds;
     if (V.rush_tds != null) {
       rushTds = Math.max(0, Math.round(V.rush_tds * scale));
-    } else if (actuals?.rushTdsPg != null) {
-      rushTds = Math.max(1, Math.round(actuals.rushTdsPg * 17 * _pprRatio * scale));
+    } else if (actuals?.rushTdsPg > 0) {
+      const histRushYds2 = actuals.rushFrac > 0 ? actuals.rushFrac * 10 * 270 : 270;
+      const tdPerYd2 = (actuals.rushTdsPg * 17) / Math.max(histRushYds2, 50);
+      rushTds = Math.max(1, Math.round(rushYds * tdPerYd2));
     } else {
-      rushTds = Math.max(1, Math.round(rushYds / 90));
+      rushTds = Math.max(1, Math.round(rushYds / 120));
     }
 
-    // Pass stats: back-calculate from remaining PPR so components sum correctly
+    // Pass stats: back-calculate from remaining PPR so components always sum correctly.
     const rushPts = rushYds * 0.1 + rushTds * 6;
     const passPts = Math.max(0, mP - rushPts);
     const passYds = V.pass_yds != null ? Math.max(0, Math.round(V.pass_yds * scale)) : Math.round(passPts / 0.07064);
@@ -9294,16 +9289,14 @@ function vegasStatPpr(vegasEntry, modelPpr, pos, actuals) {
   }
 
   if (pos === 'QB') {
-    const _ownPpr2  = actuals?.ownPpr || mP;
-    const _pprRatio2 = Math.pow(mP / _ownPpr2, 0.5);
-    const _baseRushYds = actuals?.rushYdsPg > 0
-      ? Math.max(50, Math.min(actuals.rushYdsPg * 17 * _pprRatio2, mP * 4.0))
-      : mP * 1.5;
-    const rushYds = V.rush_yds != null ? Math.max(0, V.rush_yds) : _baseRushYds;
+    // Mirror vegasProjStats logic (fraction-based rush yards) for consistent PPR accounting.
+    const rushFrac2     = actuals?.rushFrac ?? 0.15;
+    const _baseRushYds2 = Math.max(50, mP * rushFrac2 * 10);
+    const rushYds = V.rush_yds != null ? Math.max(0, V.rush_yds) : _baseRushYds2;
     const rushTds = V.rush_tds != null ? Math.max(0, V.rush_tds)
-      : actuals?.rushTdsPg != null
-        ? Math.max(1, actuals.rushTdsPg * 17 * _pprRatio2)
-        : Math.max(1, rushYds / 90);
+      : actuals?.rushTdsPg > 0
+        ? Math.max(1, (actuals.rushTdsPg * 17 / Math.max(actuals.rushFrac > 0 ? actuals.rushFrac * 10 * 270 : 270, 50)) * rushYds)
+        : Math.max(1, rushYds / 120);
     const rushPts = rushYds * 0.1 + rushTds * 6;
     const passPts = Math.max(0, mP - rushPts);
     const passYds = V.pass_yds != null ? Math.max(0, V.pass_yds) : passPts / 0.07064;
@@ -11023,32 +11016,31 @@ async function runProjection(pid, name, pos, age, yearsExp, careerStage, draftLa
       ? { rec: liveRec, ppr: livePprPts, games: liveGamesPlayed }
       : null;
 
-    // QB rushing actuals — anchors rush yards (and TDs once build script populates rush_td).
-    // rushYdsPg: uses careerDB rush_yd field if available; falls back to touches×6.5 (touches
-    //   ≈ rush_att for QBs since they have ~0 receptions). 70/30 weighted toward most recent season.
-    // rushTdsPg: only present after build script update (careerDB now stores rush_td).
+    // QB rushing actuals — fraction-based approach so rush/pass stay proportionally correct.
+    // Key insight: rush yards as a FRACTION of total PPR is stable across season lengths and
+    // PPR levels (a partial season and a full season give the same fraction for the same QB).
+    // rushFrac = (rush_yds × 0.1) / season_ppr  e.g. Daniels 2024: (864×0.1)/365 = 0.237
+    // Projecting: rushYds = projPPR × rushFrac / 0.1  →  pass stats from remaining PPR.
+    // rushTdsPg: anchored once build script populates rush_td in careerDB.
     const qbActuals = (() => {
       if (pos !== 'QB') return null;
       const qualSzns = ownSeasons.filter(s => (s.games ?? 0) >= 4);
       if (!qualSzns.length) return null;
       const last = qualSzns.at(-1);
       const prev = qualSzns.at(-2);
-      const ryPg = s => s.rush_yd != null
-        ? s.rush_yd / Math.max(1, s.games)
-        : (s.touches ?? 0) / Math.max(1, s.games) * 6.5;
-      const rushYdsPg = prev
-        ? ryPg(last) * 0.70 + ryPg(prev) * 0.30
-        : ryPg(last);
-      if (rushYdsPg < 0.5) return null;  // effectively no rushing — skip anchor
+      // Estimated rush yards: exact field first, then touches × 6.5 proxy
+      const estRushYds = s => s.rush_yd ?? ((s.touches ?? 0) * 6.5);
+      const frac = s => s.ppr > 0 ? (estRushYds(s) * 0.1) / s.ppr : 0;
+      const lastFrac = frac(last);
+      const prevFrac = prev ? frac(prev) : lastFrac;
+      const rushFrac = prev ? lastFrac * 0.70 + prevFrac * 0.30 : lastFrac;
+      if (rushFrac < 0.02) return null;  // pocket QB with almost no rushing — skip
       const tdPg = s => s.rush_td != null ? s.rush_td / Math.max(1, s.games) : null;
       const lastTd = tdPg(last), prevTd = prev ? tdPg(prev) : null;
       const rushTdsPg = (lastTd != null && prevTd != null)
         ? lastTd * 0.70 + prevTd * 0.30
         : (lastTd ?? null);
-      // Normalize to 17-game pace so partial seasons (injury, in-season) don't inflate pprRatio.
-      // A QB with 7 games / 117 PPR → ownPpr = 284, not 117.
-      const ownPpr = Math.round(last.ppr / Math.max(1, last.games) * 17);
-      return { rushYdsPg, rushTdsPg, ownPpr };
+      return { rushFrac, rushTdsPg };
     })();
 
     // Unified actuals passed to projStats / vegasProjStats for all positions.
