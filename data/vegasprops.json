@@ -3,1338 +3,1548 @@
     "season": 2026,
     "week": null,
     "type": "season-long",
-    "updatedAt": "2026-06-16T18:28:46.949Z",
-    "playerCount": 265,
+    "updatedAt": "2026-06-23T16:28:48.611Z",
+    "playerCount": 307,
     "books": [
       "FanDuel",
       "DraftKings"
     ]
   },
   "players": {
-    "Aaron Rodgers Over 3025.5": {
+    "Aaron Rodgers Over 3050.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
-    "Aaron Rodgers Under 3025.5": {
+    "Aaron Rodgers Under 3050.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Baker Mayfield Over 3500.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Baker Mayfield Under 3500.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Brock Purdy Over 3650.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Brock Purdy Under 3650.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Bryce Young Over 3000.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Bryce Young Under 3000.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Caleb Williams Over 3575.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Caleb Williams Under 3575.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Cam Ward Over 3200.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Cam Ward Under 3200.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "C.J. Stroud Over 3550.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "C.J. Stroud Under 3550.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Dak Prescott Over 4050.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Dak Prescott Under 4050.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake Maye Over 3800.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake Maye Under 3800.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Fernando Mendoza Over 2350.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Fernando Mendoza Under 2350.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jalen Hurts Over 3150.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jalen Hurts Under 3150.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jared Goff Over 4050.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jared Goff Under 4050.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
-    "Jaxson Dart Over 2950.5": {
+    "Jaxson Dart Over 3000.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
-    "Jaxson Dart Under 2950.5": {
+    "Jaxson Dart Under 3000.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jayden Daniels Over 3200.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jayden Daniels Under 3200.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Josh Allen Over 3575.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Josh Allen Under 3575.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jordan Love Over 3525.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jordan Love Under 3525.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Justin Herbert Over 3600.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Justin Herbert Under 3600.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Lamar Jackson Over 3200.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Lamar Jackson Under 3200.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Matthew Stafford Over 3925.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Matthew Stafford Under 3925.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Sam Darnold Over 3700.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Sam Darnold Under 3700.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Trevor Lawrence Over 3725.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Trevor Lawrence Under 3725.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tyler Shough Over 3600.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tyler Shough Under 3600.5": {
       "pass_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ashton Jeanty Over 950.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ashton Jeanty Under 950.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Bijan Robinson Over 1175.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Bijan Robinson Under 1175.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Breece Hall Over 900.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Breece Hall Under 900.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Chase Brown Over 825.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Chase Brown Under 825.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Christian McCaffrey Over 925.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Christian McCaffrey Under 925.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "D'Andre Swift Over 800.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "D'Andre Swift Under 800.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "David Montgomery Over 850.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "David Montgomery Under 850.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
-    "De'Von Achane Over 1000.5": {
+    "De'Von Achane Over 975.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
-    "De'Von Achane Under 1000.5": {
+    "De'Von Achane Under 975.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Derrick Henry Over 1250.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Derrick Henry Under 1250.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake Maye Over 400.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake Maye Under 400.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jahmyr Gibbs Over 1175.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jahmyr Gibbs Under 1175.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jalen Hurts Over 400.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jalen Hurts Under 400.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "James Cook Over 1225.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "James Cook Under 1225.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Javonte Williams Over 975.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Javonte Williams Under 975.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Jaylen Warren Over 650.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Jaylen Warren Under 650.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Jaxson Dart Over 425.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaxson Dart Under 425.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jeremiyah Love Over 875.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jeremiyah Love Under 875.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jonathan Taylor Over 1250.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jonathan Taylor Under 1250.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "J.K. Dobbins Over 700.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "J.K. Dobbins Under 700.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Josh Allen Over 500.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Josh Allen Under 500.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Kenneth Walker Over 925.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Kenneth Walker Under 925.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Kyren Williams Over 950.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Kyren Williams Under 950.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Lamar Jackson Over 575.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Lamar Jackson Under 575.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Omarion Hampton Over 925.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Omarion Hampton Under 925.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Quinshon Judkins Over 900.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Quinshon Judkins Under 900.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Rhamondre Stevenson Over 625.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Rhamondre Stevenson Under 625.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Saquon Barkley Over 1075.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Saquon Barkley Under 1075.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tony Pollard Over 800.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tony Pollard Under 800.5": {
       "rush_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "TreVeyon Henderson Over 700.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "TreVeyon Henderson Under 700.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Travis Etienne Over 750.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Travis Etienne Under 750.5": {
+      "rush_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Amon-Ra St. Brown Over 1225.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Amon-Ra St. Brown Under 1225.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "A.J. Brown Over 1100.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "A.J. Brown Under 1100.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Brock Bowers Over 875.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Brock Bowers Under 875.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Carnell Tate Over 775.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Carnell Tate Under 775.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "CeeDee Lamb Over 1225.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "CeeDee Lamb Under 1225.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Christian Watson Over 775.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Christian Watson Under 775.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Christian McCaffrey Over 550.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Christian McCaffrey Under 550.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Colston Loveland Over 800.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Colston Loveland Under 800.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Davante Adams Over 800.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Davante Adams Under 800.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake London Over 1100.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake London Under 1100.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Emeka Egbuka Over 875.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Emeka Egbuka Under 875.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "George Kittle Over 750.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "George Kittle Under 750.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Courtland Sutton Over 775.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Courtland Sutton Under 775.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Garrett Wilson Over 975.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Garrett Wilson Under 975.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "George Pickens Over 1050.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "George Pickens Under 1050.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jameson Williams Over 925.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jameson Williams Under 925.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ja'Marr Chase Over 1350.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ja'Marr Chase Under 1350.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaxon Smith-Njigba Over 1350.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaxon Smith-Njigba Under 1350.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaylen Waddle Over 850.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaylen Waddle Under 850.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jordyn Tyson Over 800.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jordyn Tyson Under 800.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Justin Jefferson Over 1150.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Justin Jefferson Under 1150.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Jahmyr Gibbs Over 450.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Jahmyr Gibbs Under 450.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "KC Concepcion Over 600.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "KC Concepcion Under 600.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Kenyon Sadiq Over 450.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Kenyon Sadiq Under 450.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Kyle Pitts Over 725.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Kyle Pitts Under 725.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ladd McConkey Over 850.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ladd McConkey Under 850.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Luther Burden III Over 800.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Luther Burden III Under 800.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Makai Lemon Over 650.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Makai Lemon Under 650.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Marvin Harrison Jr. Over 825.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Marvin Harrison Jr. Under 825.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Mark Andrews Over 500.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Mark Andrews Under 500.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Mike Evans Over 800.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Mike Evans Under 800.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Michael Pittman Jr. Over 725.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Michael Pittman Jr. Under 725.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Nico Collins Over 1050.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Nico Collins Under 1050.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Omar Cooper Jr. Over 525.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Omar Cooper Jr. Under 525.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Puka Nacua Over 1375.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Puka Nacua Under 1375.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Rome Odunze Over 800.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Rome Odunze Under 800.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Rashid Shaheed Over 475.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Rashid Shaheed Under 475.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Sam LaPorta Over 650.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Sam LaPorta Under 650.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Tee Higgins Over 875.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tee Higgins Under 875.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tetairoa McMillan Over 925.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tetairoa McMillan Under 925.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Travis Kelce Over 675.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Travis Kelce Under 675.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
-    "Trey McBride Over 1025.5": {
+    "Terry McLaurin Over 900.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
-    "Trey McBride Under 1025.5": {
+    "Terry McLaurin Under 900.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Trey McBride Over 1000.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Trey McBride Under 1000.5": {
+      "rec_yds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Tyler Warren Over 750.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tyler Warren Under 750.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Zay Flowers Over 1000.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Zay Flowers Under 1000.5": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jordyn Tyson": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Carnell Tate": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Makai Lemon": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "KC Concepcion": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Omar Cooper Jr.": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Denzel Boston": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Antonio Williams": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Malachi Fields": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Caleb Douglas": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Germie Bernard": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Chris Brazzell II": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Chris Bell": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "De'Zhaun Stribling": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Elijah Sarratt": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Zachariah Branch": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ja'Kobi Lane": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Kenyon Sadiq": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jeremiyah Love": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jadarian Price": {
       "rec_yds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Baker Mayfield Over 25.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Baker Mayfield Under 25.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Brock Purdy Over 27.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Brock Purdy Under 27.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Bryce Young Over 20.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Bryce Young Under 20.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Caleb Williams Over 24.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Caleb Williams Under 24.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Cam Ward Over 19.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Cam Ward Under 19.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "C.J. Stroud Over 22.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "C.J. Stroud Under 22.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Dak Prescott Over 27.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Dak Prescott Under 27.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake Maye Over 25.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake Maye Under 25.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Fernando Mendoza Over 12.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Fernando Mendoza Under 12.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jalen Hurts Over 22.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jalen Hurts Under 22.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jared Goff Over 29.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jared Goff Under 29.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaxson Dart Over 19.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaxson Dart Under 19.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jayden Daniels Over 20.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jayden Daniels Under 20.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Joe Burrow Over 32.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Joe Burrow Under 32.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jordan Love Over 24.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jordan Love Under 24.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Josh Allen Over 24.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Josh Allen Under 24.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Justin Herbert Over 25.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Justin Herbert Under 25.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Lamar Jackson Over 24.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Lamar Jackson Under 24.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Matthew Stafford Over 29.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Matthew Stafford Under 29.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Sam Darnold Over 23.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Sam Darnold Under 23.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Trevor Lawrence Over 25.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Trevor Lawrence Under 25.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tyler Shough Over 19.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tyler Shough Under 19.5": {
       "pass_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ashton Jeanty Over 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Ashton Jeanty Under 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Bijan Robinson Over 10.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Bijan Robinson Under 10.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Breece Hall Over 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Breece Hall Under 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Chase Brown Over 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Chase Brown Under 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Christian McCaffrey Over 8.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Christian McCaffrey Under 8.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "D'Andre Swift Over 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "D'Andre Swift Under 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "David Montgomery Over 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "David Montgomery Under 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Derrick Henry Over 13.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Derrick Henry Under 13.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake Maye Over 3.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Drake Maye Under 3.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "James Cook Over 10.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "James Cook Under 10.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jalen Hurts Over 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jalen Hurts Under 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Javonte Williams Over 9.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Javonte Williams Under 9.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jahmyr Gibbs Over 11.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jahmyr Gibbs Under 11.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jonathan Taylor Over 11.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jonathan Taylor Under 11.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaxson Dart Over 4.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jaxson Dart Under 4.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jeremiyah Love Over 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Jeremiyah Love Under 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Josh Allen Over 10.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Josh Allen Under 10.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Kenneth Walker III Over 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Kenneth Walker III Under 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Lamar Jackson Over 3.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Lamar Jackson Under 3.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
+    },
+    "Omarion Hampton Over 7.5": {
+      "rush_tds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
+    },
+    "Omarion Hampton Under 7.5": {
+      "rush_tds": 0,
+      "ppg": 0,
+      "updated": "2026-06-23"
     },
     "Rhamondre Stevenson Over 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Rhamondre Stevenson Under 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Saquon Barkley Over 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Saquon Barkley Under 7.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tony Pollard Over 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Tony Pollard Under 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Travis Etienne Over 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "Travis Etienne Under 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "TreVeyon Henderson Over 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     },
     "TreVeyon Henderson Under 5.5": {
       "rush_tds": 0,
       "ppg": 0,
-      "updated": "2026-06-16"
+      "updated": "2026-06-23"
     }
   }
 }
